@@ -1,0 +1,13 @@
+# Loose personal/session files at the project root — not part of the source code
+/Presentation.pptx
+/*.mp4
+/*.html
+
+# Laravel runtime SQLite databases — contain real personal data
+# (driver license numbers, phone numbers, emails); never version these.
+/server/database/database.sqlite
+/server/trucks
+
+# OS
+.DS_Store
+Thumbs.db
