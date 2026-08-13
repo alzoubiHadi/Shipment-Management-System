@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/AuthResponse.dart';
 import '../models/Appuser.dart';
+import 'DriverApprovalStatusPage.dart';
 import 'HomeScreen.dart';
 
 // ─── Password Strength ────────────────────────────────────────────────────────
@@ -129,19 +130,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
       prefs.setBool('loggedIn', true);
 
       if (mounted) {
+        // Every self-registered driver starts out 'pending' — send them to
+        // the status screen instead of straight into the app, since there's
+        // nothing for them to do yet until an admin approves them.
+        final isUnapprovedDriver = response.role == 'driver' &&
+            response.driverApprovalStatus != 'approved';
+
         // Clear Splash/Login/Register from the stack entirely so the
         // browser back button can't land back on them.
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => HomeScreen(
-              user: AppUser(
-                name: response.name,
-                email: email,
-                role: response.role,
-                id: response.userId,
-              ),
-            ),
+            builder: (_) => isUnapprovedDriver
+                ? DriverApprovalStatusPage(
+                    approvalStatus: response.driverApprovalStatus,
+                    rejectionReason: response.driverRejectionReason,
+                    documentIssues: response.driverDocumentIssues,
+                  )
+                : HomeScreen(
+                    user: AppUser(
+                      name: response.name,
+                      email: email,
+                      role: response.role,
+                      id: response.userId,
+                    ),
+                  ),
           ),
           (route) => false,
         );

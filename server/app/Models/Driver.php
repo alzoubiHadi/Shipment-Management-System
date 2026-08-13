@@ -21,6 +21,8 @@ class Driver extends Model
         'user_id',
         'employment_type',
         'status',
+        'approval_status',
+        'rejection_reason',
         'residency_expiry',
         'passport_expiry',
         'blood_type',
@@ -31,6 +33,10 @@ class Driver extends Model
         'residency_expiry' => 'date',
         'passport_expiry' => 'date',
     ];
+
+    // Automatically included in every JSON response for this model, so the
+    // app can show document-expiry warnings without any extra API call.
+    protected $appends = ['document_issues'];
 
     public function user()
     {
@@ -49,7 +55,12 @@ class Driver extends Model
 
     /**
      * A driver is eligible to be offered a new job if they are currently
-     * marked available and none of their required documents have expired.
+     * marked available, have been approved by an admin, and none of their
+     * required documents have actually expired. A document that was never
+     * recorded (null) does NOT block job-matching here — that's a separate,
+     * stricter check (see documentIssues()) used specifically to gate
+     * *admin approval*, not day-to-day job eligibility, so this keeps the
+     * original behaviour for every driver that already passed approval.
      */
     public function isEligibleForNewJob(): bool
     {
@@ -57,7 +68,9 @@ class Driver extends Model
             return false;
         }
 
-        $today = now()->toDateString();
+        if ($this->approval_status !== 'approved') {
+            return false;
+        }
 
         if ($this->license_expiry && $this->license_expiry->isPast()) {
             return false;
@@ -72,6 +85,42 @@ class Driver extends Model
         }
 
         return true;
+    }
+
+    /**
+     * List of human-readable problems with this driver's documents — used
+     * to decide whether an admin can approve a self-registered driver, and
+     * to show warnings in the admin's drivers list. Stricter than
+     * isEligibleForNewJob(): a missing license expiry blocks *approval*
+     * (the admin must fill it in while reviewing), since self-registration
+     * never collects it. Passport/residency are only flagged if expired,
+     * not simply missing, since not every driver needs them (e.g. citizens
+     * don't need a residency permit).
+     */
+    public function documentIssues(): array
+    {
+        $issues = [];
+
+        if (! $this->license_expiry) {
+            $issues[] = 'License expiry date missing';
+        } elseif ($this->license_expiry->isPast()) {
+            $issues[] = 'Driver license expired';
+        }
+
+        if ($this->passport_expiry && $this->passport_expiry->isPast()) {
+            $issues[] = 'Passport expired';
+        }
+
+        if ($this->residency_expiry && $this->residency_expiry->isPast()) {
+            $issues[] = 'Residency expired';
+        }
+
+        return $issues;
+    }
+
+    public function getDocumentIssuesAttribute(): array
+    {
+        return $this->documentIssues();
     }
 
     /**

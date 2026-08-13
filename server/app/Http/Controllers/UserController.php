@@ -75,6 +75,13 @@ class UserController extends Controller
                         ? 'internal'
                         : 'external',
                     'status' => 'available',
+                    // Self-registered drivers always start out pending —
+                    // an admin must review their documents and approve them
+                    // before they can be matched with any shipment. Drivers
+                    // created directly by an admin (DriverController::create)
+                    // default to 'approved' instead, since the admin is
+                    // already vouching for them at creation time.
+                    'approval_status' => 'pending',
                     'user_id' => $user->id,
                 ]);
             }
@@ -122,6 +129,14 @@ class UserController extends Controller
 
         $token = $user->createToken('api-token')->plainTextToken;
 
+        // Drivers carry an admin-approval status; the app needs this at
+        // login time (not just at registration time) to keep showing the
+        // "awaiting approval" screen on every subsequent login until an
+        // admin approves them.
+        $driver = $user->type === 'driver'
+            ? Driver::where('user_id', $user->id)->first()
+            : null;
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful.',
@@ -134,7 +149,8 @@ class UserController extends Controller
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer',
-            ]
+            ],
+            'driver' => $driver,
         ], 200);
     }
 }

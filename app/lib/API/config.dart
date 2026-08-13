@@ -2,7 +2,11 @@ library config;
 
 import 'dart:ui';
 
-String baseUrl = "http://127.0.0.1:8000/api";
+// Must be the computer's LAN IP (from `ipconfig`), not 127.0.0.1 — a real
+// phone treats 127.0.0.1 as itself, not the computer running the server.
+// Both devices must be on the same Wi-Fi network, and the server must run
+// with `php artisan serve --host=0.0.0.0 --port=8000`.
+String baseUrl = "http://192.168.8.152:8000/api";
 
 
 

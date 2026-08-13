@@ -238,4 +238,62 @@ class DriverService {
       return false;
     }
   }
+
+  /// Admin approves a pending (self-registered) driver. Fails with the
+  /// document issues if the server finds any (expired/missing license,
+  /// passport, or residency) so the admin knows exactly why.
+  static Future<Map<String, dynamic>> approveDriver(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/drivers/$id/approve'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print(response.body);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message']};
+      }
+
+      String message = data['message'] ?? 'Could not approve driver';
+      if (data['document_issues'] != null) {
+        message += '\n' + (data['document_issues'] as List).join('\n');
+      }
+      return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Admin rejects a pending (self-registered) driver, optionally with a
+  /// reason that will be shown to the driver in the app.
+  static Future<bool> rejectDriver(String id, {String? reason}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/drivers/$id/reject'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'reason': reason}),
+      );
+
+      print(response.body);
+      return response.statusCode == 200;
+    } catch (e) {
+      print(e);
+      return false;
+    }
+  }
 }

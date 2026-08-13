@@ -26,6 +26,10 @@ class _DriverspageState extends State<Driverspage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
+  // 'all' | 'pending' | 'approved' | 'rejected' — lets the admin quickly
+  // isolate self-registered drivers awaiting review from everyone else.
+  String _approvalFilter = 'all';
+
   @override
   void initState() {
     super.initState();
@@ -43,12 +47,20 @@ class _DriverspageState extends State<Driverspage> {
   });
 
   List<Driver> _filterdata(List<Driver> list) {
-    if (_searchQuery.isEmpty) return list;
+    var result = list;
 
-    return list.where((s) {
-      final name = (s.name ?? '').toLowerCase();
-      return name.contains(_searchQuery);
-    }).toList();
+    if (_approvalFilter != 'all') {
+      result = result.where((d) => d.approvalStatus == _approvalFilter).toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      result = result.where((s) {
+        final name = (s.name ?? '').toLowerCase();
+        return name.contains(_searchQuery);
+      }).toList();
+    }
+
+    return result;
   }
 
   @override
@@ -143,28 +155,76 @@ class _DriverspageState extends State<Driverspage> {
                   );
                 }
 
-                final drivers = _filterdata(snapshot.data ?? []);
+                final allDrivers = snapshot.data ?? [];
+                final pendingCount =
+                    allDrivers.where((d) => d.approvalStatus == 'pending').length;
 
-                if (drivers.isEmpty) {
-                  return const SliverToBoxAdapter(child: _EmptyState());
-                }
-
-                return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: index == drivers.length - 1 ? 0 : 10),
-                          child: DriverItem(
-                            driver: drivers[index],
-                            onRefresh: _refresh,
-                          ),
-                        );
-                      },
-                      childCount: drivers.length,
+                final filterBar = SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
+                    child: Row(
+                      children: [
+                        _FilterChip(
+                          label: 'All',
+                          selected: _approvalFilter == 'all',
+                          onTap: () => setState(() => _approvalFilter = 'all'),
+                        ),
+                        const SizedBox(width: 8),
+                        _FilterChip(
+                          label: pendingCount > 0 ? 'Pending ($pendingCount)' : 'Pending',
+                          selected: _approvalFilter == 'pending',
+                          highlight: pendingCount > 0,
+                          onTap: () => setState(() => _approvalFilter = 'pending'),
+                        ),
+                        const SizedBox(width: 8),
+                        _FilterChip(
+                          label: 'Approved',
+                          selected: _approvalFilter == 'approved',
+                          onTap: () => setState(() => _approvalFilter = 'approved'),
+                        ),
+                        const SizedBox(width: 8),
+                        _FilterChip(
+                          label: 'Rejected',
+                          selected: _approvalFilter == 'rejected',
+                          onTap: () => setState(() => _approvalFilter = 'rejected'),
+                        ),
+                      ],
                     ),
                   ),
+                );
+
+                final drivers = _filterdata(allDrivers);
+
+                if (drivers.isEmpty) {
+                  return SliverMainAxisGroup(
+                    slivers: [
+                      filterBar,
+                      const SliverToBoxAdapter(child: _EmptyState()),
+                    ],
+                  );
+                }
+
+                return SliverMainAxisGroup(
+                  slivers: [
+                    filterBar,
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: index == drivers.length - 1 ? 0 : 10),
+                              child: DriverItem(
+                                driver: drivers[index],
+                                onRefresh: _refresh,
+                              ),
+                            );
+                          },
+                          childCount: drivers.length,
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -256,6 +316,47 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+// ── Filter chip ──────────────────────────────────────────────────────────────
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool highlight;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.highlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = highlight && !selected ? AppColors.gold : AppColors.border;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.gold : AppColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: borderColor),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? AppColors.bg : AppColors.cream,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Item ─────────────────────────────────────────────────────────────────────
 
 class DriverItem extends StatelessWidget {
@@ -302,6 +403,24 @@ class DriverItem extends StatelessWidget {
                   style: const TextStyle(fontSize: 11, color: AppColors.muted),
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 6),
+                _ApprovalBadge(status: driver.approvalStatus),
+                if (driver.documentIssues.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, size: 12, color: AppColors.error),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          driver.documentIssues.join(', '),
+                          style: const TextStyle(fontSize: 10, color: AppColors.error),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -343,13 +462,17 @@ class DriverItem extends StatelessWidget {
                     constraints: const BoxConstraints(),
                     icon: const Icon(Icons.visibility_outlined, size: 20),
                     color: AppColors.gold,
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => DriverDetailsPage(driver: driver),
                         ),
                       );
+
+                      if (result == true) {
+                        onRefresh?.call();
+                      }
                     },
                   ),
                   const SizedBox(width: 8),
@@ -413,11 +536,111 @@ class DriverItem extends StatelessWidget {
                       }
                     },
                   ),
+
+                  // 4. APPROVE / REJECT — only shown for drivers still
+                  // awaiting admin review (self-registered, not yet acted on)
+                  if (driver.approvalStatus == 'pending') ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.check_circle_outline, size: 20),
+                      color: AppColors.success,
+                      tooltip: 'Approve',
+                      onPressed: () async {
+                        final result = await DriverService.approveDriver(driver.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result['message'] ?? '')),
+                          );
+                        }
+                        if (result['success'] == true) {
+                          onRefresh?.call();
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.cancel_outlined, size: 20),
+                      color: AppColors.error,
+                      tooltip: 'Reject',
+                      onPressed: () async {
+                        final reasonCtrl = TextEditingController();
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: AppColors.surface,
+                            title: const Text('Reject Driver', style: TextStyle(color: AppColors.cream)),
+                            content: TextField(
+                              controller: reasonCtrl,
+                              style: const TextStyle(color: AppColors.cream),
+                              decoration: const InputDecoration(
+                                hintText: 'Reason (optional)',
+                                hintStyle: TextStyle(color: AppColors.muted),
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirmed == true) {
+                          await DriverService.rejectDriver(driver.id, reason: reasonCtrl.text.trim());
+                          onRefresh?.call();
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Approval badge ───────────────────────────────────────────────────────────
+
+class _ApprovalBadge extends StatelessWidget {
+  final String status;
+  const _ApprovalBadge({required this.status});
+
+  Color get _color => switch (status) {
+        'approved' => AppColors.success,
+        'rejected' => AppColors.error,
+        _ => AppColors.info,
+      };
+
+  String get _label => switch (status) {
+        'approved' => 'Approved',
+        'rejected' => 'Rejected',
+        _ => 'Pending review',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: _color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _color.withOpacity(0.4)),
+      ),
+      child: Text(
+        _label,
+        style: TextStyle(fontSize: 9, color: _color, fontWeight: FontWeight.w600),
       ),
     );
   }

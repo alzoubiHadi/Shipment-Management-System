@@ -39,6 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
    Route::put('/restore/drivers/{id}', [DriverController::class, 'restore']);
     Route::put('/update/drivers/{driver}', [DriverController::class, 'update']);
     Route::put('/drivers/{driver}/status', [DriverController::class, 'updateStatus']);
+    Route::put('/drivers/{driver}/approve', [DriverController::class, 'approve']);
+    Route::put('/drivers/{driver}/reject', [DriverController::class, 'reject']);
 
     // Trucks
     Route::get('/get/trucks', [TruckController::class, 'index']);

@@ -125,33 +125,47 @@ class _SplashPageState extends State<SplashPage>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      FadeTransition(
-                        opacity: _fadeIn,
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(6),
+                      // Wrapped in Flexible so this side shrinks (instead of
+                      // pushing the Login button off-screen) on narrower
+                      // portrait phone screens — previously this had no
+                      // Flexible/Expanded, so on some real devices in
+                      // portrait the Row overflowed and the Login button
+                      // was rendered off the visible edge (only reappearing
+                      // in landscape, where there's enough extra width).
+                      Flexible(
+                        child: FadeTransition(
+                          opacity: _fadeIn,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Image.asset(
+                                  'assets/images/albatrans-logo.png',
+                                  height: 22,
+                                ),
                               ),
-                              child: Image.asset(
-                                'assets/images/albatrans-logo.png',
-                                height: 22,
+                              const SizedBox(width: 10),
+                              const Flexible(
+                                child: Text(
+                                  'ALBA',
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 6,
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              'ALBA',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 6,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       FadeTransition(

@@ -60,6 +60,10 @@ class DriverController extends Controller
                 'user_id' => $user->id,
                 'employment_type' => $request->employment_type ?? 'internal',
                 'status' => $request->status ?? 'available',
+                // A driver added directly by the admin is already vetted at
+                // creation time (unlike self-registration), so it's
+                // approved by default.
+                'approval_status' => $request->approval_status ?? 'approved',
                 'residency_expiry' => $request->residency_expiry,
                 'passport_expiry' => $request->passport_expiry,
                 'blood_type' => $request->blood_type,
@@ -154,6 +158,56 @@ public function restore( $id)
 
         return response()->json([
             'message' => 'Driver status updated successfully',
+            'driver' => $driver,
+        ], 200);
+    }
+
+    /**
+     * Admin approves a self-registered driver, allowing them to be matched
+     * with shipments. Also runs the document check so the admin gets an
+     * immediate error if approving a driver whose documents are missing or
+     * expired, instead of silently approving someone who still can't
+     * actually be assigned any job.
+     */
+    public function approve(Driver $driver)
+    {
+        $issues = $driver->documentIssues();
+
+        if (! empty($issues)) {
+            return response()->json([
+                'message' => 'Cannot approve: this driver has unresolved document issues.',
+                'document_issues' => $issues,
+            ], 422);
+        }
+
+        $driver->update([
+            'approval_status' => 'approved',
+            'rejection_reason' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Driver approved successfully',
+            'driver' => $driver,
+        ], 200);
+    }
+
+    /**
+     * Admin rejects a self-registered driver, optionally with a reason
+     * shown to the driver in the app.
+     */
+    public function reject(Request $request, Driver $driver)
+    {
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $driver->update([
+            'approval_status' => 'rejected',
+            'rejection_reason' => $validated['reason'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Driver rejected',
             'driver' => $driver,
         ], 200);
     }

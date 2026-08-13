@@ -1,8 +1,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for the app to open any network connection at all. Without
+         this, Android blocks socket creation at the OS level with
+         "SocketException: Operation not permitted, errno = 1" — this is the
+         exact error seen in the release build. The debug manifest
+         (android/app/src/debug/AndroidManifest.xml) already had this
+         permission for Flutter's own tooling needs, which is why this never
+         showed up in `flutter run` (debug), only in the release APK. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
+        <!-- The server is plain HTTP (no SSL certificate) since it's only
+             reachable on the local network during development. Modern
+             Android blocks plain HTTP by default in release builds (this is
+             why the phone's browser could reach the API but the installed
+             app could not) — this flag explicitly allows it. For a real
+             production deployment the server should move to HTTPS and this
+             flag should be removed. -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

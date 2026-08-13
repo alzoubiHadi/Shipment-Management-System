@@ -23,11 +23,33 @@ class AuthResponse {
   final String name;
   final String role;
 
-  AuthResponse({required this.token, required this.userId, required this.email, required this.name, required this.role});
+  // Only meaningful when role == 'driver'. Defaults to 'approved' for every
+  // other role (admin/company) so calling code doesn't need to special-case
+  // them when deciding whether to show the "awaiting approval" screen.
+  final String driverApprovalStatus;
+  final String? driverRejectionReason;
+  final List<String> driverDocumentIssues;
+
+  AuthResponse({
+    required this.token,
+    required this.userId,
+    required this.email,
+    required this.name,
+    required this.role,
+    this.driverApprovalStatus = 'approved',
+    this.driverRejectionReason,
+    this.driverDocumentIssues = const [],
+  });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] ?? {};
     final user = data['user'] ?? {};
+    // login() and register() both return it under a top-level 'driver' key
+    // (null for non-driver accounts, or if the request failed to include it).
+    final Map<String, dynamic>? driver =
+        json['driver'] is Map ? Map<String, dynamic>.from(json['driver']) : null;
+
+    final rawIssues = driver == null ? null : driver['document_issues'];
 
     return AuthResponse(
       token: data['access_token'] ?? '',
@@ -35,6 +57,13 @@ class AuthResponse {
       email: user['email'] ?? '',
       name: user['name'] ?? '',
       role: user['type'] ?? '',
+      driverApprovalStatus: driver == null
+          ? 'approved'
+          : (driver['approval_status']?.toString() ?? 'approved'),
+      driverRejectionReason: driver?['rejection_reason']?.toString(),
+      driverDocumentIssues: rawIssues is List
+          ? List<String>.from(rawIssues.map((e) => e.toString()))
+          : const [],
     );
   }
 
@@ -79,7 +108,8 @@ class ApiService {
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Could not connect. Check your internet connection.');
+      // TEMPORARY diagnostic — see the register() function below for why.
+      throw ApiException('Could not connect: $e');
     }
   }
 
@@ -122,7 +152,10 @@ class ApiService {
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Could not connect. Check your internet connection.');
+      // TEMPORARY diagnostic: show the real error instead of the generic
+      // message, so we can see exactly what's failing this time (server
+      // error page instead of JSON, timeout, socket error, etc).
+      throw ApiException('Could not connect: $e');
     }
   }
 }
