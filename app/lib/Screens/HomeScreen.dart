@@ -2,6 +2,7 @@ import 'package:app/Screens/AddShipmentForm.dart';
 import 'package:app/Screens/Driverspage.dart';
 import 'package:flutter/material.dart';
 
+import '../API/PushNotificationSetup.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/NavItem.dart';
@@ -9,6 +10,7 @@ import '../models/NavItem.dart';
 
 import 'CelebrateBottomNav.dart';
 import 'Companiespage.dart';
+import 'CompanyOffersPage.dart';
 import 'CompnayShipments.dart';
 import 'DriverOffersPage.dart';
 import 'PlaceholderPage.dart';
@@ -34,6 +36,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Registers this device's FCM token (and requests notification
+    // permission) once per authenticated session — HomeScreen is the one
+    // screen every login/auto-login path always passes through.
+    PushNotificationSetup.initialize();
+  }
 
   // NAV ITEMS
   List<NavItem> get _navItems {
@@ -68,13 +79,24 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           NavItem(
+            icon: Icons.local_shipping_outlined,
+            activeIcon: Icons.local_shipping_rounded,
+            label: 'Offers',
+          ),
+
+          NavItem(
             icon: Icons.person_outline,
             activeIcon: Icons.person_rounded,
             label: 'Profile',
           ),
         ];
 
+      // Legacy seeded admin accounts use the literal 'admin' type; accounts
+      // created via Phase 2's admin-management UI use 'super_admin' or
+      // 'sub_admin' — all three get the same admin navigation.
       case "admin":
+      case "super_admin":
+      case "sub_admin":
         return [
 
           NavItem(
@@ -131,11 +153,14 @@ class _HomeScreenState extends State<HomeScreen> {
       case "company":
         return [
           Compnayshipments(user: widget.user),
+          CompanyOffersPage(user: widget.user),
           Profile(user: widget.user),
         ];
 //
 //
       case "admin":
+      case "super_admin":
+      case "sub_admin":
         return [
           Driverspage(user: widget.user),
           Companiespage(user: widget.user),

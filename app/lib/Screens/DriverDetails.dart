@@ -82,6 +82,144 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
     }
   }
 
+  Color get _complianceColor => switch (driver.complianceStatus) {
+        'active' => AppColors.success,
+        'warning' => AppColors.gold,
+        _ => AppColors.error,
+      };
+
+  /// Super Admin (UC-25 special requirement): freeze a driver directly,
+  /// skipping the report/escalation workflow.
+  Future<void> _suspend() async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Suspend Driver', style: TextStyle(color: AppColors.cream)),
+        content: TextField(
+          controller: reasonCtrl,
+          style: const TextStyle(color: AppColors.cream),
+          decoration: const InputDecoration(
+            hintText: 'Reason (required)',
+            hintStyle: TextStyle(color: AppColors.muted),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: reasonCtrl.text.trim().isEmpty
+                ? null
+                : () => Navigator.pop(ctx, true),
+            child: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || reasonCtrl.text.trim().isEmpty) return;
+
+    setState(() => _busy = true);
+    final result = await DriverService.suspendDriver(driver.id, reasonCtrl.text.trim());
+    setState(() => _busy = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? '')),
+      );
+      if (result['success'] == true) Navigator.pop(context, true);
+    }
+  }
+
+  Future<void> _reactivate() async {
+    setState(() => _busy = true);
+    final result = await DriverService.reactivateDriver(driver.id);
+    setState(() => _busy = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? '')),
+      );
+      if (result['success'] == true) Navigator.pop(context, true);
+    }
+  }
+
+  /// UC-24: Super Admin rates a driver directly, independent of any
+  /// shipment.
+  Future<void> _rate() async {
+    int score = 0;
+    final commentCtrl = TextEditingController();
+
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Rate driver', style: TextStyle(color: AppColors.cream)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) {
+                  final starIndex = i + 1;
+                  return IconButton(
+                    onPressed: () => setDialogState(() => score = starIndex),
+                    icon: Icon(
+                      starIndex <= score ? Icons.star : Icons.star_border,
+                      color: AppColors.gold,
+                    ),
+                  );
+                }),
+              ),
+              TextField(
+                controller: commentCtrl,
+                maxLines: 2,
+                style: const TextStyle(color: AppColors.cream),
+                decoration: const InputDecoration(
+                  hintText: 'Comment (optional)',
+                  hintStyle: TextStyle(color: AppColors.muted),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            ),
+            TextButton(
+              onPressed: score == 0 ? null : () => Navigator.pop(ctx, score),
+              child: const Text('Submit', style: TextStyle(color: AppColors.gold)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (picked == null || picked == 0) return;
+
+    setState(() => _busy = true);
+    final result = await DriverService.rateDriver(
+      driverId: driver.id,
+      score: picked,
+      comment: commentCtrl.text.trim(),
+    );
+    setState(() => _busy = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']?.toString() ?? ''),
+          backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,6 +307,29 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                 ),
               ],
 
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.star, color: AppColors.gold, size: 16),
+                  const SizedBox(width: 4),
+                  Text(driver.rating.toStringAsFixed(2),
+                      style: const TextStyle(color: AppColors.cream, fontSize: 13)),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _complianceColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      driver.complianceStatus,
+                      style: TextStyle(color: _complianceColor, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+
               if (driver.documentIssues.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Container(
@@ -236,6 +397,44 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                         icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.error),
                         label: const Text('Reject', style: TextStyle(color: AppColors.error)),
                       ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (driver.approvalStatus == 'approved') ...[
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busy ? null : _rate,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.gold),
+                        ),
+                        icon: const Icon(Icons.star_outline, size: 18, color: AppColors.gold),
+                        label: const Text('Rate', style: TextStyle(color: AppColors.gold)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: driver.complianceStatus == 'active' || driver.complianceStatus == 'warning'
+                          ? OutlinedButton.icon(
+                              onPressed: _busy ? null : _suspend,
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.error),
+                              ),
+                              icon: const Icon(Icons.block, size: 18, color: AppColors.error),
+                              label: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+                            )
+                          : OutlinedButton.icon(
+                              onPressed: _busy ? null : _reactivate,
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.success),
+                              ),
+                              icon: const Icon(Icons.refresh, size: 18, color: AppColors.success),
+                              label: const Text('Reactivate', style: TextStyle(color: AppColors.success)),
+                            ),
                     ),
                   ],
                 ),

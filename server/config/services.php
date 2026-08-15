@@ -35,4 +35,19 @@ return [
         ],
     ],
 
+    /*
+    | Firebase Cloud Messaging — HTTP v1 API. Google fully shut down the
+    | old legacy server-key HTTP API in mid-2024, so this project uses the
+    | current OAuth2-based v1 endpoint instead (see
+    | App\Services\FcmAccessTokenProvider). Requires a service account
+    | JSON downloaded from Firebase Console -> Project Settings -> Service
+    | Accounts -> Generate new private key, saved to the path below
+    | (gitignored — never commit this file). Push silently no-ops wherever
+    | the file is missing, so the app keeps working fully via the in-app
+    | notifications list before Firebase is configured.
+    */
+    'fcm' => [
+        'credentials_path' => env('FIREBASE_CREDENTIALS_PATH', storage_path('app/firebase-service-account.json')),
+    ],
+
 ];

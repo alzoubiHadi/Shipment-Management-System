@@ -37,6 +37,9 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   uuid: ^4.0.0
+  file_picker: ^8.1.2
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 
 dev_dependencies:
   flutter_test:

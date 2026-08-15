@@ -1,0 +1,15 @@
+vendor
+node_modules
+.env
+.env.*
+!.env.example
+storage/app/firebase-service-account.json
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+database/database.sqlite
+.git
+.idea
+.vscode
+tests

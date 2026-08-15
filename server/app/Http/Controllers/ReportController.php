@@ -67,6 +67,15 @@ class ReportController extends Controller
                 ->where('status', 3)->count(),
             'cancelled_count' => Shipment::where('driver_id', $driver->id)
                 ->where('status', 4)->count(),
+            // Surfaced here (rather than a new endpoint) so the existing
+            // Profile screen call gets it for free — used by the Flutter
+            // balance page to show the driver's current withdrawable amount.
+            'balance' => $driver->balance,
+            'has_pending_payout' => $driver->hasPendingPayout(),
+            // UC-23/24/25/26: surfaced here too, for the same reason as
+            // balance above — the Profile screen already calls this.
+            'rating' => $driver->rating,
+            'compliance_status' => $driver->compliance_status,
         ], 200);
     }
 

@@ -5,6 +5,9 @@ import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Truck.dart';
 import 'AddTruckPage.dart';
+import 'CompanyBalancePage.dart';
+import 'DriverBalancePage.dart';
+import 'DriverComplianceReportsPage.dart';
 
 class Profile extends StatefulWidget {
   final AppUser user;
@@ -69,6 +72,56 @@ class _ProfileState extends State<Profile> {
               value: widget.user.email ?? '—',
             ),
 
+            if (role == 'driver' || role == 'company') ...[
+              const SizedBox(height: 24),
+              _SectionTitle('Finance'),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => role == 'driver'
+                        ? const DriverBalancePage()
+                        : const CompanyBalancePage(),
+                  ),
+                ),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.gold.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.account_balance_wallet_outlined,
+                            color: AppColors.gold, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'My Balance',
+                          style: TextStyle(
+                              color: AppColors.cream,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: AppColors.muted),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
             if (_isDriver) ...[
               const SizedBox(height: 24),
               _SectionTitle('My Performance'),
@@ -97,6 +150,71 @@ class _ProfileState extends State<Profile> {
                         ),
                       ),
                     ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              _SectionTitle('Rating & Compliance'),
+              const SizedBox(height: 12),
+              FutureBuilder<Map<String, dynamic>>(
+                future: _reportFuture,
+                builder: (context, snapshot) {
+                  final rating =
+                      double.tryParse(snapshot.data?['rating']?.toString() ?? '') ?? 4.5;
+                  final compliance =
+                      snapshot.data?['compliance_status']?.toString() ?? 'active';
+                  final complianceColor = compliance == 'active'
+                      ? AppColors.success
+                      : compliance == 'warning'
+                          ? AppColors.gold
+                          : AppColors.error;
+
+                  return InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DriverComplianceReportsPage(),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border, width: 0.5),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star, color: AppColors.gold, size: 20),
+                          const SizedBox(width: 6),
+                          Text(
+                            rating.toStringAsFixed(2),
+                            style: const TextStyle(
+                                color: AppColors.cream,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: complianceColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              compliance,
+                              style: TextStyle(
+                                  color: complianceColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chevron_right, color: AppColors.muted),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),

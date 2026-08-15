@@ -361,6 +361,132 @@ class ShipmentService {
     }
   }
 
+  /// Company (UC-20): confirms receipt of a shipment sitting in
+  /// 'awaiting_confirmation' — the only action that pays the driver.
+  Future<Map<String, dynamic>> confirmDelivery({required int shipmentId}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/shipments/$shipmentId/confirm-delivery'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'shipment': data['shipment'],
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Company (UC-20 alternative flow): reports a problem instead of
+  /// confirming — routes to admin review, driver stays unpaid until
+  /// resolved.
+  Future<Map<String, dynamic>> disputeDelivery({
+    required int shipmentId,
+    required String reason,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/shipments/$shipmentId/dispute-delivery'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'dispute_reason': reason}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'shipment': data['shipment'],
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Company (UC-23): rates the driver after confirming delivery — one
+  /// rating per shipment, only once delivery_status is 'confirmed'.
+  Future<Map<String, dynamic>> rateDriver({
+    required int shipmentId,
+    required int score,
+    String? comment,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/shipments/$shipmentId/rate-driver'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'score': score,
+          if (comment != null && comment.isNotEmpty) 'comment': comment,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 201,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Driver (UC-22): adds a field comment to a shipment they're assigned.
+  Future<Map<String, dynamic>> addShipmentComment({
+    required int shipmentId,
+    required String comment,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/shipments/$shipmentId/comments'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'comment': comment}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 201,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<bool> addShipment({ required Shipment shipment }) async {
     try {
       final prefs = await SharedPreferences.getInstance();

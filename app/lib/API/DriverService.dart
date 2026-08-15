@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 import '../models/Driver.dart';
+import '../models/DriverRating.dart';
 import 'config.dart';
 
 class DriverService {
@@ -295,5 +296,112 @@ class DriverService {
       print(e);
       return false;
     }
+  }
+
+  /// Super Admin: freezes a driver directly (compliance_status='suspended'),
+  /// skipping the report/escalation workflow — for serious findings that
+  /// don't need the full review process.
+  static Future<Map<String, dynamic>> suspendDriver(String id, String reason) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/drivers/$id/suspend'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'reason': reason}),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  static Future<Map<String, dynamic>> reactivateDriver(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/drivers/$id/reactivate'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// UC-24: Super Admin rates a driver directly (no shipment attached).
+  static Future<Map<String, dynamic>> rateDriver({
+    required String driverId,
+    required int score,
+    String? comment,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/drivers/$driverId/rate'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'score': score,
+          if (comment != null && comment.isNotEmpty) 'comment': comment,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 201,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'driver_rating': data['driver_rating'],
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Full rating history for a driver — admin driver-detail view.
+  static Future<List<DriverRating>> fetchDriverRatings(String driverId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/drivers/$driverId/ratings'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return (data['ratings'] as List)
+          .map((e) => DriverRating.fromJson(e))
+          .toList();
+    }
+    throw Exception('Failed to load ratings (HTTP ${response.statusCode})');
   }
 }

@@ -102,7 +102,8 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
       setState(() => _shipment = Shipment.fromJson(response['shipment']));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Shipment delivered successfully'),
+          content: Text(
+              'Delivery recorded — awaiting company confirmation before payout'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -111,6 +112,83 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
         SnackBar(content: Text(response['message']?.toString() ?? 'Failed')),
       );
     }
+  }
+
+  Color _deliveryStatusColor(String status) {
+    switch (status) {
+      case 'awaiting_confirmation':
+        return AppColors.gold;
+      case 'confirmed':
+        return AppColors.success;
+      case 'disputed':
+        return AppColors.error;
+      default:
+        return AppColors.muted;
+    }
+  }
+
+  String _deliveryStatusLabel(String status) {
+    switch (status) {
+      case 'awaiting_confirmation':
+        return 'Awaiting confirmation';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'disputed':
+        return 'Disputed';
+      default:
+        return 'Not delivered';
+    }
+  }
+
+  /// UC-22: driver flags a field problem on this shipment. Simple
+  /// fire-and-forget text log — visible to the owning company and every
+  /// admin (ShipmentController::listComments).
+  Future<void> _addComment() async {
+    final controller = TextEditingController();
+
+    final comment = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Add a comment',
+            style: TextStyle(color: AppColors.cream)),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          style: const TextStyle(color: AppColors.cream),
+          decoration: const InputDecoration(
+            hintText: 'e.g. truck breakdown, road closure...',
+            hintStyle: TextStyle(color: AppColors.muted),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save', style: TextStyle(color: AppColors.gold)),
+          ),
+        ],
+      ),
+    );
+
+    if (comment == null || comment.isEmpty) return;
+
+    final result = await _service.addShipmentComment(
+      shipmentId: _shipment.id,
+      comment: comment,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['success'] == true
+            ? 'Comment added'
+            : (result['message']?.toString() ?? 'Failed to add comment')),
+      ),
+    );
   }
 
   String? _timestampFor(int stage) {
@@ -151,6 +229,12 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
           style: const TextStyle(color: AppColors.cream),
         ),
         actions: [
+          if (!widget.readOnly)
+            IconButton(
+              onPressed: _addComment,
+              icon: const Icon(Icons.comment_outlined, color: AppColors.cream),
+              tooltip: 'Add comment',
+            ),
           if (widget.readOnly && current < 7)
             const Padding(
               padding: EdgeInsets.only(left: 16),
@@ -210,13 +294,36 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Proof of delivery',
-                    style: TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Proof of delivery',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _deliveryStatusColor(_shipment.deliveryStatus)
+                              .withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _deliveryStatusLabel(_shipment.deliveryStatus),
+                          style: TextStyle(
+                            color: _deliveryStatusColor(_shipment.deliveryStatus),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(

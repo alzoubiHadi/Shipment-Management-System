@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../API/TruckService.dart';
@@ -13,21 +14,45 @@ class AddTruckPage extends StatefulWidget {
 class _AddTruckPageState extends State<AddTruckPage> {
   final _formKey = GlobalKey<FormState>();
   final _truckNumberController = TextEditingController();
-  final _truckTypeController = TextEditingController();
 
+  // Must be one of the 11 fixed types the backend accepts (Truck::TRUCK_TYPES).
+  String? _truckType;
   bool _hasRefrigeration = false;
   bool _isSaving = false;
   String? _errorMessage;
 
+  PlatformFile? _licenseFile;
+
   @override
   void dispose() {
     _truckNumberController.dispose();
-    _truckTypeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLicenseFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true, // required for Flutter Web — no filesystem path there
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      setState(() => _licenseFile = result.files.single);
+    }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_truckType == null) {
+      setState(() => _errorMessage = 'Please select a truck type');
+      return;
+    }
+
+    if (_licenseFile == null || _licenseFile!.bytes == null) {
+      setState(() => _errorMessage = 'Please attach the vehicle license file');
+      return;
+    }
 
     setState(() {
       _isSaving = true;
@@ -36,8 +61,10 @@ class _AddTruckPageState extends State<AddTruckPage> {
 
     final result = await TruckService.addMyTruck(
       truckNumber: _truckNumberController.text.trim(),
-      truckType: _truckTypeController.text.trim(),
+      truckType: _truckType!,
       hasRefrigeration: _hasRefrigeration,
+      licenseFileBytes: _licenseFile!.bytes,
+      licenseFileName: _licenseFile!.name,
     );
 
     if (!mounted) return;
@@ -97,13 +124,16 @@ class _AddTruckPageState extends State<AddTruckPage> {
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 14),
-              TextFormField(
-                controller: _truckTypeController,
-                style: const TextStyle(color: AppColors.cream),
-                decoration: _decoration(
-                    'Truck type (e.g. Reefer, Pickup, Curtain, Trailer)'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+              DropdownButtonFormField<String>(
+                value: _truckType,
+                dropdownColor: AppColors.surface,
+                style: const TextStyle(color: AppColors.cream, fontSize: 14),
+                decoration: _decoration('Truck type'),
+                items: kTruckTypes
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    .toList(),
+                onChanged: (v) => setState(() => _truckType = v),
+                validator: (v) => v == null ? 'Required' : null,
               ),
               const SizedBox(height: 14),
               Container(
@@ -120,6 +150,43 @@ class _AddTruckPageState extends State<AddTruckPage> {
                     style: TextStyle(color: AppColors.cream, fontSize: 14),
                   ),
                   activeColor: AppColors.gold,
+                ),
+              ),
+              const SizedBox(height: 14),
+              InkWell(
+                onTap: _pickLicenseFile,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _licenseFile == null ? AppColors.border : AppColors.gold,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _licenseFile == null
+                            ? Icons.upload_file_outlined
+                            : Icons.check_circle_outline,
+                        color: _licenseFile == null ? AppColors.muted : AppColors.gold,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _licenseFile?.name ?? 'Attach vehicle license (PDF/JPG/PNG)',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: _licenseFile == null ? AppColors.muted : AppColors.cream,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 28),

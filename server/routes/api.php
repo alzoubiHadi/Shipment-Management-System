@@ -1,8 +1,15 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ComplianceReportController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DriverController;
+use App\Http\Controllers\DriverRatingController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaymentOrderController;
+use App\Http\Controllers\PayoutRequestController;
+use App\Http\Controllers\PlatformSettingController;
+use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\ShipmentOfferController;
@@ -27,6 +34,23 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/change-password', [UserController::class, 'changePassword']);
 
+    // In-app notification center + FCM device-token registration
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/me/fcm-token', [NotificationController::class, 'updateFcmToken']);
+
+    // Central price list (Finance Admin, UC-33) + editable platform settings
+    Route::get('/price-list', [PriceListController::class, 'index'])->middleware('permission:finance');
+    Route::get('/price-list/export', [PriceListController::class, 'export'])->middleware('permission:finance');
+    Route::post('/price-list/import', [PriceListController::class, 'import'])->middleware('permission:finance');
+    // Public within the app (any authenticated user) — just the list of
+    // valid external-destination strings, needed by the company's offer
+    // creation form, not sensitive on its own.
+    Route::get('/price-list/destinations', [PriceListController::class, 'destinationOptions']);
+    Route::get('/platform-settings', [PlatformSettingController::class, 'index'])->middleware('permission:finance');
+    Route::put('/platform-settings/{key}', [PlatformSettingController::class, 'update'])->middleware('permission:finance');
+
     // Composable admin permissions (Super Admin only in practice — the
     // frontend hides this from sub-admins, and each individual endpoint
     // below is further gated by the relevant 'permission:<key>' middleware
@@ -39,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/sub-admins/{admin}', [AdminController::class, 'destroy']);
 
     // companies Requests
+    Route::get('/my-company', [CompanyController::class, 'myCompany']);
     Route::get('/get/companies', [CompanyController::class, 'index']);
     Route::get('/get/companies/trashed', [CompanyController::class, 'index_trashed']);
     Route::post('/add/companies', [CompanyController::class, 'create']);
@@ -50,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/companies/{company}/return-for-completion', [CompanyController::class, 'returnForCompletion']);
     Route::put('/companies/{company}/suspend', [CompanyController::class, 'suspend']);
     Route::put('/companies/{company}/activate', [CompanyController::class, 'activate']);
+    Route::put('/companies/{company}/credit-limit', [CompanyController::class, 'setCreditLimit'])->middleware('permission:finance');
     // Drivers Requests
     Route::get('/get/drivers', [DriverController::class, 'index']);
     Route::get('/get/drivers/trashed', [DriverController::class, 'index_trashed']);
@@ -63,8 +89,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/drivers/{driver}/return-for-completion', [DriverController::class, 'returnForCompletion']);
     Route::put('/drivers/{driver}/suspend', [DriverController::class, 'suspend']);
     Route::put('/drivers/{driver}/reactivate', [DriverController::class, 'reactivate']);
+    // UC-24: Super Admin rates a driver directly (no shipment attached).
+    Route::post('/drivers/{driver}/rate', [DriverRatingController::class, 'rateBySuperAdmin']);
+    Route::get('/drivers/{driver}/ratings', [DriverRatingController::class, 'driverRatings']);
+    // UC-25/26: compliance/safety reports and driver appeals.
+    Route::post('/drivers/{driver}/compliance-reports', [ComplianceReportController::class, 'store']);
+    Route::get('/compliance-reports', [ComplianceReportController::class, 'index']);
+    Route::get('/my-compliance-reports', [ComplianceReportController::class, 'myReports']);
+    Route::post('/compliance-reports/{report}/resolve', [ComplianceReportController::class, 'resolve']);
+    Route::post('/compliance-reports/{report}/appeal', [ComplianceReportController::class, 'appeal']);
+    Route::post('/compliance-reports/{report}/resolve-appeal', [ComplianceReportController::class, 'resolveAppeal']);
+    // Driver documents (append-only, UC-8) and destinations
+    Route::get('/driver/{driver_user_id}/documents', [DriverController::class, 'documents']);
+    Route::post('/driver/{driver_user_id}/documents', [DriverController::class, 'uploadDocument']);
+    Route::get('/driver/destination-options', [DriverController::class, 'destinationOptions']);
+    Route::get('/driver/{driver_user_id}/destinations', [DriverController::class, 'myDestinations']);
+    Route::put('/driver/{driver_user_id}/destinations', [DriverController::class, 'syncDestinations']);
 
     // Trucks
+    Route::get('/truck-types', [TruckController::class, 'truckTypes']);
     Route::get('/get/trucks', [TruckController::class, 'index']);
     Route::get('/get/trucks/trashed', [TruckController::class, 'index_trashed']);
     Route::post('/add/trucks', [TruckController::class, 'create']);
@@ -74,13 +117,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/driver/{driver_user_id}/trucks', [TruckController::class, 'myTrucks']);
     Route::post('/driver/{driver_user_id}/trucks', [TruckController::class, 'addMyTruck']);
 
-    // Shipment Offers (orders taken over phone/email/WhatsApp, offered to drivers)
+    // Shipment Offers — companies create these directly (UC-11)
     Route::get('/shipment-offers', [ShipmentOfferController::class, 'index']);
+    Route::get('/my-shipment-offers', [ShipmentOfferController::class, 'myOffers']);
     Route::post('/shipment-offers', [ShipmentOfferController::class, 'create']);
     Route::get('/shipment-offers/{offer}/eligible-drivers', [ShipmentOfferController::class, 'eligibleDrivers']);
     Route::get('/driver/{driver_id}/available-offers', [ShipmentOfferController::class, 'availableForDriver']);
     Route::post('/shipment-offers/accept', [ShipmentOfferController::class, 'accept']);
     Route::put('/shipment-offers/{offer}/cancel', [ShipmentOfferController::class, 'cancel']);
+    Route::post('/shipment-offers/{offer}/manual-price', [ShipmentOfferController::class, 'manualPrice'])->middleware('permission:crm');
+    Route::put('/shipment-offers/{offer}/raise-price', [ShipmentOfferController::class, 'raisePrice']);
+    Route::post('/shipment-offers/{offer}/rematch', [ShipmentOfferController::class, 'rematch']);
+    Route::post('/shipment-offers/{offer}/assign-driver', [ShipmentOfferController::class, 'assignDriver']);
 
     // Shipments Requests
     Route::get('/shipments', [ShipmentController::class, 'index']);
@@ -97,6 +145,39 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shipments/accept', [ShipmentController::class, 'accept']);
     Route::post('/shipments/{shipment}/advance-stage', [ShipmentController::class, 'advanceStage']);
     Route::post('/shipments/{shipment}/deliver', [ShipmentController::class, 'deliver']);
+    // UC-20: company confirms/disputes a delivered shipment; Super/CRM Admin
+    // settles a disputed one.
+    Route::post('/shipments/{shipment}/confirm-delivery', [ShipmentController::class, 'confirmDelivery']);
+    Route::post('/shipments/{shipment}/dispute-delivery', [ShipmentController::class, 'disputeDelivery']);
+    Route::post('/shipments/{shipment}/resolve-dispute', [ShipmentController::class, 'resolveDispute']);
+    // UC-22: append-only field comments on a shipment.
+    Route::get('/shipments/{shipment}/comments', [ShipmentController::class, 'listComments']);
+    Route::post('/shipments/{shipment}/comments', [ShipmentController::class, 'addComment']);
+    // UC-23: company rates the driver after confirming delivery.
+    Route::post('/shipments/{shipment}/rate-driver', [DriverRatingController::class, 'rateByCompany']);
+    // UC-21/UC-14: driver's near-live foreground location.
+    Route::put('/driver/{driver_user_id}/location', [DriverController::class, 'updateLocation']);
+
+    // Payment orders — company top-ups (UC-28/UC-29). Finance Admin-only
+    // actions gated by permission:finance; company's own submit/list are
+    // any-authenticated-company (scoped to their own company_id inside
+    // the controller, same pattern as shipment offers).
+    Route::post('/payment-orders', [PaymentOrderController::class, 'create']);
+    Route::get('/my-payment-orders', [PaymentOrderController::class, 'myOrders']);
+    Route::get('/payment-orders', [PaymentOrderController::class, 'index'])->middleware('permission:finance');
+    Route::post('/payment-orders/{order}/approve', [PaymentOrderController::class, 'approve'])->middleware('permission:finance');
+    Route::post('/payment-orders/{order}/reject', [PaymentOrderController::class, 'reject'])->middleware('permission:finance');
+
+    // Payout requests — driver withdrawals (UC-30/31/32).
+    Route::post('/payout-requests', [PayoutRequestController::class, 'create']);
+    Route::get('/my-payout-requests', [PayoutRequestController::class, 'myRequests']);
+    Route::put('/payout-requests/{payout}/cancel', [PayoutRequestController::class, 'cancel']);
+    Route::post('/payout-requests/{payout}/confirm', [PayoutRequestController::class, 'confirmReceipt']);
+    Route::post('/payout-requests/{payout}/dispute', [PayoutRequestController::class, 'disputeReceipt']);
+    Route::get('/payout-requests', [PayoutRequestController::class, 'index'])->middleware('permission:finance');
+    Route::post('/payout-requests/{payout}/mark-paid', [PayoutRequestController::class, 'markPaid'])->middleware('permission:finance');
+    Route::post('/payout-requests/{payout}/reject', [PayoutRequestController::class, 'reject'])->middleware('permission:finance');
+    Route::post('/payout-requests/{payout}/resolve-dispute', [PayoutRequestController::class, 'resolveDispute'])->middleware('permission:finance');
 
     // Reports
     Route::get('/reports/drivers', [ReportController::class, 'drivers']);

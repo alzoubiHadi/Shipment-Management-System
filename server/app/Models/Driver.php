@@ -35,6 +35,7 @@ class Driver extends Model
         'last_location_at',
         'offers_received_count',
         'offers_accepted_count',
+        'last_matched_at',
     ];
 
     protected $casts = [
@@ -46,6 +47,7 @@ class Driver extends Model
         'last_lat' => 'decimal:7',
         'last_lng' => 'decimal:7',
         'last_location_at' => 'datetime',
+        'last_matched_at' => 'datetime',
     ];
 
     /**
@@ -103,9 +105,27 @@ class Driver extends Model
         return $this->hasMany(ComplianceReport::class);
     }
 
+    public function ratings()
+    {
+        return $this->hasMany(DriverRating::class);
+    }
+
     public function payoutRequests()
     {
         return $this->hasMany(PayoutRequest::class);
+    }
+
+    /**
+     * UC-30 special requirement: a driver cannot accept a new shipment
+     * offer while a payout request is still mid-flight (pending Finance
+     * Admin action, marked paid but not yet driver-confirmed, or
+     * disputed). Only 'confirmed' or 'rejected' lifts this.
+     */
+    public function hasPendingPayout(): bool
+    {
+        return $this->payoutRequests()
+            ->whereIn('status', PayoutRequest::BLOCKING_STATUSES)
+            ->exists();
     }
 
     /**
@@ -131,6 +151,10 @@ class Driver extends Model
         // a suspended or banned driver never appears in matching regardless
         // of how high their rating is.
         if ($this->compliance_status !== 'active') {
+            return false;
+        }
+
+        if ($this->hasPendingPayout()) {
             return false;
         }
 
@@ -162,6 +186,42 @@ class Driver extends Model
         }
 
         return min(1.0, $this->offers_accepted_count / $this->offers_received_count);
+    }
+
+    /**
+     * UC-23/UC-24: recomputes `rating` as a recency-weighted average of
+     * every DriverRating row (both company-submitted, per-shipment ratings
+     * and direct Super Admin ratings) and persists it. Weight decays
+     * exponentially with age (90-day half-life) so a driver's rating
+     * reflects their recent performance more than something that happened
+     * a year ago, without ever fully discarding old history. Falls back to
+     * the original 4.5 default (matching the column default) if the driver
+     * has no ratings yet, so a brand-new driver is never unfairly zeroed
+     * out here.
+     */
+    public function recalculateRating(): void
+    {
+        $ratings = $this->ratings()->get(['score', 'created_at']);
+
+        if ($ratings->isEmpty()) {
+            $this->update(['rating' => 4.50]);
+            return;
+        }
+
+        $now = now();
+        $weightedSum = 0.0;
+        $weightTotal = 0.0;
+
+        foreach ($ratings as $rating) {
+            $ageDays = max(0, $rating->created_at->diffInDays($now));
+            $weight = 0.5 ** ($ageDays / 90);
+            $weightedSum += $rating->score * $weight;
+            $weightTotal += $weight;
+        }
+
+        $average = $weightTotal > 0 ? $weightedSum / $weightTotal : 4.50;
+
+        $this->update(['rating' => round(min(5, max(1, $average)), 2)]);
     }
 
     /**

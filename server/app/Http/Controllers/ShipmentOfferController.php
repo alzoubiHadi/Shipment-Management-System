@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Driver;
 use App\Models\Shipment;
 use App\Models\ShipmentOffer;
 use App\Models\Truck;
+use App\Models\User;
+use App\Notifications\AppPushNotification;
+use App\Services\MatchingService;
+use App\Services\PricingService;
+use App\Support\Destinations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -13,27 +19,40 @@ use Illuminate\Validation\ValidationException;
 class ShipmentOfferController extends Controller
 {
     /**
-     * Admin: create a new shipment offer. This represents an order that was
-     * received outside the app (phone / email / WhatsApp) from a client
-     * company, priced for whichever driver ends up accepting it.
+     * Company: create a new shipment offer directly (UC-11) — no admin
+     * middleman. Price is computed automatically from the central price
+     * list (UC-12) when destination+truck_type has a row; otherwise the
+     * offer goes to 'awaiting_manual_price' and CRM Admin is notified
+     * immediately (UC-13). A successfully auto-priced offer starts
+     * matching (UC-14) right away.
      */
     public function create(Request $request)
     {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company) {
+            return response()->json(['message' => 'Company not found'], 404);
+        }
+
+        if (! $company->isActive()) {
+            return response()->json([
+                'message' => 'Your company account is not active (pending approval or suspended)',
+            ], 403);
+        }
+
         try {
             $validated = $request->validate([
-                'company_id' => ['required', 'exists:companies,id'],
                 'origin' => ['required', 'string'],
+                'origin_lat' => ['nullable', 'numeric'],
+                'origin_lng' => ['nullable', 'numeric'],
                 'destination' => ['required', 'string'],
                 'weight' => ['nullable', 'numeric'],
                 'description' => ['nullable', 'string'],
                 'needs_permit' => ['boolean'],
                 'is_hazardous' => ['boolean'],
                 'is_fragile' => ['boolean'],
-                // 'external' replaces the old requires_cross_border=true.
                 'order_type' => ['nullable', 'in:internal,external'],
-                'required_truck_type' => ['nullable', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
-                'price_to_driver' => ['nullable', 'numeric'],
-                'price_to_client' => ['nullable', 'numeric'],
+                'required_truck_type' => ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -43,15 +62,221 @@ class ShipmentOfferController extends Controller
         }
 
         $validated['order_type'] = $validated['order_type'] ?? 'internal';
-        $validated['status'] = 'pending';
+
+        // External destinations must match the price matrix exactly so
+        // auto-pricing can find a row; internal offers stay free text
+        // (there's no internal rate table yet — see App\Support\Destinations).
+        if ($validated['order_type'] === 'external' && ! in_array($validated['destination'], Destinations::all(), true)) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['destination' => ['Must be one of the supported external destinations.']],
+            ], 422);
+        }
+
+        $pricing = app(PricingService::class)->computeAutoPrice($validated['destination'], $validated['required_truck_type']);
+
+        $validated['company_id'] = $company->id;
+        $validated['status'] = $pricing ? 'pending' : ShipmentOffer::STATUS_AWAITING_MANUAL_PRICE;
+
+        if ($pricing) {
+            $validated['pricing_mode'] = 'auto';
+            $validated['price_to_driver'] = $pricing['price_to_driver'];
+            // Company-facing price defaults to the base (pre-margin) price;
+            // the company may raise it later via raisePrice(), never lower it.
+            $validated['price_to_client'] = $pricing['base_price'];
+            $validated['platform_margin_percent_snapshot'] = $pricing['margin_percent'];
+
+            if (! $company->canAffordOffer((float) $validated['price_to_client'])) {
+                return response()->json([
+                    'message' => "This shipment would exceed your company's credit limit",
+                ], 422);
+            }
+        }
 
         $offer = ShipmentOffer::create($validated);
 
+        if ($pricing) {
+            app(MatchingService::class)->matchNextBatch($offer);
+        } else {
+            $this->notifyCrmAdmins($offer);
+        }
+
         return response()->json([
             'message' => 'Shipment offer created successfully',
-            'offer' => $offer,
-            'eligible_drivers_count' => $this->eligibleDriversQuery($offer)->count(),
+            'offer' => $offer->fresh(),
         ], 201);
+    }
+
+    /**
+     * CRM Admin: enter a price manually for an offer stuck in
+     * 'awaiting_manual_price' (UC-13) — inside this SAME offer record, not
+     * an external channel. Immediately kicks off matching afterward.
+     */
+    public function manualPrice(Request $request, ShipmentOffer $offer)
+    {
+        if ($offer->status !== ShipmentOffer::STATUS_AWAITING_MANUAL_PRICE) {
+            return response()->json(['message' => 'This offer is not awaiting manual pricing'], 409);
+        }
+
+        $validated = $request->validate([
+            'price_to_driver' => ['required', 'numeric', 'min:0'],
+            'price_to_client' => ['required', 'numeric', 'min:0', 'gte:price_to_driver'],
+        ]);
+
+        $company = $offer->company;
+
+        if (! $company->canAffordOffer((float) $validated['price_to_client'])) {
+            return response()->json([
+                'message' => "This price would exceed the company's credit limit",
+            ], 422);
+        }
+
+        $offer->update([
+            'price_to_driver' => $validated['price_to_driver'],
+            'price_to_client' => $validated['price_to_client'],
+            'pricing_mode' => 'manual',
+            'priced_by_user_id' => $request->user()->id,
+            'status' => 'pending',
+        ]);
+
+        app(MatchingService::class)->matchNextBatch($offer);
+
+        return response()->json([
+            'message' => 'Price set successfully — matching started',
+            'offer' => $offer->fresh(),
+        ], 200);
+    }
+
+    /**
+     * Company: raise (never lower) the price shown to drivers/charged to
+     * them, while the offer is still unaccepted.
+     */
+    public function raisePrice(Request $request, ShipmentOffer $offer)
+    {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company || $offer->company_id !== $company->id) {
+            return response()->json(['message' => 'This is not your offer'], 403);
+        }
+
+        if ($offer->status !== 'pending') {
+            return response()->json(['message' => 'This offer can no longer be modified'], 409);
+        }
+
+        $validated = $request->validate([
+            'price_to_client' => ['required', 'numeric'],
+        ]);
+
+        if ((float) $validated['price_to_client'] < (float) $offer->price_to_client) {
+            return response()->json(['message' => 'The price can only be raised, not lowered'], 422);
+        }
+
+        if (! $company->canAffordOffer((float) $validated['price_to_client'])) {
+            return response()->json([
+                'message' => "This price would exceed your company's credit limit",
+            ], 422);
+        }
+
+        $offer->update(['price_to_client' => $validated['price_to_client']]);
+
+        return response()->json([
+            'message' => 'Price updated successfully',
+            'offer' => $offer,
+        ], 200);
+    }
+
+    /**
+     * Super Admin: manually push another matching round right now instead
+     * of waiting for the timeout (mirrors what the ProcessExpiredMatches
+     * scheduled command does automatically — see console command).
+     */
+    public function rematch(Request $request, ShipmentOffer $offer)
+    {
+        if (! $request->user()->isSuperAdmin()) {
+            return response()->json(['message' => 'Only Super Admin can trigger a manual re-match'], 403);
+        }
+
+        if ($offer->status !== 'pending') {
+            return response()->json(['message' => 'Only pending offers can be re-matched'], 409);
+        }
+
+        $matched = app(MatchingService::class)->matchNextBatch($offer);
+
+        return response()->json([
+            'message' => $matched
+                ? 'Offer pushed to a new batch of drivers'
+                : 'No more eligible drivers — offer escalated to Super Admin',
+            'offer' => $offer->fresh(),
+            'matched_count' => count($matched),
+        ], 200);
+    }
+
+    /**
+     * Super Admin: hand-assign an escalated offer (every eligible driver
+     * exhausted with no acceptance) to a specific known driver — UC-17.
+     * Skips the normal availability/eligibility gate since this is an
+     * explicit admin override, but the truck itself must still be
+     * roadworthy and of the right type.
+     */
+    public function assignDriver(Request $request, ShipmentOffer $offer)
+    {
+        if (! $request->user()->isSuperAdmin()) {
+            return response()->json(['message' => 'Only Super Admin can manually assign an escalated offer'], 403);
+        }
+
+        if ($offer->status !== 'escalated') {
+            return response()->json(['message' => 'Only escalated offers can be manually assigned'], 409);
+        }
+
+        $validated = $request->validate([
+            'driver_id' => ['required', 'exists:drivers,id'],
+            'truck_id' => ['required', 'exists:trucks,id'],
+        ]);
+
+        return DB::transaction(function () use ($offer, $validated) {
+            $offer = ShipmentOffer::lockForUpdate()->findOrFail($offer->id);
+
+            if ($offer->status !== 'escalated') {
+                return response()->json(['message' => 'This offer is no longer escalated'], 409);
+            }
+
+            $driver = Driver::findOrFail($validated['driver_id']);
+            $truck = Truck::findOrFail($validated['truck_id']);
+
+            $truckIssue = $this->checkTruckSuitability($offer, $truck);
+            if ($truckIssue) {
+                return response()->json(['message' => $truckIssue], 422);
+            }
+
+            $shipment = $this->finalizeAcceptance($offer, $driver, $truck);
+
+            return response()->json([
+                'message' => 'Offer manually assigned to driver',
+                'shipment' => $shipment,
+            ], 201);
+        });
+    }
+
+    /**
+     * Company app: list only THIS company's own offers (pending, awaiting
+     * manual price, accepted, escalated, cancelled, ...).
+     */
+    public function myOffers(Request $request)
+    {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company) {
+            return response()->json(['message' => 'Company not found'], 404);
+        }
+
+        $offers = ShipmentOffer::where('company_id', $company->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'message' => 'Offers retrieved successfully',
+            'offers' => $offers,
+        ], 200);
     }
 
     /**
@@ -65,7 +290,7 @@ class ShipmentOfferController extends Controller
             ->get()
             ->map(function (ShipmentOffer $offer) {
                 $offer->eligible_drivers_count = $offer->status === 'pending'
-                    ? $this->eligibleDriversQuery($offer)->count()
+                    ? app(MatchingService::class)->eligibleDriversQuery($offer)->count()
                     : 0;
 
                 return $offer;
@@ -84,7 +309,7 @@ class ShipmentOfferController extends Controller
      */
     public function eligibleDrivers(ShipmentOffer $offer)
     {
-        $drivers = $this->eligibleDriversQuery($offer)->get();
+        $drivers = app(MatchingService::class)->eligibleDriversQuery($offer)->get();
 
         return response()->json([
             'message' => 'Eligible drivers retrieved successfully',
@@ -95,6 +320,9 @@ class ShipmentOfferController extends Controller
     /**
      * Driver app: list pending offers this specific driver currently
      * qualifies for, so the app can show "available jobs" to that driver.
+     * Broader than "only the top-5 matched this round" on purpose — any
+     * eligible driver can still pick up a pending offer, matching just
+     * decides who gets pushed a notification first.
      */
     public function availableForDriver($driver_id)
     {
@@ -173,56 +401,18 @@ class ShipmentOfferController extends Controller
                 ], 422);
             }
 
-            if (! $truck->isRoadworthy()) {
-                return response()->json([
-                    'message' => 'Truck is not roadworthy (inactive, expired insurance or license)',
-                ], 422);
+            $truckIssue = $this->checkTruckSuitability($offer, $truck);
+            if ($truckIssue) {
+                return response()->json(['message' => $truckIssue], 422);
             }
 
-            if ($offer->required_truck_type && $truck->truck_type !== $offer->required_truck_type) {
-                return response()->json([
-                    'message' => 'Truck type does not match what this offer requires',
-                ], 422);
-            }
+            // This driver was offered this specific job (matched or not) and
+            // accepted it — counts toward their acceptance-rate score even
+            // if they were never actually in a matched batch (e.g. picked
+            // it up from the general available-offers list).
+            $driver->increment('offers_accepted_count');
 
-            // Refrigeration is implied by required_truck_type = "Reefer Trailer"
-            // (there is no separate cargo_type flag for it anymore) — this is
-            // a defensive double-check in case a truck was mislabeled.
-            if ($offer->required_truck_type === 'Reefer Trailer' && ! $truck->has_refrigeration) {
-                return response()->json([
-                    'message' => 'This cargo requires a refrigerated truck',
-                ], 422);
-            }
-
-            $trackingNumber = 'TRK' . strtoupper(uniqid());
-
-            $shipment = Shipment::create([
-                'shipment_offer_id' => $offer->id,
-                'company_id' => $offer->company_id,
-                'driver_id' => $driver->id,
-                'truck_id' => $truck->id,
-                'tracking_number' => $trackingNumber,
-                'origin' => $offer->origin,
-                'destination' => $offer->destination,
-                'weight' => $offer->weight,
-                'description' => $offer->description,
-                'needs_permit' => $offer->needs_permit,
-                'is_hazardous' => $offer->is_hazardous,
-                'is_fragile' => $offer->is_fragile,
-                'order_type' => $offer->order_type,
-                'price_to_driver' => $offer->price_to_driver,
-                'price_to_client' => $offer->price_to_client,
-                'status' => 1, // assigned
-            ]);
-
-            $offer->update([
-                'status' => 'accepted',
-                'accepted_by_driver_id' => $driver->id,
-                'accepted_truck_id' => $truck->id,
-                'accepted_at' => now(),
-            ]);
-
-            $driver->update(['status' => 'busy']);
+            $shipment = $this->finalizeAcceptance($offer, $driver, $truck);
 
             return response()->json([
                 'message' => 'Offer accepted, shipment created successfully',
@@ -233,7 +423,7 @@ class ShipmentOfferController extends Controller
 
     public function cancel(Request $request, ShipmentOffer $offer)
     {
-        if ($offer->status !== 'pending') {
+        if (! in_array($offer->status, ['pending', ShipmentOffer::STATUS_AWAITING_MANUAL_PRICE, 'escalated'], true)) {
             return response()->json([
                 'message' => 'Only pending offers can be cancelled',
             ], 409);
@@ -255,24 +445,92 @@ class ShipmentOfferController extends Controller
     }
 
     /**
-     * Shared eligibility query used by both the admin preview and the
-     * offer-creation response.
+     * Shared by accept() (self-service) and assignDriver() (Super Admin
+     * override): truck must be roadworthy, of the right type, and
+     * refrigerated when the offer requires a Reefer Trailer.
      */
-    private function eligibleDriversQuery(ShipmentOffer $offer)
+    private function checkTruckSuitability(ShipmentOffer $offer, Truck $truck): ?string
     {
-        return Driver::where('status', 'available')
-            ->where(function ($q) {
-                $q->whereNull('license_expiry')->orWhere('license_expiry', '>=', now()->toDateString());
+        if (! $truck->isRoadworthy()) {
+            return 'Truck is not roadworthy (inactive, expired insurance or license)';
+        }
+
+        if ($offer->required_truck_type && $truck->truck_type !== $offer->required_truck_type) {
+            return 'Truck type does not match what this offer requires';
+        }
+
+        // Refrigeration is implied by required_truck_type = "Reefer Trailer"
+        // (there is no separate cargo_type flag for it anymore) — this is
+        // a defensive double-check in case a truck was mislabeled.
+        if ($offer->required_truck_type === 'Reefer Trailer' && ! $truck->has_refrigeration) {
+            return 'This cargo requires a refrigerated truck';
+        }
+
+        return null;
+    }
+
+    /**
+     * Turns an offer into a real Shipment and marks the driver busy. Shared
+     * by the normal accept() flow and the Super Admin manual-assign
+     * override (UC-17) — caller is responsible for validating eligibility
+     * appropriately for each path and wrapping this in a DB transaction
+     * with the offer row locked.
+     */
+    private function finalizeAcceptance(ShipmentOffer $offer, Driver $driver, Truck $truck): Shipment
+    {
+        $trackingNumber = 'TRK' . strtoupper(uniqid());
+
+        $shipment = Shipment::create([
+            'shipment_offer_id' => $offer->id,
+            'company_id' => $offer->company_id,
+            'driver_id' => $driver->id,
+            'truck_id' => $truck->id,
+            'tracking_number' => $trackingNumber,
+            'origin' => $offer->origin,
+            'destination' => $offer->destination,
+            'weight' => $offer->weight,
+            'description' => $offer->description,
+            'needs_permit' => $offer->needs_permit,
+            'is_hazardous' => $offer->is_hazardous,
+            'is_fragile' => $offer->is_fragile,
+            'order_type' => $offer->order_type,
+            'price_to_driver' => $offer->price_to_driver,
+            'price_to_client' => $offer->price_to_client,
+            'status' => 1, // assigned
+        ]);
+
+        $offer->update([
+            'status' => 'accepted',
+            'accepted_by_driver_id' => $driver->id,
+            'accepted_truck_id' => $truck->id,
+            'accepted_at' => now(),
+        ]);
+
+        $driver->update(['status' => 'busy']);
+
+        return $shipment;
+    }
+
+    /**
+     * UC-13: notify CRM Admin the instant an offer needs manual pricing —
+     * every Super Admin plus every sub-admin holding the 'crm' permission.
+     */
+    private function notifyCrmAdmins(ShipmentOffer $offer): void
+    {
+        $crmAdmins = User::where('type', 'super_admin')
+            ->orWhere('type', 'admin')
+            ->orWhere(function ($q) {
+                $q->where('type', 'sub_admin')->whereHas('permissions', fn ($p) => $p->where('key', 'crm'));
             })
-            ->where(function ($q) {
-                $q->whereNull('passport_expiry')->orWhere('passport_expiry', '>=', now()->toDateString());
-            })
-            ->where(function ($q) {
-                $q->whereNull('residency_expiry')->orWhere('residency_expiry', '>=', now()->toDateString());
-            })
-            ->where('compliance_status', 'active')
-            ->when($offer->order_type === 'external', function ($q) {
-                $q->where('residency_expiry', '>=', now()->addMonths(3)->toDateString());
-            });
+            ->get();
+
+        foreach ($crmAdmins as $admin) {
+            $admin->notify(new AppPushNotification(
+                'manual_pricing_required',
+                'Offer awaiting manual pricing',
+                sprintf('Offer #%d (%s -> %s) has no automatic price and needs one now.', $offer->id, $offer->origin, $offer->destination),
+                ['offer_id' => $offer->id],
+            ));
+        }
     }
 }

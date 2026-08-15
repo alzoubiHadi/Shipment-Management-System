@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../API/ReportService.dart';
 import '../API/config.dart';
+import 'AdminCompliancePage.dart';
+import 'AdminFinancePage.dart';
 import 'CompanyReportsPage.dart';
 import 'DriverReportsPage.dart';
+import 'PriceListAdminPage.dart';
 
 /// Admin landing page for the Reports tab: overall commission summary at
 /// the top, with links into the per-driver and per-company breakdowns.
@@ -118,6 +121,36 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const CompanyReportsPage()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ReportLinkCard(
+              icon: Icons.price_change_outlined,
+              title: 'Price List',
+              subtitle: 'Finance Admin: export/import the central price matrix (UC-33)',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PriceListAdminPage()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ReportLinkCard(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Finance',
+              subtitle: 'Review top-ups, driver payouts, and set company credit limits',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminFinancePage()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ReportLinkCard(
+              icon: Icons.gpp_maybe_outlined,
+              title: 'Compliance',
+              subtitle: 'Review driver reports and decide appeals (UC-25/26)',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminCompliancePage()),
               ),
             ),
           ],

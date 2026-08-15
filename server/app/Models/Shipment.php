@@ -107,6 +107,15 @@ class Shipment extends Model
     }
 
     /**
+     * UC-22: append-only field comments (e.g. a driver flagging a problem
+     * mid-shipment). Never edited or deleted once posted.
+     */
+    public function comments()
+    {
+        return $this->hasMany(ShipmentComment::class)->orderBy('created_at');
+    }
+
+    /**
      * Driver's own delivery action (UC-19): uploads proof + signature, but
      * this alone must NOT free the driver or touch their balance — it only
      * moves the shipment to "awaiting company confirmation".

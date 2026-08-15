@@ -64,10 +64,10 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // Companies never create shipments themselves in the real workflow —
-      // they call/email/WhatsApp the admin, who logs the request as a
-      // shipment offer. So there is intentionally no "add shipment" button
-      // here anymore.
+      // This tab shows real, already-accepted Shipments only. Creating a
+      // new request now happens in the separate "Offers" tab
+      // (CompanyOffersPage) via self-service shipment offers (UC-11),
+      // which only turn into a Shipment once a driver accepts.
       body: RefreshIndicator(
         onRefresh: () async => _refresh(),
         child: CustomScrollView(

@@ -7,6 +7,7 @@ import '../API/config.dart';
 
 class Shipment {
   final int id;
+  final int? driverId;
   final String trackingNumber;
   final String origin;
   final String destination;
@@ -28,8 +29,15 @@ class Shipment {
   final String podSignature;
   final String podRecipientName;
 
+  // UC-20: not_delivered -> awaiting_confirmation -> confirmed | disputed.
+  // Separate from [status] (the coarse overall lifecycle status) — this is
+  // specifically the driver-delivered/company-confirmed handoff.
+  final String deliveryStatus;
+  final String disputeReason;
+
   Shipment({
     required this.id,
+    this.driverId,
     required this.trackingNumber,
     required this.origin,
     required this.destination,
@@ -48,7 +56,13 @@ class Shipment {
     this.unloadedAt = '',
     this.podSignature = '',
     this.podRecipientName = '',
+    this.deliveryStatus = 'not_delivered',
+    this.disputeReason = '',
   });
+
+  bool get isAwaitingCompanyConfirmation => deliveryStatus == 'awaiting_confirmation';
+  bool get isDeliveryConfirmed => deliveryStatus == 'confirmed';
+  bool get isDeliveryDisputed => deliveryStatus == 'disputed';
 
   static const stageLabels = <int, String>{
     1: 'Heading to pickup',
@@ -63,6 +77,9 @@ class Shipment {
   factory Shipment.fromJson(Map<String, dynamic> json) {
     return Shipment(
       id: json['id'] ?? 0,
+      driverId: json['driver_id'] is int
+          ? json['driver_id']
+          : int.tryParse(json['driver_id']?.toString() ?? ''),
       trackingNumber: json['tracking_number']?.toString() ?? '',
       origin: json['origin']?.toString() ?? '',
       destination: json['destination']?.toString() ?? '',
@@ -84,6 +101,8 @@ class Shipment {
       unloadedAt: json['unloaded_at']?.toString() ?? '',
       podSignature: json['pod_signature']?.toString() ?? '',
       podRecipientName: json['pod_recipient_name']?.toString() ?? '',
+      deliveryStatus: json['delivery_status']?.toString() ?? 'not_delivered',
+      disputeReason: json['dispute_reason']?.toString() ?? '',
     );
   }
 

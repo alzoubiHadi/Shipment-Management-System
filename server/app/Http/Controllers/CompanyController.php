@@ -10,6 +10,26 @@ use Illuminate\Validation\ValidationException;
 
 class CompanyController extends Controller
 {
+    /**
+     * Company app: its own record, including balance/credit_limit — used
+     * by the Flutter balance page. No separate "my company" data existed
+     * anywhere else (the company's own token never exposes company.id
+     * directly, only user.id).
+     */
+    public function myCompany(Request $request)
+    {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company) {
+            return response()->json(['message' => 'Company not found'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Company retrieved successfully',
+            'company' => $company,
+        ], 200);
+    }
+
     //
     public function update_profile(Request $request, Company $company)
     {
@@ -107,6 +127,31 @@ class CompanyController extends Controller
         return response()->json([
             'message' => 'Company updated successfully',
             'company' => $company,
+        ], 200);
+    }
+
+    /**
+     * Finance Admin: sets how far below zero (companies.balance) this
+     * company is allowed to go when creating a shipment offer
+     * (Company::canAffordOffer(), UC-11/UC-29). Every company starts at
+     * credit_limit = 0, so this must be set at least once before a
+     * company can create any priced offer at all — there's no dedicated
+     * UC for it in the spec, but UC-29's special requirement ("the
+     * company's credit limit is applied when calculating the new
+     * balance") only makes sense if something can actually set it above
+     * zero first.
+     */
+    public function setCreditLimit(Request $request, Company $company)
+    {
+        $validated = $request->validate([
+            'credit_limit' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $company->update(['credit_limit' => $validated['credit_limit']]);
+
+        return response()->json([
+            'message' => 'Credit limit updated successfully',
+            'company' => $company->fresh(),
         ], 200);
     }
 

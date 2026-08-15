@@ -14,12 +14,15 @@ class AdminSeeder extends Seeder
     public function run(): void
     {
         User::updateOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'admin@fms.com'],
             [
                 'name' => 'System Administrator',
-                'email' => 'admin@example.com',
+                'email' => 'admin@fms.com',
                 'password' => Hash::make('admin123'),
                 'type' => 'admin', // Change if your column is different
+                // Seeded admin logs straight in — no OTP step, same as
+                // admin-created sub-admin accounts (see UserController::login).
+                'email_verified_at' => now(),
             ]
         );
     }

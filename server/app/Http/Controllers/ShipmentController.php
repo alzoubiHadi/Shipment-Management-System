@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CompanyFacingDriverResource;
 use App\Models\Company;
 use App\Models\Driver;
 use App\Models\Shipment;
+use App\Models\ShipmentComment;
+use App\Models\User;
+use App\Notifications\AppPushNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ShipmentController extends Controller
 {
@@ -117,9 +122,16 @@ class ShipmentController extends Controller
             'shipment' => $shipment,
         ], 200);
     }
+    /**
+     * Driver data attached here is stripped to the company-safe subset
+     * (CompanyFacingDriverResource) — health_conditions, balance, and the
+     * rest of the admin-only fields never leave this endpoint. A company
+     * only ever sees the driver actually assigned to ITS own shipment, so
+     * visibility is inherently scoped to that relationship.
+     */
     public function trackmyshipment($tracking_number)
     {
-        $shipment = Shipment::where('tracking_number', $tracking_number)->first();
+        $shipment = Shipment::with('driver', 'truck')->where('tracking_number', $tracking_number)->first();
 
         if (!$shipment) {
             return response()->json([
@@ -127,15 +139,23 @@ class ShipmentController extends Controller
             ], 404);
         }
 
+        $data = $shipment->toArray();
+        $data['driver'] = $shipment->driver ? new CompanyFacingDriverResource($shipment->driver) : null;
+
         return response()->json([
             'message' => 'Shipment tracked successfully',
-            'shipment' => $shipment,
+            'shipment' => $data,
         ], 200);
     }
     public function drivergetShipments($driver_id)
     {
-        $driver_sid = Driver::where('user_id', $driver_id)->first()->id;
-        $shipments = Shipment::where('driver_id', $driver_sid)->get();
+        $driver = Driver::where('user_id', $driver_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        $shipments = Shipment::where('driver_id', $driver->id)->get();
 
         return response()->json([
             'message' => 'Shipments retrieved successfully',
@@ -144,8 +164,21 @@ class ShipmentController extends Controller
     }
     public function companygetShipments($company_id)
     {
-        $company_sid = Company::where('user_id', $company_id)->first()->id;
-        $shipments = Shipment::where('company_id', $company_sid)->get();
+        $company = Company::where('user_id', $company_id)->first();
+
+        if (! $company) {
+            return response()->json(['message' => 'Company not found'], 404);
+        }
+
+        $shipments = Shipment::with('driver', 'truck')
+            ->where('company_id', $company->id)
+            ->get()
+            ->map(function (Shipment $shipment) {
+                $data = $shipment->toArray();
+                $data['driver'] = $shipment->driver ? new CompanyFacingDriverResource($shipment->driver) : null;
+                return $data;
+            });
+
         return response()->json([
             'message' => 'Shipments retrieved successfully',
             'shipments' => $shipments,
@@ -187,9 +220,15 @@ class ShipmentController extends Controller
     }
 
     /**
-     * Driver app: final stage. Captures the proof-of-delivery signature and
-     * recipient name, marks the shipment delivered, and frees the driver
-     * back up for new jobs.
+     * Driver app (UC-19): final tracking stage. Captures the
+     * proof-of-delivery signature and recipient name and moves the
+     * shipment to "awaiting company confirmation" — deliberately does NOT
+     * free the driver or mark the shipment fully "delivered" yet. Per the
+     * spec, the driver stays busy and unpaid until the company actually
+     * confirms (UC-20, ShipmentController::confirmDelivery) or a dispute
+     * gets resolved in the driver's favor — crediting a driver's balance
+     * (or freeing them) the instant they merely claim delivery would let
+     * an unscrupulous driver get paid for a shipment that never arrived.
      */
     public function deliver(Request $request, Shipment $shipment)
     {
@@ -214,18 +253,245 @@ class ShipmentController extends Controller
 
         $shipment->update([
             'current_stage' => 7,
-            'status' => 3, // delivered
             'delivered_at' => now(),
             'pod_signature' => $validated['pod_signature'],
             'pod_recipient_name' => $validated['pod_recipient_name'],
         ]);
 
-        $driver->update(['status' => 'available']);
+        $shipment->markAwaitingCompanyConfirmation();
+
+        $company = $shipment->company;
+        if ($company && $company->user) {
+            $company->user->notify(new AppPushNotification(
+                'delivery_awaiting_confirmation',
+                'Delivery awaiting your confirmation',
+                sprintf('Shipment %s has been delivered — please review and confirm receipt.', $shipment->tracking_number),
+                ['shipment_id' => $shipment->id],
+            ));
+        }
 
         return response()->json([
-            'message' => 'Shipment delivered successfully',
-            'shipment' => $shipment,
+            'message' => 'Delivery recorded — awaiting company confirmation',
+            'shipment' => $shipment->fresh(),
         ], 200);
+    }
+
+    /**
+     * Company app (UC-20): reviews the proof of delivery and confirms
+     * receipt. This is the ONLY action that credits the driver's balance
+     * and the only thing that frees the driver back up for new jobs —
+     * never deliver() above.
+     */
+    public function confirmDelivery(Request $request, Shipment $shipment)
+    {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company || $shipment->company_id !== $company->id) {
+            return response()->json(['message' => 'This is not your shipment'], 403);
+        }
+
+        if ($shipment->delivery_status !== 'awaiting_confirmation') {
+            return response()->json([
+                'message' => 'This shipment is not currently awaiting your confirmation',
+            ], 409);
+        }
+
+        DB::transaction(function () use ($shipment, $request) {
+            $shipment = Shipment::lockForUpdate()->findOrFail($shipment->id);
+
+            $shipment->confirmByCompany($request->user());
+            $shipment->update(['status' => 3]); // delivered
+
+            $driver = Driver::lockForUpdate()->find($shipment->driver_id);
+            if ($driver) {
+                $driver->increment('balance', (float) $shipment->price_to_driver);
+                $driver->update(['status' => 'available']);
+
+                $driver->user?->notify(new AppPushNotification(
+                    'balance_credited',
+                    'Payment received',
+                    sprintf('Your balance was credited %s AED for shipment %s.', $shipment->price_to_driver, $shipment->tracking_number),
+                    ['shipment_id' => $shipment->id],
+                ));
+            }
+        });
+
+        return response()->json([
+            'message' => 'Delivery confirmed — driver has been paid',
+            'shipment' => $shipment->fresh(),
+        ], 200);
+    }
+
+    /**
+     * Company app (UC-20 alternative flow): reports a problem instead of
+     * confirming (missing/damaged goods, etc.). Routes to CRM/Super Admin
+     * review instead of auto-crediting the driver — the driver stays busy
+     * and unpaid until resolveDispute() below settles it either way.
+     */
+    public function disputeDelivery(Request $request, Shipment $shipment)
+    {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company || $shipment->company_id !== $company->id) {
+            return response()->json(['message' => 'This is not your shipment'], 403);
+        }
+
+        if ($shipment->delivery_status !== 'awaiting_confirmation') {
+            return response()->json([
+                'message' => 'This shipment is not currently awaiting your confirmation',
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'dispute_reason' => ['required', 'string'],
+        ]);
+
+        $shipment->disputeDelivery($validated['dispute_reason']);
+
+        $this->notifyAdminsOfDispute($shipment);
+
+        return response()->json([
+            'message' => 'Dispute recorded — an admin will review this delivery',
+            'shipment' => $shipment->fresh(),
+        ], 200);
+    }
+
+    /**
+     * Super Admin / CRM Admin: settles a disputed delivery. 'confirm' pays
+     * the driver exactly like a normal company confirmation would have;
+     * 'reject' closes it out with no payment (the driver's account of
+     * events wasn't accepted) but still frees them for new jobs — the
+     * shipment itself already physically happened, so it isn't cancelled.
+     */
+    public function resolveDispute(Request $request, Shipment $shipment)
+    {
+        if (! $request->user()->isSuperAdmin() && ! $request->user()->hasPermission('crm')) {
+            return response()->json(['message' => 'You are not authorized to resolve delivery disputes'], 403);
+        }
+
+        if ($shipment->delivery_status !== 'disputed') {
+            return response()->json(['message' => 'This shipment is not currently disputed'], 409);
+        }
+
+        $validated = $request->validate([
+            'resolution' => ['required', 'in:confirm,reject'],
+        ]);
+
+        DB::transaction(function () use ($shipment, $validated, $request) {
+            $shipment = Shipment::lockForUpdate()->findOrFail($shipment->id);
+            $driver = Driver::lockForUpdate()->find($shipment->driver_id);
+
+            if ($validated['resolution'] === 'confirm') {
+                $shipment->confirmByCompany($request->user());
+                $shipment->update(['status' => 3]);
+
+                if ($driver) {
+                    $driver->increment('balance', (float) $shipment->price_to_driver);
+                    $driver->user?->notify(new AppPushNotification(
+                        'balance_credited',
+                        'Payment received',
+                        sprintf('Your balance was credited %s AED for shipment %s (dispute resolved in your favor).', $shipment->price_to_driver, $shipment->tracking_number),
+                        ['shipment_id' => $shipment->id],
+                    ));
+                }
+            } else {
+                $shipment->update(['delivery_status' => 'confirmed', 'status' => 3]);
+
+                $driver?->user?->notify(new AppPushNotification(
+                    'dispute_resolved_against_driver',
+                    'Delivery dispute resolved',
+                    sprintf('The dispute for shipment %s was resolved without payment.', $shipment->tracking_number),
+                    ['shipment_id' => $shipment->id],
+                ));
+            }
+
+            $driver?->update(['status' => 'available']);
+        });
+
+        return response()->json([
+            'message' => 'Dispute resolved',
+            'shipment' => $shipment->fresh(),
+        ], 200);
+    }
+
+    /**
+     * UC-22: driver adds a field comment to a shipment they're actively
+     * assigned to (e.g. a technical problem CRM Admin should know about).
+     */
+    public function addComment(Request $request, Shipment $shipment)
+    {
+        $driver = Driver::where('user_id', $request->user()->id)->first();
+
+        if (! $driver || $shipment->driver_id != $driver->id) {
+            return response()->json([
+                'message' => 'You are not assigned to this shipment',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'comment' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $comment = ShipmentComment::create([
+            'shipment_id' => $shipment->id,
+            'user_id' => $request->user()->id,
+            'comment' => $validated['comment'],
+        ]);
+
+        return response()->json([
+            'message' => 'Comment added successfully',
+            'comment' => $comment,
+        ], 201);
+    }
+
+    /**
+     * Shared by the driver (their own shipment), the owning company, and
+     * any admin — every party who can already see this shipment can see
+     * its comment log.
+     */
+    public function listComments(Request $request, Shipment $shipment)
+    {
+        $user = $request->user();
+
+        $driver = Driver::where('user_id', $user->id)->first();
+        $company = Company::where('user_id', $user->id)->first();
+
+        $isAssignedDriver = $driver && $shipment->driver_id == $driver->id;
+        $isOwningCompany = $company && $shipment->company_id == $company->id;
+        $isAdmin = $user->isSuperAdmin() || $user->isSubAdmin();
+
+        if (! $isAssignedDriver && ! $isOwningCompany && ! $isAdmin) {
+            return response()->json(['message' => 'You cannot view this shipment'], 403);
+        }
+
+        return response()->json([
+            'message' => 'Comments retrieved successfully',
+            'comments' => $shipment->comments()->with('user:id,name,type')->get(),
+        ], 200);
+    }
+
+    /**
+     * UC-25/13-style broadcast: every Super Admin plus every sub-admin
+     * holding the 'crm' permission, mirroring
+     * ShipmentOfferController::notifyCrmAdmins.
+     */
+    private function notifyAdminsOfDispute(Shipment $shipment): void
+    {
+        $crmAdmins = User::where('type', 'super_admin')
+            ->orWhere('type', 'admin')
+            ->orWhere(function ($q) {
+                $q->where('type', 'sub_admin')->whereHas('permissions', fn ($p) => $p->where('key', 'crm'));
+            })
+            ->get();
+
+        foreach ($crmAdmins as $admin) {
+            $admin->notify(new AppPushNotification(
+                'delivery_disputed',
+                'Delivery dispute needs review',
+                sprintf('Company disputed delivery for shipment %s: %s', $shipment->tracking_number, $shipment->dispute_reason),
+                ['shipment_id' => $shipment->id],
+            ));
+        }
     }
 
     public function updateshipmentstatus(Request $request)

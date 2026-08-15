@@ -29,12 +29,20 @@ class TruckController extends Controller
         ], 200);
     }
 
+    public function truckTypes()
+    {
+        return response()->json([
+            'message' => 'Truck types retrieved successfully',
+            'truck_types' => Truck::TRUCK_TYPES,
+        ], 200);
+    }
+
     public function create(Request $request)
     {
         try {
             $validated = $request->validate([
                 'truck_number' => ['required', 'string', 'unique:trucks,truck_number'],
-                'truck_type' => ['required', 'string'],
+                'truck_type' => ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
                 'max_load' => ['nullable', 'numeric'],
                 'length' => ['nullable', 'numeric'],
                 'width' => ['nullable', 'numeric'],
@@ -44,6 +52,11 @@ class TruckController extends Controller
                 'permit_expiry' => ['nullable', 'date'],
                 'insurance_expiry' => ['nullable', 'date'],
                 'license_expiry' => ['nullable', 'date'],
+                // TODO: the spec requires this to be a mandatory upload —
+                // left nullable here so the existing AddTruckPage.dart form
+                // (which doesn't have a file picker yet) doesn't break.
+                // Make required once that Flutter screen is updated.
+                'license_file' => ['nullable', 'file', 'max:10240'],
                 'default_driver_id' => ['nullable', 'exists:drivers,id'],
             ]);
         } catch (ValidationException $e) {
@@ -52,6 +65,11 @@ class TruckController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         }
+
+        if ($request->hasFile('license_file')) {
+            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'public');
+        }
+        unset($validated['license_file']);
 
         $truck = Truck::create($validated);
 
@@ -63,11 +81,24 @@ class TruckController extends Controller
 
     public function update(Request $request, Truck $truck)
     {
-        $truck->update($request->only([
+        $validated = $request->only([
             'truck_number', 'truck_type', 'max_load', 'length', 'width', 'height',
             'has_refrigeration', 'permit_type', 'permit_expiry', 'insurance_expiry',
             'license_expiry', 'default_driver_id', 'is_active',
-        ]));
+        ]);
+
+        if (isset($validated['truck_type']) && ! in_array($validated['truck_type'], Truck::TRUCK_TYPES, true)) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['truck_type' => ['Invalid truck type']],
+            ], 422);
+        }
+
+        if ($request->hasFile('license_file')) {
+            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'public');
+        }
+
+        $truck->update($validated);
 
         return response()->json([
             'message' => 'Truck updated successfully',
@@ -127,9 +158,12 @@ class TruckController extends Controller
         try {
             $validated = $request->validate([
                 'truck_number' => ['required', 'string', 'unique:trucks,truck_number'],
-                'truck_type' => ['required', 'string'],
+                'truck_type' => ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
                 'has_refrigeration' => ['boolean'],
                 'max_load' => ['nullable', 'numeric'],
+                // Required here (unlike the admin create() endpoint below):
+                // the Flutter AddTruckPage now always sends one.
+                'license_file' => ['required', 'file', 'max:10240'],
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -139,6 +173,11 @@ class TruckController extends Controller
         }
 
         $validated['default_driver_id'] = $driver->id;
+
+        if ($request->hasFile('license_file')) {
+            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'public');
+        }
+        unset($validated['license_file']);
 
         $truck = Truck::create($validated);
 

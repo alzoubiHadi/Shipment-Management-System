@@ -1,9 +1,32 @@
 import 'package:app/Screens/LoginScreen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
-void main() {
+import 'firebase_options.dart';
+
+/// Runs in a separate background isolate when a push arrives while the app
+/// is backgrounded/terminated — must be a top-level function, and must
+/// re-initialize Firebase itself since it doesn't share state with the
+/// main isolate. The OS already shows the notification itself in this
+/// case (this app doesn't need to do anything extra for a simple
+/// notification+data payload); this hook exists for future data-only
+/// pushes that need custom handling.
+@pragma('vm-entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const MyApp());
 }
+
+/// Lets code without a BuildContext (like the FCM foreground-message
+/// listener in PushNotificationSetup) still show a SnackBar/navigate.
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -11,6 +34,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'ALBA',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

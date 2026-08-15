@@ -112,6 +112,24 @@ class ApiService {
     'Accept': 'application/json',
   };
 
+  /// Laravel validation failures come back as {message: "Validation failed",
+  /// errors: {field: ["reason", ...]}}. Showing just `message` hides the
+  /// actually useful part — this pulls every per-field reason out so the
+  /// screen can show e.g. "The password must contain at least one symbol."
+  /// instead of a dead-end "Validation failed."
+  static String _errorMessage(Map<String, dynamic> json, String fallback) {
+    final errors = json['errors'];
+    if (errors is Map) {
+      final details = errors.values
+          .expand((v) => v is List ? v : [v])
+          .map((e) => e.toString())
+          .where((s) => s.isNotEmpty)
+          .join('\n');
+      if (details.isNotEmpty) return details;
+    }
+    return (json['message'] ?? json['error'] ?? fallback).toString();
+  }
+
   static Future<Map<String, String>> _authHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -146,9 +164,8 @@ class ApiService {
       }
 
       // Server returned an error message
-      final message = json['message'] ?? json['error'] ?? 'Login failed';
       throw ApiException(
-        message,
+        _errorMessage(json, 'Login failed'),
         statusCode: response.statusCode,
         requiresOtpVerification: json['requires_otp_verification'] == true,
       );
@@ -204,8 +221,7 @@ class ApiService {
         );
       }
 
-      final message = json['message'] ?? json['error'] ?? 'Registration failed';
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(_errorMessage(json, 'Registration failed'), statusCode: response.statusCode);
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -237,8 +253,7 @@ class ApiService {
         return AuthResponse.fromJson(json);
       }
 
-      final message = json['message'] ?? 'Verification failed';
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(_errorMessage(json, 'Verification failed'), statusCode: response.statusCode);
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -257,7 +272,7 @@ class ApiService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200) {
-        throw ApiException(json['message'] ?? 'Could not resend code', statusCode: response.statusCode);
+        throw ApiException(_errorMessage(json, 'Could not resend code'), statusCode: response.statusCode);
       }
     } on ApiException {
       rethrow;
@@ -291,7 +306,7 @@ class ApiService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200) {
-        throw ApiException(json['message'] ?? 'Could not change password', statusCode: response.statusCode);
+        throw ApiException(_errorMessage(json, 'Could not change password'), statusCode: response.statusCode);
       }
     } on ApiException {
       rethrow;

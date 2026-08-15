@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../API/CompanyService.dart';
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
-import '../models/Company.dart';
 
-/// Admin screen: logs an order that came in over phone / email / WhatsApp
-/// as a shipment offer, which the system then matches against eligible
-/// drivers automatically.
+/// Company self-service screen (UC-11): the company creates its own
+/// shipment offer directly — no admin middleman, no company picker (the
+/// backend resolves the company from the logged-in user), and no manual
+/// price fields (pricing is computed automatically from the central price
+/// list, or the offer waits for CRM Admin to set one).
 class AddShipmentOfferPage extends StatefulWidget {
   const AddShipmentOfferPage({super.key});
 
@@ -22,25 +22,24 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
   final _destinationController = TextEditingController();
   final _weightController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _requiredTruckTypeController = TextEditingController();
-  final _priceToDriverController = TextEditingController();
-  final _priceToClientController = TextEditingController();
 
-  final _companyService = CompanyService();
-  late Future<List<Company>> _companiesFuture;
-  Company? _selectedCompany;
+  String _orderType = 'internal'; // 'internal' or 'external'
+  String? _selectedExternalDestination;
+  String? _selectedTruckType;
 
-  String _cargoType = 'normal';
-  bool _requiresCrossBorder = false;
+  bool _needsPermit = false;
+  bool _isHazardous = false;
+  bool _isFragile = false;
+
   bool _isSaving = false;
   String? _errorMessage;
 
-  static const _cargoTypes = ['normal', 'refrigerated', 'hazardous'];
+  late Future<List<String>> _destinationsFuture;
 
   @override
   void initState() {
     super.initState();
-    _companiesFuture = _companyService.fetchCompaines();
+    _destinationsFuture = ShipmentOfferService.fetchExternalDestinations();
   }
 
   @override
@@ -49,16 +48,23 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     _destinationController.dispose();
     _weightController.dispose();
     _descriptionController.dispose();
-    _requiredTruckTypeController.dispose();
-    _priceToDriverController.dispose();
-    _priceToClientController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCompany == null) {
-      setState(() => _errorMessage = 'Please select a company');
+
+    if (_selectedTruckType == null) {
+      setState(() => _errorMessage = 'Please select a required truck type');
+      return;
+    }
+
+    final destination = _orderType == 'external'
+        ? (_selectedExternalDestination ?? '')
+        : _destinationController.text.trim();
+
+    if (destination.isEmpty) {
+      setState(() => _errorMessage = 'Please select or enter a destination');
       return;
     }
 
@@ -68,36 +74,29 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     });
 
     final result = await ShipmentOfferService.createOffer(
-      companyId: int.parse(_selectedCompany!.id),
       origin: _originController.text.trim(),
-      destination: _destinationController.text.trim(),
+      destination: destination,
       weight: _weightController.text.trim().isEmpty
           ? null
           : _weightController.text.trim(),
       description: _descriptionController.text.trim(),
-      cargoType: _cargoType,
-      requiresCrossBorder: _requiresCrossBorder,
-      requiredTruckType: _requiredTruckTypeController.text.trim().isEmpty
-          ? null
-          : _requiredTruckTypeController.text.trim(),
-      priceToDriver: _priceToDriverController.text.trim().isEmpty
-          ? null
-          : _priceToDriverController.text.trim(),
-      priceToClient: _priceToClientController.text.trim().isEmpty
-          ? null
-          : _priceToClientController.text.trim(),
+      needsPermit: _needsPermit,
+      isHazardous: _isHazardous,
+      isFragile: _isFragile,
+      orderType: _orderType,
+      requiredTruckType: _selectedTruckType!,
     );
 
     if (!mounted) return;
     setState(() => _isSaving = false);
 
     if (result['success'] == true) {
-      final count = result['eligible_drivers_count'] ?? 0;
+      final status = result['offer']?['status'];
+      final message = status == 'awaiting_manual_price'
+          ? 'Offer created — no automatic price found, CRM will set one shortly'
+          : 'Offer created — matching drivers now';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Offer created — $count eligible driver(s) right now'),
-          backgroundColor: AppColors.success,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.success),
       );
       Navigator.pop(context, true);
     } else {
@@ -144,31 +143,24 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
                 ),
               ],
 
-              // Company picker
-              FutureBuilder<List<Company>>(
-                future: _companiesFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: LinearProgressIndicator(color: AppColors.gold),
-                    );
-                  }
-                  final companies = snapshot.data ?? [];
-                  return DropdownButtonFormField<Company>(
-                    initialValue: _selectedCompany,
-                    dropdownColor: AppColors.surface,
-                    style: const TextStyle(color: AppColors.cream),
-                    decoration: _decoration('Client company'),
-                    items: companies
-                        .map((c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(c.name),
-                            ))
-                        .toList(),
-                    onChanged: (c) => setState(() => _selectedCompany = c),
-                  );
-                },
+              // Internal vs. external order type
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _orderTypeTab('internal', 'Internal (KSA)'),
+                    ),
+                    Expanded(
+                      child: _orderTypeTab('external', 'External (Cross-border)'),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 14),
@@ -179,14 +171,43 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
+
               const SizedBox(height: 14),
-              TextFormField(
-                controller: _destinationController,
-                style: const TextStyle(color: AppColors.cream),
-                decoration: _decoration('Destination'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
+              if (_orderType == 'external')
+                FutureBuilder<List<String>>(
+                  future: _destinationsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: LinearProgressIndicator(color: AppColors.gold),
+                      );
+                    }
+                    final destinations = snapshot.data ?? [];
+                    return DropdownButtonFormField<String>(
+                      initialValue: _selectedExternalDestination,
+                      dropdownColor: AppColors.surface,
+                      style: const TextStyle(color: AppColors.cream),
+                      decoration: _decoration('Destination'),
+                      items: destinations
+                          .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                          .toList(),
+                      onChanged: (v) =>
+                          setState(() => _selectedExternalDestination = v),
+                    );
+                  },
+                )
+              else
+                TextFormField(
+                  controller: _destinationController,
+                  style: const TextStyle(color: AppColors.cream),
+                  decoration: _decoration('Destination'),
+                  validator: (v) => _orderType == 'internal' &&
+                          (v == null || v.trim().isEmpty)
+                      ? 'Required'
+                      : null,
+                ),
+
               const SizedBox(height: 14),
               TextFormField(
                 controller: _weightController,
@@ -204,22 +225,14 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
-                initialValue: _cargoType,
+                initialValue: _selectedTruckType,
                 dropdownColor: AppColors.surface,
                 style: const TextStyle(color: AppColors.cream),
-                decoration: _decoration('Cargo type'),
-                items: _cargoTypes
+                decoration: _decoration('Required truck type'),
+                items: kTruckTypes
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                     .toList(),
-                onChanged: (v) => setState(() => _cargoType = v ?? 'normal'),
-              ),
-
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _requiredTruckTypeController,
-                style: const TextStyle(color: AppColors.cream),
-                decoration: _decoration(
-                    'Required truck type — optional (e.g. Reefer)'),
+                onChanged: (v) => setState(() => _selectedTruckType = v),
               ),
 
               const SizedBox(height: 14),
@@ -229,39 +242,36 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: SwitchListTile(
-                  value: _requiresCrossBorder,
-                  onChanged: (v) =>
-                      setState(() => _requiresCrossBorder = v),
-                  title: const Text(
-                    'Crosses a border (GCC / Middle East)',
-                    style: TextStyle(color: AppColors.cream, fontSize: 14),
-                  ),
-                  activeColor: AppColors.gold,
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      value: _needsPermit,
+                      onChanged: (v) => setState(() => _needsPermit = v),
+                      title: const Text('Requires special permit',
+                          style: TextStyle(
+                              color: AppColors.cream, fontSize: 14)),
+                      activeColor: AppColors.gold,
+                    ),
+                    const Divider(height: 1, color: AppColors.border),
+                    SwitchListTile(
+                      value: _isHazardous,
+                      onChanged: (v) => setState(() => _isHazardous = v),
+                      title: const Text('Hazardous cargo',
+                          style: TextStyle(
+                              color: AppColors.cream, fontSize: 14)),
+                      activeColor: AppColors.gold,
+                    ),
+                    const Divider(height: 1, color: AppColors.border),
+                    SwitchListTile(
+                      value: _isFragile,
+                      onChanged: (v) => setState(() => _isFragile = v),
+                      title: const Text('Fragile cargo',
+                          style: TextStyle(
+                              color: AppColors.cream, fontSize: 14)),
+                      activeColor: AppColors.gold,
+                    ),
+                  ],
                 ),
-              ),
-
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _priceToDriverController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: AppColors.cream),
-                      decoration: _decoration('Price to driver'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _priceToClientController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: AppColors.cream),
-                      decoration: _decoration('Price to client'),
-                    ),
-                  ),
-                ],
               ),
 
               const SizedBox(height: 28),
@@ -294,6 +304,35 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _orderTypeTab(String value, String label) {
+    final selected = _orderType == value;
+    return InkWell(
+      onTap: () => setState(() {
+        _orderType = value;
+        _errorMessage = null;
+      }),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.gold : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: selected ? AppColors.bg : AppColors.muted,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 13,
           ),
         ),
       ),

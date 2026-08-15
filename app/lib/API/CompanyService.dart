@@ -10,7 +10,55 @@ import 'config.dart';
 
 class CompanyService {
 
+  /// Company app: its own record (balance/credit_limit) — used by the
+  /// balance page.
+  Future<Company> fetchMyCompany() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
 
+    final response = await http.get(
+      Uri.parse('$baseUrl/my-company'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return Company.fromMap(data['company']);
+    }
+    throw Exception('Failed to load company (HTTP ${response.statusCode})');
+  }
+
+  static Future<Map<String, dynamic>> setCreditLimit({
+    required String companyId,
+    required double creditLimit,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/companies/$companyId/credit-limit'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'credit_limit': creditLimit}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 
   Future<List<Company>> fetchCompaines() async {
     final prefs = await SharedPreferences.getInstance();

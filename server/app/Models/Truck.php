@@ -21,7 +21,7 @@ class Truck extends Model
         '10 Ton pick up',
         'Trailer 40 FT-12M-Open',
         'Trailer 40 FT-12M-Box',
-        'Trailer 45 FT-15M-Open',
+        'Trailer 50 FT-15M-Open',
         'Curtain Trailer 13.5M',
         'Curtain Trailer 15M',
         'Reefer Trailer',

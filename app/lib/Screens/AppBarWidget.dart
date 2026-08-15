@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../API/NotificationService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
+import 'NotificationsPage.dart';
 
 class AppBarWidget extends StatelessWidget {
   final AppUser user;
@@ -116,6 +118,8 @@ class AppBarWidget extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: 4),
+          const _NotificationBell(),
           if (actions != null) ...actions!,
         ],
       ),
@@ -127,5 +131,69 @@ class AppBarWidget extends StatelessWidget {
     if (h < 12) return 'morning';
     if (h < 17) return 'afternoon';
     return 'evening';
+  }
+}
+
+/// Bell icon shown on every role's app bar — opens the in-app notification
+/// center and shows a small dot while there's at least one unread item.
+class _NotificationBell extends StatefulWidget {
+  const _NotificationBell();
+
+  @override
+  State<_NotificationBell> createState() => _NotificationBellState();
+}
+
+class _NotificationBellState extends State<_NotificationBell> {
+  final _service = NotificationService();
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final result = await _service.fetchNotifications();
+      if (mounted) setState(() => _unreadCount = result.unreadCount);
+    } catch (_) {
+      // Silently ignore — the bell just won't show a badge this time.
+    }
+  }
+
+  Future<void> _open() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationsPage()),
+    );
+    _loadUnreadCount();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: _open,
+          icon: const Icon(Icons.notifications_outlined, color: AppColors.cream),
+          splashRadius: 20,
+        ),
+        if (_unreadCount > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: AppColors.gold,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }

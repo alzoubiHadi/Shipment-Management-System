@@ -19,6 +19,8 @@ class ShipmentOffer extends Model
     protected $fillable = [
         'company_id',
         'origin',
+        'origin_lat',
+        'origin_lng',
         'destination',
         'weight',
         'description',
@@ -38,6 +40,8 @@ class ShipmentOffer extends Model
         'accepted_truck_id',
         'accepted_at',
         'expires_at',
+        'matched_driver_ids',
+        'matching_round',
     ];
 
     protected $casts = [
@@ -47,6 +51,9 @@ class ShipmentOffer extends Model
         'accepted_at' => 'datetime',
         'expires_at' => 'datetime',
         'platform_margin_percent_snapshot' => 'decimal:2',
+        'origin_lat' => 'decimal:7',
+        'origin_lng' => 'decimal:7',
+        'matched_driver_ids' => 'array',
     ];
 
     public function company()

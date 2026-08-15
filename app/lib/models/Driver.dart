@@ -23,6 +23,11 @@ class Driver {
   // Human-readable problems with this driver's documents, computed by the
   // server (Driver::documentIssues()) — e.g. "Driver license expired".
   final List<String> documentIssues;
+  // UC-23/24: recency-weighted average of company + Super Admin ratings.
+  final double rating;
+  // UC-25/26: active | warning | suspended | banned — separate axis from
+  // approvalStatus. Suspended/banned drivers never appear in matching.
+  final String complianceStatus;
 
   Driver({
     required this.id,
@@ -45,6 +50,8 @@ class Driver {
     this.passportExpiry = '',
     this.bloodType = '',
     this.documentIssues = const [],
+    this.rating = 4.50,
+    this.complianceStatus = 'active',
   });
 
   factory Driver.fromMap(Map<String, dynamic> map) {
@@ -72,6 +79,8 @@ class Driver {
           ? List<String>.from(
               (map['document_issues'] as List).map((e) => e.toString()))
           : const [],
+      rating: double.tryParse(map['rating']?.toString() ?? '') ?? 4.50,
+      complianceStatus: map['compliance_status']?.toString() ?? 'active',
     );
   }
 

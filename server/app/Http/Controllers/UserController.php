@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\Driver;
 use App\Models\User;
+use App\Notifications\AppPushNotification;
 use App\Notifications\OtpCodeNotification;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
@@ -167,6 +168,15 @@ class UserController extends Controller
             'otp_expires_at' => null,
         ]);
 
+        // Only now — not at register() — because the account row already
+        // existed as 'pending' before email verification, but notifying
+        // admins about it then would mean alerting them about signups that
+        // might never even finish this step. A verified email means a real
+        // person is actually waiting on a decision.
+        if (in_array($user->type, ['driver', 'company'], true)) {
+            $this->notifyAdminsOfNewRegistration($user);
+        }
+
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
@@ -308,5 +318,31 @@ class UserController extends Controller
     private function generateOtp(): string
     {
         return (string) random_int(100000, 999999);
+    }
+
+    /**
+     * UC-2/UC-3: alert every admin the moment a self-registered driver or
+     * company finishes email verification and is sitting in 'pending'
+     * approval. There's no dedicated permission key for driver/company
+     * approval yet (see routes/api.php — those endpoints aren't gated by
+     * permission:<key> like finance/crm are), so this goes to every admin
+     * who can currently act on it: Super Admin, the legacy 'admin' seed
+     * account, and every sub-admin regardless of which permission groups
+     * they hold.
+     */
+    private function notifyAdminsOfNewRegistration(User $user): void
+    {
+        $admins = User::whereIn('type', ['super_admin', 'admin', 'sub_admin'])->get();
+
+        $label = $user->type === 'driver' ? 'driver' : 'company';
+
+        foreach ($admins as $admin) {
+            $admin->notify(new AppPushNotification(
+                'new_registration_pending',
+                'New ' . ucfirst($label) . ' awaiting approval',
+                sprintf('%s (%s) just verified their email and is waiting for approval.', $user->name, $user->email),
+                ['user_id' => $user->id, 'type' => $user->type],
+            ));
+        }
     }
 }

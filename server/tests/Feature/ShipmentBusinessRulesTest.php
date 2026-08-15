@@ -234,7 +234,17 @@ class ShipmentBusinessRulesTest extends TestCase
         $response->assertStatus(422);
     }
 
-    public function test_delivery_succeeds_after_unloading_and_frees_the_driver(): void
+    /**
+     * UC-19/UC-20 special requirement: the driver's own delivery claim
+     * (deliver()) must NOT pay the driver, free them, or mark the shipment
+     * "delivered" (status stays whatever it was) — it only records the
+     * proof of delivery and hands off to company confirmation. Paying/
+     * freeing only happens in confirmDelivery() — see
+     * DeliveryConfirmationTest for that half of the flow. This replaced an
+     * earlier (incorrect) version of this test that asserted deliver()
+     * itself paid and freed the driver, before that bug was fixed.
+     */
+    public function test_delivery_succeeds_after_unloading_but_does_not_pay_or_free_the_driver(): void
     {
         [$user, $driver] = $this->makeDriver(['status' => 'busy']);
         $company = $this->makeCompany();
@@ -246,6 +256,7 @@ class ShipmentBusinessRulesTest extends TestCase
             'destination' => 'Amman',
             'status' => 1,
             'current_stage' => 6,
+            'price_to_driver' => 500,
         ]);
 
         Sanctum::actingAs($user);
@@ -259,10 +270,12 @@ class ShipmentBusinessRulesTest extends TestCase
         $this->assertDatabaseHas('shipments', [
             'id' => $shipment->id,
             'current_stage' => 7,
-            'status' => 3,
+            'status' => 1, // still "In Transit" — NOT auto-marked delivered
+            'delivery_status' => 'awaiting_confirmation',
             'pod_recipient_name' => 'Ahmad',
         ]);
-        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'status' => 'available']);
+        // Driver stays busy and unpaid until the company confirms.
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'status' => 'busy', 'balance' => 0]);
     }
 
     public function test_driver_cannot_advance_a_shipment_that_is_not_theirs(): void

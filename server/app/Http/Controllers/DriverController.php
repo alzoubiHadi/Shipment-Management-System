@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Driver;
+use App\Models\DriverDestination;
+use App\Models\DriverDocument;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class DriverController extends Controller
@@ -127,6 +130,10 @@ public function restore( $id)
             'residency_expiry' => $request->residency_expiry ?? $driver->residency_expiry,
             'passport_expiry' => $request->passport_expiry ?? $driver->passport_expiry,
             'blood_type' => $request->blood_type ?? $driver->blood_type,
+            // Sensitive medical data — never returned in company-facing
+            // responses (see CompanyFacingDriverResource). Admin and the
+            // driver themselves may read/write it here.
+            'health_conditions' => $request->health_conditions ?? $driver->health_conditions,
         ]);
 
         // The email itself lives on the linked user account, not the
@@ -268,5 +275,180 @@ public function restore( $id)
             'message' => 'Driver reactivated',
             'driver' => $driver,
         ], 200);
+    }
+
+    // ── Documents (UC-8: append-only, never delete) ──────────────────────────
+
+    /**
+     * A driver only knows their own user_id (that's what's stored in the
+     * app after login) — not the internal drivers.id — so this resolves
+     * the same way /driver/{driver_user_id}/trucks does. Admins reviewing
+     * a specific driver's file also have that driver's user_id available
+     * from the drivers list response.
+     */
+    public function documents($driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Documents retrieved successfully',
+            'documents' => $driver->documents()->orderByDesc('created_at')->get(),
+        ], 200);
+    }
+
+    /**
+     * Uploads a new document version. The previous "current" document of
+     * the same type is flipped to is_current=false — it is NEVER deleted,
+     * preserving full audit history. The matching legacy expiry column
+     * (license_expiry / passport_expiry / residency_expiry) is kept in
+     * sync so the existing eligibility checks (Driver::isEligibleForNewJob,
+     * documentIssues, meetsCrossBorderResidencyRule) keep working unchanged
+     * — those remain the single source of truth for matching eligibility,
+     * driver_documents is the audit trail behind them.
+     */
+    public function uploadDocument(Request $request, $driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        try {
+            $validated = $request->validate([
+                'type' => ['required', 'string', 'in:' . implode(',', DriverDocument::TYPES)],
+                'file' => ['required', 'file', 'max:10240'], // 10MB
+                'expiry_date' => ['nullable', 'date'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        $path = $request->file('file')->store('driver_documents', 'public');
+
+        $document = DB::transaction(function () use ($driver, $validated, $path, $request) {
+            $driver->documents()->where('type', $validated['type'])->update(['is_current' => false]);
+
+            $document = $driver->documents()->create([
+                'type' => $validated['type'],
+                'file_path' => $path,
+                'expiry_date' => $validated['expiry_date'] ?? null,
+                'is_current' => true,
+                'uploaded_by_user_id' => $request->user()?->id,
+            ]);
+
+            $legacyColumn = match ($validated['type']) {
+                'license' => 'license_expiry',
+                'passport' => 'passport_expiry',
+                'residency' => 'residency_expiry',
+                default => null,
+            };
+
+            if ($legacyColumn) {
+                $driver->update([$legacyColumn => $validated['expiry_date'] ?? null]);
+            }
+
+            return $document;
+        });
+
+        return response()->json([
+            'message' => 'Document uploaded successfully',
+            'document' => $document,
+        ], 201);
+    }
+
+    // ── Destinations ───────────────────────────────────────────────────────
+
+    public function destinationOptions()
+    {
+        return response()->json([
+            'message' => 'Destination options retrieved successfully',
+            'destinations' => DriverDestination::DESTINATIONS,
+        ], 200);
+    }
+
+    public function myDestinations($driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Destinations retrieved successfully',
+            'destinations' => $driver->destinations()->pluck('destination'),
+        ], 200);
+    }
+
+    /**
+     * Full replace of the driver's destination list (at least 1 required —
+     * a driver must be reachable by the matching algorithm for something).
+     */
+    public function syncDestinations(Request $request, $driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'destinations' => ['required', 'array', 'min:1'],
+            'destinations.*' => ['string', 'in:' . implode(',', array_keys(DriverDestination::DESTINATIONS))],
+        ]);
+
+        DB::transaction(function () use ($driver, $validated) {
+            $driver->destinations()->delete();
+            foreach (array_unique($validated['destinations']) as $destination) {
+                $driver->destinations()->create(['destination' => $destination]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Destinations updated successfully',
+            'destinations' => $driver->destinations()->pluck('destination'),
+        ], 200);
+    }
+
+    /**
+     * UC-21/UC-14: near-live location, foreground-only per the spec (no
+     * background tracking service) — the Flutter app calls this
+     * periodically while it's open and the driver is 'available' or
+     * 'busy'. Feeds both live tracking (company-facing, via
+     * ShipmentController::trackmyshipment) and the Haversine proximity
+     * term in the matching score (MatchingService::proximityScore).
+     */
+    public function updateLocation(Request $request, $driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        if ($driver->user_id != $request->user()->id) {
+            return response()->json(['message' => 'You can only update your own location'], 403);
+        }
+
+        $validated = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $driver->update([
+            'last_lat' => $validated['lat'],
+            'last_lng' => $validated['lng'],
+            'last_location_at' => now(),
+        ]);
+
+        return response()->json(['message' => 'Location updated successfully'], 200);
     }
 }

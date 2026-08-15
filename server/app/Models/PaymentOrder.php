@@ -4,6 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * UC-28/UC-29: company -> platform top-up request. Company submits an
+ * amount + bank-transfer receipt; only Finance Admin approval actually
+ * credits companies.balance (never at submission time).
+ */
 class PaymentOrder extends Model
 {
     protected $fillable = [

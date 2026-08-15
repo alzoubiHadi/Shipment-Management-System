@@ -185,8 +185,10 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Cargo: ${offer.cargoType}'
-                            '${offer.requiresCrossBorder ? " · cross-border" : ""}',
+                            '${offer.requiredTruckType} · ${offer.orderType}'
+                            '${offer.needsPermit ? " · permit" : ""}'
+                            '${offer.isHazardous ? " · hazardous" : ""}'
+                            '${offer.isFragile ? " · fragile" : ""}',
                             style: const TextStyle(color: AppColors.muted, fontSize: 12),
                           ),
                           if (offer.description.isNotEmpty) ...[
