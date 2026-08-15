@@ -26,9 +26,12 @@ class ShipmentOfferController extends Controller
                 'destination' => ['required', 'string'],
                 'weight' => ['nullable', 'numeric'],
                 'description' => ['nullable', 'string'],
-                'cargo_type' => ['nullable', 'in:normal,refrigerated,hazardous'],
-                'requires_cross_border' => ['boolean'],
-                'required_truck_type' => ['nullable', 'string'],
+                'needs_permit' => ['boolean'],
+                'is_hazardous' => ['boolean'],
+                'is_fragile' => ['boolean'],
+                // 'external' replaces the old requires_cross_border=true.
+                'order_type' => ['nullable', 'in:internal,external'],
+                'required_truck_type' => ['nullable', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
                 'price_to_driver' => ['nullable', 'numeric'],
                 'price_to_client' => ['nullable', 'numeric'],
             ]);
@@ -39,7 +42,7 @@ class ShipmentOfferController extends Controller
             ], 422);
         }
 
-        $validated['cargo_type'] = $validated['cargo_type'] ?? 'normal';
+        $validated['order_type'] = $validated['order_type'] ?? 'internal';
         $validated['status'] = 'pending';
 
         $offer = ShipmentOffer::create($validated);
@@ -109,19 +112,12 @@ class ShipmentOfferController extends Controller
         }
 
         $offers = ShipmentOffer::where('status', 'pending')
-            ->when($driver->employment_type, function ($query) {
-                // no additional filtering needed here yet; kept for future rules
-                return $query;
-            })
-            ->when(true, function ($query) use ($driver) {
-                return $query->where(function ($q) use ($driver) {
-                    $q->whereNull('requires_cross_border')
-                      ->orWhere('requires_cross_border', false);
+            ->where(function ($q) use ($driver) {
+                $q->where('order_type', 'internal');
 
-                    if ($driver->meetsCrossBorderResidencyRule()) {
-                        $q->orWhere('requires_cross_border', true);
-                    }
-                });
+                if ($driver->meetsCrossBorderResidencyRule()) {
+                    $q->orWhere('order_type', 'external');
+                }
             })
             ->orderByDesc('created_at')
             ->get();
@@ -171,7 +167,7 @@ class ShipmentOfferController extends Controller
                 ], 422);
             }
 
-            if ($offer->requires_cross_border && ! $driver->meetsCrossBorderResidencyRule()) {
+            if ($offer->order_type === 'external' && ! $driver->meetsCrossBorderResidencyRule()) {
                 return response()->json([
                     'message' => 'Driver residency does not meet the 3-month cross-border requirement',
                 ], 422);
@@ -189,7 +185,10 @@ class ShipmentOfferController extends Controller
                 ], 422);
             }
 
-            if ($offer->cargo_type === 'refrigerated' && ! $truck->has_refrigeration) {
+            // Refrigeration is implied by required_truck_type = "Reefer Trailer"
+            // (there is no separate cargo_type flag for it anymore) — this is
+            // a defensive double-check in case a truck was mislabeled.
+            if ($offer->required_truck_type === 'Reefer Trailer' && ! $truck->has_refrigeration) {
                 return response()->json([
                     'message' => 'This cargo requires a refrigerated truck',
                 ], 422);
@@ -207,7 +206,10 @@ class ShipmentOfferController extends Controller
                 'destination' => $offer->destination,
                 'weight' => $offer->weight,
                 'description' => $offer->description,
-                'cargo_type' => $offer->cargo_type,
+                'needs_permit' => $offer->needs_permit,
+                'is_hazardous' => $offer->is_hazardous,
+                'is_fragile' => $offer->is_fragile,
+                'order_type' => $offer->order_type,
                 'price_to_driver' => $offer->price_to_driver,
                 'price_to_client' => $offer->price_to_client,
                 'status' => 1, // assigned
@@ -268,7 +270,8 @@ class ShipmentOfferController extends Controller
             ->where(function ($q) {
                 $q->whereNull('residency_expiry')->orWhere('residency_expiry', '>=', now()->toDateString());
             })
-            ->when($offer->requires_cross_border, function ($q) {
+            ->where('compliance_status', 'active')
+            ->when($offer->order_type === 'external', function ($q) {
                 $q->where('residency_expiry', '>=', now()->addMonths(3)->toDateString());
             });
     }

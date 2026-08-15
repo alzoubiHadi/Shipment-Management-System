@@ -56,8 +56,9 @@ class ShipmentBusinessRulesTest extends TestCase
             'name' => 'Test Driver',
             'phone' => '0000000',
             'driver_license' => uniqid('LIC'),
-            'employment_type' => 'internal',
             'status' => 'available',
+            'approval_status' => 'approved',
+            'compliance_status' => 'active',
             'user_id' => $user->id,
         ], $overrides));
 
@@ -84,8 +85,7 @@ class ShipmentBusinessRulesTest extends TestCase
             'origin' => 'Dubai',
             'destination' => 'Riyadh',
             'weight' => 1000,
-            'cargo_type' => 'normal',
-            'requires_cross_border' => false,
+            'order_type' => 'internal',
             'status' => 'pending',
             'price_to_driver' => 500,
             'price_to_client' => 700,
@@ -101,7 +101,7 @@ class ShipmentBusinessRulesTest extends TestCase
         ]);
         $truck = $this->makeTruck($driver);
         $company = $this->makeCompany();
-        $offer = $this->makeOffer($company, ['requires_cross_border' => true]);
+        $offer = $this->makeOffer($company, ['order_type' => 'external']);
 
         Sanctum::actingAs($user);
 
@@ -123,7 +123,7 @@ class ShipmentBusinessRulesTest extends TestCase
         ]);
         $truck = $this->makeTruck($driver);
         $company = $this->makeCompany();
-        $offer = $this->makeOffer($company, ['requires_cross_border' => true]);
+        $offer = $this->makeOffer($company, ['order_type' => 'external']);
 
         Sanctum::actingAs($user);
 
@@ -162,9 +162,11 @@ class ShipmentBusinessRulesTest extends TestCase
     public function test_refrigerated_cargo_requires_refrigerated_truck(): void
     {
         [$user, $driver] = $this->makeDriver();
-        $truck = $this->makeTruck($driver, ['has_refrigeration' => false]);
+        // Refrigeration is now implied by required_truck_type = "Reefer
+        // Trailer" rather than a separate cargo_type flag.
+        $truck = $this->makeTruck($driver, ['truck_type' => 'Reefer Trailer', 'has_refrigeration' => false]);
         $company = $this->makeCompany();
-        $offer = $this->makeOffer($company, ['cargo_type' => 'refrigerated']);
+        $offer = $this->makeOffer($company, ['required_truck_type' => 'Reefer Trailer']);
 
         Sanctum::actingAs($user);
 

@@ -103,9 +103,104 @@ class CompanyController extends Controller
             'address' => $request->address,
             'phone' => $request->phone,
         ]);
-        
+
         return response()->json([
             'message' => 'Company updated successfully',
+            'company' => $company,
+        ], 200);
+    }
+
+    /**
+     * Super Admin final approval of a self-registered company (UC-5),
+     * mirroring DriverController::approve().
+     */
+    public function approve(Company $company)
+    {
+        $company->update([
+            'approval_status' => 'approved',
+            'rejection_reason' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Company approved successfully',
+            'company' => $company,
+        ], 200);
+    }
+
+    /**
+     * Super Admin outright rejects a self-registered company.
+     */
+    public function reject(Request $request, Company $company)
+    {
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $company->update([
+            'approval_status' => 'rejected',
+            'rejection_reason' => $validated['reason'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Company rejected',
+            'company' => $company,
+        ], 200);
+    }
+
+    /**
+     * UC-5 alt flow: return the application to the company so they can
+     * complete missing information, instead of an outright rejection.
+     * approval_status stays 'pending' — only the message changes, reusing
+     * the same rejection_reason column (see the Phase 1 migration note).
+     */
+    public function returnForCompletion(Request $request, Company $company)
+    {
+        $validated = $request->validate([
+            'message' => ['required', 'string', 'max:500'],
+        ]);
+
+        $company->update([
+            'approval_status' => 'pending',
+            'rejection_reason' => $validated['message'],
+        ]);
+
+        return response()->json([
+            'message' => 'Application returned to the company for completion',
+            'company' => $company,
+        ], 200);
+    }
+
+    /**
+     * Admin temporarily suspends a company account for a rules violation
+     * (separate from the one-time approval workflow — an already-approved
+     * company can still be suspended later).
+     */
+    public function suspend(Request $request, Company $company)
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $company->update([
+            'account_status' => 'suspended',
+            'suspension_reason' => $validated['reason'],
+        ]);
+
+        return response()->json([
+            'message' => 'Company account suspended',
+            'company' => $company,
+        ], 200);
+    }
+
+    public function activate(Company $company)
+    {
+        $company->update([
+            'account_status' => 'active',
+            'suspension_reason' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Company account re-activated',
             'company' => $company,
         ], 200);
     }

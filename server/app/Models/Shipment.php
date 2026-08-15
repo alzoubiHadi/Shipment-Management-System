@@ -18,13 +18,20 @@ class Shipment extends Model
         'destination',
         'weight',
         'description',
-        'cargo_type',
+        'needs_permit',
+        'is_hazardous',
+        'is_fragile',
+        'order_type',
         'price_to_driver',
         'price_to_client',
         'status',
         'cancellation_reason',
         'pickup_time',
         'delivered_at',
+        'delivery_status',
+        'company_confirmed_by_user_id',
+        'company_confirmed_at',
+        'dispute_reason',
         'current_stage',
         'heading_to_pickup_at',
         'loaded_at',
@@ -37,6 +44,9 @@ class Shipment extends Model
     ];
 
     protected $casts = [
+        'needs_permit' => 'boolean',
+        'is_hazardous' => 'boolean',
+        'is_fragile' => 'boolean',
         'heading_to_pickup_at' => 'datetime',
         'loaded_at' => 'datetime',
         'departed_to_border_at' => 'datetime',
@@ -44,6 +54,7 @@ class Shipment extends Model
         'arrived_at_destination_at' => 'datetime',
         'unloaded_at' => 'datetime',
         'delivered_at' => 'datetime',
+        'company_confirmed_at' => 'datetime',
     ];
 
     /**
@@ -88,5 +99,41 @@ class Shipment extends Model
     public function offer()
     {
         return $this->belongsTo(ShipmentOffer::class, 'shipment_offer_id');
+    }
+
+    public function companyConfirmedBy()
+    {
+        return $this->belongsTo(User::class, 'company_confirmed_by_user_id');
+    }
+
+    /**
+     * Driver's own delivery action (UC-19): uploads proof + signature, but
+     * this alone must NOT free the driver or touch their balance — it only
+     * moves the shipment to "awaiting company confirmation".
+     */
+    public function markAwaitingCompanyConfirmation(): void
+    {
+        $this->delivery_status = 'awaiting_confirmation';
+        $this->save();
+    }
+
+    /**
+     * The ONLY action that should ever credit the driver's balance for this
+     * shipment (UC-20). Caller is responsible for wrapping this together
+     * with the driver balance update in a DB transaction.
+     */
+    public function confirmByCompany(User $companyUser): void
+    {
+        $this->delivery_status = 'confirmed';
+        $this->company_confirmed_by_user_id = $companyUser->id;
+        $this->company_confirmed_at = now();
+        $this->save();
+    }
+
+    public function disputeDelivery(string $reason): void
+    {
+        $this->delivery_status = 'disputed';
+        $this->dispute_reason = $reason;
+        $this->save();
     }
 }

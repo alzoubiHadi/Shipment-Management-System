@@ -19,20 +19,43 @@ class Driver extends Model
         'driver_license',
         'license_expiry',
         'user_id',
-        'employment_type',
         'status',
         'approval_status',
         'rejection_reason',
+        'admin_note',
         'residency_expiry',
         'passport_expiry',
         'blood_type',
+        'health_conditions',
+        'rating',
+        'compliance_status',
+        'balance',
+        'last_lat',
+        'last_lng',
+        'last_location_at',
+        'offers_received_count',
+        'offers_accepted_count',
     ];
 
     protected $casts = [
         'license_expiry' => 'date',
         'residency_expiry' => 'date',
         'passport_expiry' => 'date',
+        'rating' => 'decimal:2',
+        'balance' => 'decimal:2',
+        'last_lat' => 'decimal:7',
+        'last_lng' => 'decimal:7',
+        'last_location_at' => 'datetime',
     ];
+
+    /**
+     * health_conditions is sensitive medical data: it must NEVER be
+     * serialized to a company-facing response. It is intentionally left out
+     * of $hidden so admin-facing endpoints can still read/write it directly
+     * on the model — company-facing API resources/controllers are
+     * responsible for stripping it (see Phase 3 DriverController /
+     * DriverResource work).
+     */
 
     // Automatically included in every JSON response for this model, so the
     // app can show document-expiry warnings without any extra API call.
@@ -54,6 +77,38 @@ class Driver extends Model
     }
 
     /**
+     * Full append-only document history. Never delete a row from here.
+     */
+    public function documents()
+    {
+        return $this->hasMany(DriverDocument::class);
+    }
+
+    /**
+     * Only the currently-valid document per type — this is what
+     * document-expiry / auto-block checks should read.
+     */
+    public function currentDocuments()
+    {
+        return $this->documents()->where('is_current', true);
+    }
+
+    public function destinations()
+    {
+        return $this->hasMany(DriverDestination::class);
+    }
+
+    public function complianceReports()
+    {
+        return $this->hasMany(ComplianceReport::class);
+    }
+
+    public function payoutRequests()
+    {
+        return $this->hasMany(PayoutRequest::class);
+    }
+
+    /**
      * A driver is eligible to be offered a new job if they are currently
      * marked available, have been approved by an admin, and none of their
      * required documents have actually expired. A document that was never
@@ -72,6 +127,13 @@ class Driver extends Model
             return false;
         }
 
+        // Compliance/safety axis is fully separate from the service rating:
+        // a suspended or banned driver never appears in matching regardless
+        // of how high their rating is.
+        if ($this->compliance_status !== 'active') {
+            return false;
+        }
+
         if ($this->license_expiry && $this->license_expiry->isPast()) {
             return false;
         }
@@ -85,6 +147,21 @@ class Driver extends Model
         }
 
         return true;
+    }
+
+    /**
+     * The historical acceptance rate input to the weighted matching score
+     * (UC-14). Returns 1.0 (best case) for a brand-new driver with no
+     * history yet, so they aren't unfairly penalized before they've had a
+     * chance to respond to any offer.
+     */
+    public function acceptanceRate(): float
+    {
+        if ($this->offers_received_count <= 0) {
+            return 1.0;
+        }
+
+        return min(1.0, $this->offers_accepted_count / $this->offers_received_count);
     }
 
     /**

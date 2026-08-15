@@ -2,28 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Driver;
 use App\Models\User;
+use App\Notifications\OtpCodeNotification;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
-    //
     /**
-     * Self-registration. Anyone can create their own account this way —
-     * this is how the app reaches drivers in the open market instead of
-     * the admin having to add every driver by hand.
+     * Self-registration for companies and drivers (UC-2/UC-3). Anyone can
+     * create their own account this way — the admin never creates a
+     * company's or a driver's account. Every driver is an independent
+     * operator who owns their own truck(s); there is no platform-owning
+     * company anymore, so no "internal fleet" distinction exists.
      *
-     * When registering as a driver, a matching Driver profile is created
-     * automatically. The only thing that distinguishes an "internal"
-     * driver (own fleet, i.e. Albatrans) from an "external" one (an
-     * independent driver who joined through the app) is the
-     * `is_albatrans_fleet` checkbox on the sign-up form — everything else
-     * about the registration flow is identical for both.
+     * This does NOT log the user in yet: the account is created with
+     * email_verified_at = null and a fresh OTP is sent (UC-4). The account
+     * only becomes usable after verifyOtp() succeeds, and even then it
+     * still needs Super Admin final approval (approval_status stays
+     * 'pending' — see DriverController/CompanyController::approve()).
      *
      * The truck itself is NOT collected here on purpose: a truck is its
      * own record (see TruckController) that a driver can add or change at
@@ -33,16 +35,26 @@ class UserController extends Controller
     {
         $type = $request->type ?? 'driver';
 
+        if (! in_array($type, ['driver', 'company'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid registration type.',
+            ], 422);
+        }
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => ['required', 'confirmed', PasswordPolicy::rules()],
             'phone' => ['nullable', 'string', 'max:20'],
         ];
 
         if ($type === 'driver') {
             $rules['driver_license'] = ['required', 'string', 'unique:drivers,driver_license'];
-            $rules['is_albatrans_fleet'] = ['nullable', 'boolean'];
+        }
+
+        if ($type === 'company') {
+            $rules['address'] = ['nullable', 'string', 'max:255'];
         }
 
         try {
@@ -55,28 +67,29 @@ class UserController extends Controller
             ], 401);
         }
 
-        [$user, $driver] = DB::transaction(function () use ($validated, $type, $request) {
+        $otp = $this->generateOtp();
+
+        [$user, $driver, $company] = DB::transaction(function () use ($validated, $type, $otp) {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'type' => $type,
                 'password' => Hash::make($validated['password']),
+                'otp_code' => $otp,
+                'otp_expires_at' => now()->addMinutes(10),
             ]);
 
             $driver = null;
+            $company = null;
 
             if ($type === 'driver') {
                 $driver = Driver::create([
                     'name' => $validated['name'],
                     'phone' => $validated['phone'] ?? null,
                     'driver_license' => $validated['driver_license'],
-                    // the checkbox is the ONLY thing that decides this:
-                    'employment_type' => $request->boolean('is_albatrans_fleet')
-                        ? 'internal'
-                        : 'external',
-                    'status' => 'available',
-                    // Self-registered drivers always start out pending —
-                    // an admin must review their documents and approve them
+                    'status' => 'unavailable',
+                    // Self-registered drivers always start out pending — an
+                    // admin must review their documents and approve them
                     // before they can be matched with any shipment. Drivers
                     // created directly by an admin (DriverController::create)
                     // default to 'approved' instead, since the admin is
@@ -86,16 +99,79 @@ class UserController extends Controller
                 ]);
             }
 
-            return [$user, $driver];
+            if ($type === 'company') {
+                $company = Company::create([
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'phone' => $validated['phone'] ?? null,
+                    'address' => $validated['address'] ?? null,
+                    'approval_status' => 'pending',
+                    'user_id' => $user->id,
+                ]);
+            }
+
+            return [$user, $driver, $company];
         });
+
+        $user->notify(new OtpCodeNotification($otp));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registered successfully. Please verify your email with the code we just sent.',
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'type' => $user->type,
+                ],
+                'requires_otp_verification' => true,
+            ],
+        ], 201);
+    }
+
+    /**
+     * UC-4: verify the OTP code emailed at registration time. Only after
+     * this succeeds does the account become usable and receive an API
+     * token — approval_status is a separate, later step handled by Super
+     * Admin.
+     */
+    public function verifyOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'otp_code' => ['required', 'string'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Account not found.'], 404);
+        }
+
+        if ($user->email_verified_at) {
+            return response()->json(['success' => false, 'message' => 'Email already verified.'], 409);
+        }
+
+        if (! $user->otp_code || ! $user->otp_expires_at || $user->otp_expires_at->isPast()) {
+            return response()->json(['success' => false, 'message' => 'This code has expired. Please request a new one.'], 422);
+        }
+
+        if (! hash_equals($user->otp_code, $validated['otp_code'])) {
+            return response()->json(['success' => false, 'message' => 'Incorrect verification code.'], 422);
+        }
+
+        $user->update([
+            'email_verified_at' => now(),
+            'otp_code' => null,
+            'otp_expires_at' => null,
+        ]);
 
         $token = $user->createToken('api-token')->plainTextToken;
 
-        // Same response shape as login(), so the app's AuthResponse.fromJson
-        // (shared by both login and register) can read it the same way.
         return response()->json([
             'success' => true,
-            'message' => 'Registered successfully',
+            'message' => 'Email verified successfully.',
             'data' => [
                 'user' => [
                     'id' => $user->id,
@@ -106,8 +182,32 @@ class UserController extends Controller
                 'access_token' => $token,
                 'token_type' => 'Bearer',
             ],
-            'driver' => $driver,
-        ], 201);
+        ], 200);
+    }
+
+    /**
+     * UC-4: resend a fresh OTP code (e.g. the first one expired, or the
+     * email never arrived).
+     */
+    public function resendOtp(Request $request)
+    {
+        $validated = $request->validate(['email' => ['required', 'email']]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Account not found.'], 404);
+        }
+
+        if ($user->email_verified_at) {
+            return response()->json(['success' => false, 'message' => 'Email already verified.'], 409);
+        }
+
+        $otp = $this->generateOtp();
+        $user->update(['otp_code' => $otp, 'otp_expires_at' => now()->addMinutes(10)]);
+        $user->notify(new OtpCodeNotification($otp));
+
+        return response()->json(['success' => true, 'message' => 'A new verification code has been sent.'], 200);
     }
 
     public function login(Request $request)
@@ -124,17 +224,34 @@ class UserController extends Controller
             ], 401);
         }
 
-        // Optional: revoke old tokens
-        // $user->tokens()->delete();
+        // Self-registered accounts (driver/company) must verify their email
+        // via OTP before they can log in at all. Admin-created accounts
+        // (sub-admins) have email_verified_at set at creation time, so this
+        // never blocks them.
+        if (! $user->email_verified_at) {
+            $otp = $this->generateOtp();
+            $user->update(['otp_code' => $otp, 'otp_expires_at' => now()->addMinutes(10)]);
+            $user->notify(new OtpCodeNotification($otp));
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Please verify your email first. A new verification code has been sent.',
+                'requires_otp_verification' => true,
+            ], 403);
+        }
 
         $token = $user->createToken('api-token')->plainTextToken;
 
-        // Drivers carry an admin-approval status; the app needs this at
-        // login time (not just at registration time) to keep showing the
-        // "awaiting approval" screen on every subsequent login until an
-        // admin approves them.
+        // Drivers/companies carry an admin-approval status; the app needs
+        // this at login time (not just at registration time) to keep
+        // showing the "awaiting approval" screen on every subsequent login
+        // until an admin approves them.
         $driver = $user->type === 'driver'
             ? Driver::where('user_id', $user->id)->first()
+            : null;
+
+        $company = $user->type === 'company'
+            ? Company::where('user_id', $user->id)->first()
             : null;
 
         return response()->json([
@@ -146,11 +263,50 @@ class UserController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'type' => $user->type,
+                    'must_change_password' => (bool) $user->must_change_password,
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer',
             ],
             'driver' => $driver,
+            'company' => $company,
         ], 200);
+    }
+
+    /**
+     * UC-7: forced password change on first login for sub-admin accounts
+     * created with a one-time temporary password, and also usable at any
+     * time by any logged-in user to change their own password.
+     */
+    public function changePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'confirmed', PasswordPolicy::rules()],
+        ]);
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+            'must_change_password' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password changed successfully.',
+        ], 200);
+    }
+
+    private function generateOtp(): string
+    {
+        return (string) random_int(100000, 999999);
     }
 }

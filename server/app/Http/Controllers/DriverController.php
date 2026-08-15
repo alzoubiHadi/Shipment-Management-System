@@ -58,7 +58,6 @@ class DriverController extends Controller
                 'driver_license' => $request->driver_license,
                 'license_expiry' => $request->license_expiry,
                 'user_id' => $user->id,
-                'employment_type' => $request->employment_type ?? 'internal',
                 'status' => $request->status ?? 'available',
                 // A driver added directly by the admin is already vetted at
                 // creation time (unlike self-registration), so it's
@@ -125,7 +124,6 @@ public function restore( $id)
             'age' => $request->age,
             'driver_license' => $request->driver_license,
             'license_expiry' => $request->license_expiry,
-            'employment_type' => $request->employment_type ?? $driver->employment_type,
             'residency_expiry' => $request->residency_expiry ?? $driver->residency_expiry,
             'passport_expiry' => $request->passport_expiry ?? $driver->passport_expiry,
             'blood_type' => $request->blood_type ?? $driver->blood_type,
@@ -208,6 +206,66 @@ public function restore( $id)
 
         return response()->json([
             'message' => 'Driver rejected',
+            'driver' => $driver,
+        ], 200);
+    }
+
+    /**
+     * UC-5 alt flow: instead of outright rejecting, return the application
+     * so the driver can complete missing documents/info. approval_status
+     * stays 'pending' — the message goes in admin_note, which is a
+     * dedicated field (unlike Company, which reuses rejection_reason for
+     * this — see the Phase 1 migration notes for why: Driver already had a
+     * rejection_reason column in use, so a separate admin_note column was
+     * added instead of overloading it).
+     */
+    public function returnForCompletion(Request $request, Driver $driver)
+    {
+        $validated = $request->validate([
+            'message' => ['required', 'string', 'max:500'],
+        ]);
+
+        $driver->update([
+            'approval_status' => 'pending',
+            'admin_note' => $validated['message'],
+        ]);
+
+        return response()->json([
+            'message' => 'Application returned to the driver for completion',
+            'driver' => $driver,
+        ], 200);
+    }
+
+    /**
+     * Super Admin suspends a driver directly, skipping the normal
+     * compliance-report escalation (warning -> suspension), for serious
+     * findings that don't need the full report/appeal workflow.
+     */
+    public function suspend(Request $request, Driver $driver)
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $driver->update([
+            'compliance_status' => 'suspended',
+            'admin_note' => $validated['reason'],
+        ]);
+
+        return response()->json([
+            'message' => 'Driver suspended',
+            'driver' => $driver,
+        ], 200);
+    }
+
+    public function reactivate(Driver $driver)
+    {
+        $driver->update([
+            'compliance_status' => 'active',
+        ]);
+
+        return response()->json([
+            'message' => 'Driver reactivated',
             'driver' => $driver,
         ], 200);
     }

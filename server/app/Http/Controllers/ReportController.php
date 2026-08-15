@@ -34,7 +34,8 @@ class ReportController extends Controller
             return [
                 'id' => $driver->id,
                 'name' => $driver->name,
-                'employment_type' => $driver->employment_type,
+                'rating' => $driver->rating,
+                'compliance_status' => $driver->compliance_status,
                 'completed_count' => Shipment::where('driver_id', $driver->id)
                     ->where('status', 3)->count(),
                 'cancelled_count' => Shipment::where('driver_id', $driver->id)

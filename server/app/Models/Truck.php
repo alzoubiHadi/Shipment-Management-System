@@ -9,6 +9,26 @@ class Truck extends Model
 {
     use SoftDeletes;
 
+    /**
+     * The fixed list of truck types the company can require on a shipment
+     * offer, and the only values TruckController should accept when a
+     * driver adds a truck. Kept as a plain string column (see the
+     * 2026_08_15_000107 migration note) — enforced here, not in the DB.
+     */
+    const TRUCK_TYPES = [
+        '3 Ton pick up',
+        '7 Ton pick up',
+        '10 Ton pick up',
+        'Trailer 40 FT-12M-Open',
+        'Trailer 40 FT-12M-Box',
+        'Trailer 45 FT-15M-Open',
+        'Curtain Trailer 13.5M',
+        'Curtain Trailer 15M',
+        'Reefer Trailer',
+        'Lowbed Trailer - 25 Tons',
+        'Car Career',
+    ];
+
     protected $fillable = [
         'truck_number',
         'truck_type',
@@ -21,6 +41,7 @@ class Truck extends Model
         'permit_expiry',
         'insurance_expiry',
         'license_expiry',
+        'license_file_path',
         'default_driver_id',
         'is_active',
     ];
@@ -33,7 +54,19 @@ class Truck extends Model
         'license_expiry' => 'date',
     ];
 
+    /**
+     * Under the new model only drivers add trucks, so default_driver_id is
+     * really the truck's OWNING driver now (kept under its original column
+     * name to avoid a risky rename). ownerDriver() is provided as a
+     * clearer alias for new code; defaultDriver() is kept for existing
+     * call sites.
+     */
     public function defaultDriver()
+    {
+        return $this->belongsTo(Driver::class, 'default_driver_id');
+    }
+
+    public function ownerDriver()
     {
         return $this->belongsTo(Driver::class, 'default_driver_id');
     }

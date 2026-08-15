@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\ReportController;
@@ -18,11 +19,24 @@ Route::get('/ping', function () {
 
 Route::post('/register', [UserController::class, 'register']);
 Route::post('/login', [UserController::class, 'login']);
+Route::post('/verify-otp', [UserController::class, 'verifyOtp']);
+Route::post('/resend-otp', [UserController::class, 'resendOtp']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
 
+    Route::post('/change-password', [UserController::class, 'changePassword']);
 
+    // Composable admin permissions (Super Admin only in practice — the
+    // frontend hides this from sub-admins, and each individual endpoint
+    // below is further gated by the relevant 'permission:<key>' middleware
+    // once each admin area is wired up in later phases).
+    Route::get('/admin/permissions', [AdminController::class, 'permissions']);
+    Route::get('/admin/sub-admins', [AdminController::class, 'index']);
+    Route::post('/admin/sub-admins', [AdminController::class, 'store']);
+    Route::put('/admin/sub-admins/{admin}/permissions', [AdminController::class, 'updatePermissions']);
+    Route::post('/admin/sub-admins/{admin}/reset-password', [AdminController::class, 'resetPassword']);
+    Route::delete('/admin/sub-admins/{admin}', [AdminController::class, 'destroy']);
 
     // companies Requests
     Route::get('/get/companies', [CompanyController::class, 'index']);
@@ -31,6 +45,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/delete/companies/{company}', [CompanyController::class, 'destroy']);
     Route::put('/restore/companies/{company}', [CompanyController::class, 'restore']);
     Route::put('/update/companies/{company}', [CompanyController::class, 'update']);
+    Route::put('/companies/{company}/approve', [CompanyController::class, 'approve']);
+    Route::put('/companies/{company}/reject', [CompanyController::class, 'reject']);
+    Route::put('/companies/{company}/return-for-completion', [CompanyController::class, 'returnForCompletion']);
+    Route::put('/companies/{company}/suspend', [CompanyController::class, 'suspend']);
+    Route::put('/companies/{company}/activate', [CompanyController::class, 'activate']);
     // Drivers Requests
     Route::get('/get/drivers', [DriverController::class, 'index']);
     Route::get('/get/drivers/trashed', [DriverController::class, 'index_trashed']);
@@ -41,6 +60,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/drivers/{driver}/status', [DriverController::class, 'updateStatus']);
     Route::put('/drivers/{driver}/approve', [DriverController::class, 'approve']);
     Route::put('/drivers/{driver}/reject', [DriverController::class, 'reject']);
+    Route::put('/drivers/{driver}/return-for-completion', [DriverController::class, 'returnForCompletion']);
+    Route::put('/drivers/{driver}/suspend', [DriverController::class, 'suspend']);
+    Route::put('/drivers/{driver}/reactivate', [DriverController::class, 'reactivate']);
 
     // Trucks
     Route::get('/get/trucks', [TruckController::class, 'index']);
