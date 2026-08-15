@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 import 'config.dart';
@@ -10,7 +11,10 @@ import 'config.dart';
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
-  ApiException(this.message, {this.statusCode});
+  // True when the server rejected login/otp because the account's email is
+  // not verified yet (server already queued a fresh OTP in that case).
+  final bool requiresOtpVerification;
+  ApiException(this.message, {this.statusCode, this.requiresOtpVerification = false});
 
   @override
   String toString() => message;
@@ -23,6 +27,11 @@ class AuthResponse {
   final String name;
   final String role;
 
+  // True right after a sub-admin's very first login on a one-time temporary
+  // password — the app must force a password-change screen before anything
+  // else, and this can never be true for a driver/company account.
+  final bool mustChangePassword;
+
   // Only meaningful when role == 'driver'. Defaults to 'approved' for every
   // other role (admin/company) so calling code doesn't need to special-case
   // them when deciding whether to show the "awaiting approval" screen.
@@ -30,24 +39,35 @@ class AuthResponse {
   final String? driverRejectionReason;
   final List<String> driverDocumentIssues;
 
+  // Only meaningful when role == 'company' — mirrors the driver fields
+  // above, since companies now go through the same self-registration +
+  // Super Admin approval workflow as drivers.
+  final String companyApprovalStatus;
+  final String? companyRejectionReason;
+
   AuthResponse({
     required this.token,
     required this.userId,
     required this.email,
     required this.name,
     required this.role,
+    this.mustChangePassword = false,
     this.driverApprovalStatus = 'approved',
     this.driverRejectionReason,
     this.driverDocumentIssues = const [],
+    this.companyApprovalStatus = 'approved',
+    this.companyRejectionReason,
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] ?? {};
     final user = data['user'] ?? {};
-    // login() and register() both return it under a top-level 'driver' key
-    // (null for non-driver accounts, or if the request failed to include it).
+    // login() and verifyOtp() both return these under top-level 'driver' /
+    // 'company' keys (null for other roles, or if not applicable).
     final Map<String, dynamic>? driver =
         json['driver'] is Map ? Map<String, dynamic>.from(json['driver']) : null;
+    final Map<String, dynamic>? company =
+        json['company'] is Map ? Map<String, dynamic>.from(json['company']) : null;
 
     final rawIssues = driver == null ? null : driver['document_issues'];
 
@@ -57,6 +77,7 @@ class AuthResponse {
       email: user['email'] ?? '',
       name: user['name'] ?? '',
       role: user['type'] ?? '',
+      mustChangePassword: user['must_change_password'] == true,
       driverApprovalStatus: driver == null
           ? 'approved'
           : (driver['approval_status']?.toString() ?? 'approved'),
@@ -64,11 +85,24 @@ class AuthResponse {
       driverDocumentIssues: rawIssues is List
           ? List<String>.from(rawIssues.map((e) => e.toString()))
           : const [],
+      companyApprovalStatus: company == null
+          ? 'approved'
+          : (company['approval_status']?.toString() ?? 'approved'),
+      companyRejectionReason: company?['rejection_reason']?.toString(),
     );
   }
 
 }
 
+/// Returned by register() — self-registration no longer issues a token
+/// immediately (UC-2/UC-3/UC-4): the account must first be verified with
+/// the OTP code emailed to it (see ApiService.verifyOtp).
+class RegisterResult {
+  final String email;
+  final String type;
+
+  RegisterResult({required this.email, required this.type});
+}
 
 class ApiService {
 
@@ -77,6 +111,15 @@ class ApiService {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+
+  static Future<Map<String, String>> _authHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    return {
+      ..._headers,
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   // ── Login ──────────────────────────────────────────────────────────────────
 
@@ -104,7 +147,11 @@ class ApiService {
 
       // Server returned an error message
       final message = json['message'] ?? json['error'] ?? 'Login failed';
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(
+        message,
+        statusCode: response.statusCode,
+        requiresOtpVerification: json['requires_otp_verification'] == true,
+      );
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -115,13 +162,18 @@ class ApiService {
 
   // ── Register ───────────────────────────────────────────────────────────────
 
-  static Future<AuthResponse> register({
+  /// type must be 'driver' or 'company'. driverLicense is required when
+  /// type == 'driver'; address is optional and only used when
+  /// type == 'company'. Does NOT log the user in — see verifyOtp().
+  static Future<RegisterResult> register({
     required String name,
     required String email,
     required String password,
+    required String passwordConfirmation,
+    String type = 'driver',
     String? phone,
     String? driverLicense,
-    bool isAlbatransFleet = false,
+    String? address,
   }) async {
     final uri = Uri.parse('$baseUrl/register');
 
@@ -129,11 +181,11 @@ class ApiService {
       'name': name.trim(),
       'email': email.trim(),
       'password': password,
+      'password_confirmation': passwordConfirmation,
       'phone': phone,
-      // backend only requires/uses these when type == 'driver', which is
-      // the default for self-registration
-      'driver_license': driverLicense,
-      'is_albatrans_fleet': isAlbatransFleet,
+      'type': type,
+      if (type == 'driver') 'driver_license': driverLicense,
+      if (type == 'company') 'address': address,
     });
 
     try {
@@ -144,7 +196,12 @@ class ApiService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return AuthResponse.fromJson(json);
+        final data = json['data'] ?? {};
+        final user = data['user'] ?? {};
+        return RegisterResult(
+          email: user['email'] ?? email.trim(),
+          type: user['type'] ?? type,
+        );
       }
 
       final message = json['message'] ?? json['error'] ?? 'Registration failed';
@@ -155,6 +212,90 @@ class ApiService {
       // TEMPORARY diagnostic: show the real error instead of the generic
       // message, so we can see exactly what's failing this time (server
       // error page instead of JSON, timeout, socket error, etc).
+      throw ApiException('Could not connect: $e');
+    }
+  }
+
+  // ── Email OTP verification (UC-4) ────────────────────────────────────────
+
+  static Future<AuthResponse> verifyOtp({
+    required String email,
+    required String otpCode,
+  }) async {
+    final uri = Uri.parse('$baseUrl/verify-otp');
+
+    final body = jsonEncode({'email': email.trim(), 'otp_code': otpCode.trim()});
+
+    try {
+      final response = await http
+          .post(uri, headers: _headers, body: body)
+          .timeout(const Duration(seconds: 15));
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(json);
+      }
+
+      final message = json['message'] ?? 'Verification failed';
+      throw ApiException(message, statusCode: response.statusCode);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Could not connect: $e');
+    }
+  }
+
+  static Future<void> resendOtp({required String email}) async {
+    final uri = Uri.parse('$baseUrl/resend-otp');
+
+    try {
+      final response = await http
+          .post(uri, headers: _headers, body: jsonEncode({'email': email.trim()}))
+          .timeout(const Duration(seconds: 15));
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode != 200) {
+        throw ApiException(json['message'] ?? 'Could not resend code', statusCode: response.statusCode);
+      }
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Could not connect: $e');
+    }
+  }
+
+  // ── Forced / voluntary password change (UC-7) ────────────────────────────
+
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    final uri = Uri.parse('$baseUrl/change-password');
+
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: await _authHeaders(),
+            body: jsonEncode({
+              'current_password': currentPassword,
+              'password': password,
+              'password_confirmation': passwordConfirmation,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode != 200) {
+        throw ApiException(json['message'] ?? 'Could not change password', statusCode: response.statusCode);
+      }
+    } on ApiException {
+      rethrow;
+    } catch (e) {
       throw ApiException('Could not connect: $e');
     }
   }

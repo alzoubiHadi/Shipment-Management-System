@@ -8,7 +8,9 @@ import '../API/AuthResponse.dart';
 
 import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
+import 'ForceChangePasswordScreen.dart';
 import 'HomeScreen.dart';
+import 'OtpVerificationScreen.dart';
 import 'RegisterScreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -51,6 +53,33 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final response = await ApiService.login(email: email, password: password);
       print(response);
+
+      // A sub-admin logging in for the first time on their one-time
+      // temporary password must set a real one before reaching anything
+      // else (UC-7) — no token/prefs are saved as "logged in" yet.
+      if (response.mustChangePassword) {
+        if (mounted) {
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setString('token', response.token);
+          prefs.setString('email', response.email);
+          prefs.setString('id', response.userId);
+          prefs.setString('name', response.name);
+          prefs.setString('role', response.role.toString());
+          prefs.setBool('loggedIn', true);
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ForceChangePasswordScreen(
+                user: AppUser(name: response.name, email: response.email, role: response.role, id: response.userId),
+              ),
+            ),
+            (route) => false,
+          );
+        }
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
 
       prefs.setString('token', response.token);
@@ -62,11 +91,14 @@ class _LoginScreenState extends State<LoginScreen> {
       prefs.setBool('loggedIn', true);
 
       if (mounted) {
-        // A driver whose account isn't approved yet (pending or rejected)
-        // must not reach the normal app — send them to the status screen
-        // instead, on every login, until an admin approves them.
+        // A driver/company whose account isn't approved yet (pending or
+        // rejected) must not reach the normal app — send them to the
+        // status screen instead, on every login, until an admin approves
+        // them.
         final isUnapprovedDriver = response.role == 'driver' &&
             response.driverApprovalStatus != 'approved';
+        final isUnapprovedCompany = response.role == 'company' &&
+            response.companyApprovalStatus != 'approved';
 
         // Navigate to home, clearing the Splash/Login/Register screens from
         // the stack entirely so the browser back button can't land back on
@@ -80,12 +112,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     rejectionReason: response.driverRejectionReason,
                     documentIssues: response.driverDocumentIssues,
                   )
-                : HomeScreen(user: AppUser(name: response.name, email: email, role: response.role, id: ''),),
+                : isUnapprovedCompany
+                    ? DriverApprovalStatusPage(
+                        accountType: 'company',
+                        approvalStatus: response.companyApprovalStatus,
+                        rejectionReason: response.companyRejectionReason,
+                      )
+                    : HomeScreen(user: AppUser(name: response.name, email: email, role: response.role, id: response.userId),),
           ),
           (route) => false,
         );
       }
     } on ApiException catch (e) {
+      if (e.requiresOtpVerification) {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => OtpVerificationScreen(email: email)),
+          );
+        }
+        return;
+      }
       if (mounted) setState(() => _errorMessage = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);

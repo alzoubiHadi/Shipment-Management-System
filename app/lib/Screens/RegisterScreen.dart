@@ -1,12 +1,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/AuthResponse.dart';
-import '../models/Appuser.dart';
-import 'DriverApprovalStatusPage.dart';
-import 'HomeScreen.dart';
+import 'OtpVerificationScreen.dart';
 
 // ─── Password Strength ────────────────────────────────────────────────────────
 
@@ -41,14 +38,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirmCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _driverLicenseCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
 
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
   bool _agreed = false;
-  // The one checkbox that decides internal vs. external: is this driver's
-  // truck already registered under Albatrans' own fleet?
-  bool _isAlbatransFleet = false;
+  // Every driver is an independent operator now — there is no more
+  // "internal Albatrans fleet" distinction. The only choice left at
+  // sign-up is which kind of account this is.
+  String _accountType = 'driver'; // 'driver' or 'company'
   String? _errorMessage;
 
   PasswordStrength _strength = PasswordStrength.none;
@@ -80,6 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _confirmCtrl.dispose();
     _phoneCtrl.dispose();
     _driverLicenseCtrl.dispose();
+    _addressCtrl.dispose();
     super.dispose();
   }
 
@@ -92,11 +92,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final confirm = _confirmCtrl.text;
     final phone = _phoneCtrl.text.trim();
     final driverLicense = _driverLicenseCtrl.text.trim();
+    final address = _addressCtrl.text.trim();
 
-    if (name.isEmpty ||
+    final missingRequiredField = name.isEmpty ||
         email.isEmpty ||
         password.isEmpty ||
-        driverLicense.isEmpty) {
+        (_accountType == 'driver' && driverLicense.isEmpty);
+
+    if (missingRequiredField) {
       setState(() => _errorMessage = 'Please fill in all fields');
       return;
     }
@@ -112,51 +115,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final response = await ApiService.register(
+      final result = await ApiService.register(
         name: name,
         email: email,
         password: password,
+        passwordConfirmation: confirm,
+        type: _accountType,
         phone: phone,
-        driverLicense: driverLicense,
-        isAlbatransFleet: _isAlbatransFleet,
+        driverLicense: _accountType == 'driver' ? driverLicense : null,
+        address: _accountType == 'company' ? address : null,
       );
 
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString('token', response.token);
-      prefs.setString('email', response.email);
-      prefs.setString('id', response.userId);
-      prefs.setString('name', response.name);
-      prefs.setString('role', response.role.toString());
-      prefs.setBool('loggedIn', true);
-
       if (mounted) {
-        // Every self-registered driver starts out 'pending' — send them to
-        // the status screen instead of straight into the app, since there's
-        // nothing for them to do yet until an admin approves them.
-        final isUnapprovedDriver = response.role == 'driver' &&
-            response.driverApprovalStatus != 'approved';
-
-        // Clear Splash/Login/Register from the stack entirely so the
-        // browser back button can't land back on them.
-        Navigator.pushAndRemoveUntil(
+        // Registration no longer logs the user in directly — the email
+        // must be verified with the OTP code we just sent (UC-4) before an
+        // access token is issued.
+        Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => isUnapprovedDriver
-                ? DriverApprovalStatusPage(
-                    approvalStatus: response.driverApprovalStatus,
-                    rejectionReason: response.driverRejectionReason,
-                    documentIssues: response.driverDocumentIssues,
-                  )
-                : HomeScreen(
-                    user: AppUser(
-                      name: response.name,
-                      email: email,
-                      role: response.role,
-                      id: response.userId,
-                    ),
-                  ),
+            builder: (_) => OtpVerificationScreen(email: result.email),
           ),
-          (route) => false,
         );
       }
     } on ApiException catch (e) {
@@ -220,7 +198,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(fontSize: 14, color: Color(0xFF6B6660)),
               ),
 
-              const SizedBox(height: 44),
+              const SizedBox(height: 32),
+
+              // Account type — driver or company. Every driver is now an
+              // independent operator (no internal/external fleet split).
+              Row(
+                children: [
+                  Expanded(child: _TypeChip(
+                    label: 'Driver',
+                    selected: _accountType == 'driver',
+                    onTap: () => setState(() => _accountType = 'driver'),
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: _TypeChip(
+                    label: 'Company',
+                    selected: _accountType == 'company',
+                    onTap: () => setState(() => _accountType = 'company'),
+                  )),
+                ],
+              ),
+
+              const SizedBox(height: 24),
 
               // Fields
               _buildTextField(controller: _nameCtrl, label: 'Full name'),
@@ -289,59 +287,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
               ),
 
-              const SizedBox(height: 14),
-
-              _buildTextField(
-                controller: _driverLicenseCtrl,
-                label: 'Driver license number',
-              ),
-
-              const SizedBox(height: 22),
-
-              // Internal vs. external — the only thing that separates the
-              // two: is this truck already part of Albatrans' own fleet?
-              GestureDetector(
-                onTap: () =>
-                    setState(() => _isAlbatransFleet = !_isAlbatransFleet),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      width: 20,
-                      height: 20,
-                      margin: const EdgeInsets.only(top: 1),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: _isAlbatransFleet
-                              ? const Color(0xFFD4AF37)
-                              : const Color(0xFF3A3530),
-                          width: 1.5,
-                        ),
-                        color: _isAlbatransFleet
-                            ? const Color(0xFFD4AF37)
-                            : Colors.transparent,
-                      ),
-                      child: _isAlbatransFleet
-                          ? const Icon(Icons.check,
-                              size: 13, color: Color(0xFF0A0A0C))
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'My truck is registered under Albatrans’ own fleet',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF6B6660),
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-                  ],
+              if (_accountType == 'driver') ...[
+                const SizedBox(height: 14),
+                _buildTextField(
+                  controller: _driverLicenseCtrl,
+                  label: 'Driver license number',
                 ),
-              ),
+              ],
+
+              if (_accountType == 'company') ...[
+                const SizedBox(height: 14),
+                _buildTextField(
+                  controller: _addressCtrl,
+                  label: 'Company address',
+                ),
+              ],
 
               const SizedBox(height: 22),
 
@@ -534,6 +494,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         contentPadding:
         const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      ),
+    );
+  }
+}
+
+// ─── Account Type Chip ─────────────────────────────────────────────────────────
+
+class _TypeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TypeChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected ? const Color(0xFFD4AF37) : const Color(0xFF111113),
+          border: Border.all(
+            color: selected ? const Color(0xFFD4AF37) : const Color(0xFF2A2520),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: selected ? const Color(0xFF0A0A0C) : const Color(0xFF6B6660),
+          ),
+        ),
       ),
     );
   }

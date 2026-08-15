@@ -13,12 +13,17 @@ class DriverApprovalStatusPage extends StatelessWidget {
   final String approvalStatus; // 'pending' or 'rejected'
   final String? rejectionReason;
   final List<String> documentIssues;
+  // 'driver' or 'company' — only changes the copy shown, the approval
+  // workflow itself (Super Admin approve/reject/return-for-completion) is
+  // identical for both since Phase 2.
+  final String accountType;
 
   const DriverApprovalStatusPage({
     super.key,
     required this.approvalStatus,
     this.rejectionReason,
     this.documentIssues = const [],
+    this.accountType = 'driver',
   });
 
   bool get _isRejected => approvalStatus == 'rejected';
@@ -77,7 +82,9 @@ class DriverApprovalStatusPage extends StatelessWidget {
               Text(
                 _isRejected
                     ? 'An admin reviewed your account and could not approve it at this time.'
-                    : 'Your account was created successfully. An admin needs to review your documents (driver license, passport, residency) before you can start receiving shipments.',
+                    : accountType == 'company'
+                        ? 'Your account was created successfully. A Super Admin needs to review your company before you can start requesting shipments.'
+                        : 'Your account was created successfully. An admin needs to review your documents (driver license, passport, residency) before you can start receiving shipments.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.muted,
