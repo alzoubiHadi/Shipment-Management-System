@@ -35,6 +35,16 @@ class Shipment {
   final String deliveryStatus;
   final String disputeReason;
 
+  // Only populated when this Shipment came from the /track endpoint
+  // (ShipmentService.fetchOneByTrackingNumber), which embeds a whitelisted
+  // driver resource including live GPS coordinates — see
+  // CompanyFacingDriverResource on the backend. Null on every other
+  // shipment-list endpoint, which don't send a nested 'driver' object.
+  final String? driverName;
+  final double? driverLastLat;
+  final double? driverLastLng;
+  final DateTime? driverLastLocationAt;
+
   Shipment({
     required this.id,
     this.driverId,
@@ -58,6 +68,10 @@ class Shipment {
     this.podRecipientName = '',
     this.deliveryStatus = 'not_delivered',
     this.disputeReason = '',
+    this.driverName,
+    this.driverLastLat,
+    this.driverLastLng,
+    this.driverLastLocationAt,
   });
 
   bool get isAwaitingCompanyConfirmation => deliveryStatus == 'awaiting_confirmation';
@@ -75,6 +89,8 @@ class Shipment {
   };
 
   factory Shipment.fromJson(Map<String, dynamic> json) {
+    final driver = json['driver'] is Map ? Map<String, dynamic>.from(json['driver']) : null;
+
     return Shipment(
       id: json['id'] ?? 0,
       driverId: json['driver_id'] is int
@@ -103,6 +119,12 @@ class Shipment {
       podRecipientName: json['pod_recipient_name']?.toString() ?? '',
       deliveryStatus: json['delivery_status']?.toString() ?? 'not_delivered',
       disputeReason: json['dispute_reason']?.toString() ?? '',
+      driverName: driver?['name']?.toString(),
+      driverLastLat: driver?['last_lat'] != null ? double.tryParse(driver!['last_lat'].toString()) : null,
+      driverLastLng: driver?['last_lng'] != null ? double.tryParse(driver!['last_lng'].toString()) : null,
+      driverLastLocationAt: driver?['last_location_at'] != null
+          ? DateTime.tryParse(driver!['last_location_at'].toString())
+          : null,
     );
   }
 

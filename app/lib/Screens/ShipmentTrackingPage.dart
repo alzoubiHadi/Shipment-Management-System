@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
 import '../models/Shipment.dart';
+import 'ShipmentTrackingMapPage.dart';
 import 'SignatureCapturePage.dart';
 
 /// Shows the 7-stage tracking timeline for a shipment:
@@ -229,6 +230,14 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
           style: const TextStyle(color: AppColors.cream),
         ),
         actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ShipmentTrackingMapPage(shipment: _shipment)),
+            ),
+            icon: const Icon(Icons.map_outlined, color: AppColors.cream),
+            tooltip: 'Live GPS map',
+          ),
           if (!widget.readOnly)
             IconButton(
               onPressed: _addComment,
