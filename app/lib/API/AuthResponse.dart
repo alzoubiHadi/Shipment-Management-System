@@ -155,7 +155,7 @@ class ApiService {
     try {
       final response = await http
           .post(uri, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 60));
       print(response.body);
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -208,7 +208,7 @@ class ApiService {
     try {
       final response = await http
           .post(uri, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 60));
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -245,7 +245,7 @@ class ApiService {
     try {
       final response = await http
           .post(uri, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 60));
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -267,7 +267,7 @@ class ApiService {
     try {
       final response = await http
           .post(uri, headers: _headers, body: jsonEncode({'email': email.trim()}))
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 60));
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -301,7 +301,7 @@ class ApiService {
               'password_confirmation': passwordConfirmation,
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 60));
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
