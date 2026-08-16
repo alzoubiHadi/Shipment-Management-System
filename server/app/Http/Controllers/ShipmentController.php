@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\CompanyFacingDriverResource;
+use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Driver;
 use App\Models\Shipment;
 use App\Models\ShipmentComment;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
+use App\Services\LedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -304,8 +306,21 @@ class ShipmentController extends Controller
 
             $driver = Driver::lockForUpdate()->find($shipment->driver_id);
             if ($driver) {
-                $driver->increment('balance', (float) $shipment->price_to_driver);
+                app(LedgerService::class)->record(
+                    $driver,
+                    'DRIVER_EARNING',
+                    (float) $shipment->price_to_driver,
+                    $shipment,
+                    "Earning for shipment {$shipment->tracking_number}",
+                );
                 $driver->update(['status' => 'available']);
+
+                ActivityLog::record(
+                    'shipment.delivery_confirmed',
+                    $shipment,
+                    "Company confirmed receipt of shipment {$shipment->tracking_number} — driver credited {$shipment->price_to_driver} AED",
+                    ['shipment_id' => $shipment->id, 'amount' => $shipment->price_to_driver]
+                );
 
                 $driver->user?->notify(new AppPushNotification(
                     'balance_credited',
@@ -386,7 +401,13 @@ class ShipmentController extends Controller
                 $shipment->update(['status' => 3]);
 
                 if ($driver) {
-                    $driver->increment('balance', (float) $shipment->price_to_driver);
+                    app(LedgerService::class)->record(
+                        $driver,
+                        'DRIVER_EARNING',
+                        (float) $shipment->price_to_driver,
+                        $shipment,
+                        "Earning for shipment {$shipment->tracking_number} (dispute resolved in driver's favor)",
+                    );
                     $driver->user?->notify(new AppPushNotification(
                         'balance_credited',
                         'Payment received',
@@ -404,6 +425,13 @@ class ShipmentController extends Controller
                     ['shipment_id' => $shipment->id],
                 ));
             }
+
+            ActivityLog::record(
+                'shipment.dispute_resolved',
+                $shipment,
+                "Resolved delivery dispute for shipment {$shipment->tracking_number}: {$validated['resolution']}",
+                ['resolution' => $validated['resolution']]
+            );
 
             $driver?->update(['status' => 'available']);
         });

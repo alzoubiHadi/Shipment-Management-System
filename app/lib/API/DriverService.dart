@@ -421,9 +421,19 @@ class DriverService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     final userId = prefs.getString('id');
+    return fetchDocumentsFor(userId ?? '');
+  }
+
+  /// Same endpoint as fetchMyDocuments(), but for an admin reviewing a
+  /// specific driver's file (join-request review, driver detail page) —
+  /// takes that driver's user_id explicitly instead of reading the
+  /// logged-in user's own id out of SharedPreferences.
+  static Future<List<DriverDocument>> fetchDocumentsFor(String driverUserId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/driver/$userId/documents'),
+      Uri.parse('$baseUrl/driver/$driverUserId/documents'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -512,11 +522,18 @@ class DriverService {
 
   static Future<List<String>> fetchMyDestinations() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
     final userId = prefs.getString('id');
+    return fetchDestinationsFor(userId ?? '');
+  }
+
+  /// Same as fetchMyDestinations(), but for an admin reviewing a specific
+  /// driver (join-request review, driver detail page).
+  static Future<List<String>> fetchDestinationsFor(String driverUserId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/driver/$userId/destinations'),
+      Uri.parse('$baseUrl/driver/$driverUserId/destinations'),
       headers: {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',

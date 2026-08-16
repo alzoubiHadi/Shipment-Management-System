@@ -49,10 +49,29 @@ class Truck extends Model
     protected $casts = [
         'has_refrigeration' => 'boolean',
         'is_active' => 'boolean',
-        'permit_expiry' => 'date',
-        'insurance_expiry' => 'date',
-        'license_expiry' => 'date',
+        // 'date:Y-m-d' — bare date in JSON, not a full datetime.
+        'permit_expiry' => 'date:Y-m-d',
+        'insurance_expiry' => 'date:Y-m-d',
+        'license_expiry' => 'date:Y-m-d',
     ];
+
+    /**
+     * has_refrigeration must never be set independently of truck_type — it
+     * IS "truck_type === 'Reefer Trailer'" (see the comment on that check
+     * in ShipmentOfferController::eligibilityError()). Before this hook,
+     * every creation path that didn't explicitly pass has_refrigeration
+     * (registration's Truck::create() being the main one) left it at the
+     * column default (false), so a driver whose truck really was a Reefer
+     * Trailer would still fail the "requires a refrigerated truck" check
+     * on offer acceptance. Deriving it here, on every save, closes that
+     * gap for good instead of just patching the one call site.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Truck $truck) {
+            $truck->has_refrigeration = $truck->truck_type === 'Reefer Trailer';
+        });
+    }
 
     /**
      * Under the new model only drivers add trucks, so default_driver_id is

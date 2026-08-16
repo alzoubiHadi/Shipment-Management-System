@@ -35,6 +35,7 @@ class ShipmentOffer extends Model
         'priced_by_user_id',
         'platform_margin_percent_snapshot',
         'status',
+        'financial_status',
         'cancellation_reason',
         'accepted_by_driver_id',
         'accepted_truck_id',

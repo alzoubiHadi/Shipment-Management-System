@@ -8,13 +8,18 @@ import '../API/config.dart';
 import '../models/Company.dart';
 import '../models/PaymentOrder.dart';
 import '../models/PayoutRequest.dart';
+import 'AdjustmentsTab.dart';
 
 /// Finance Admin: reviews company top-up requests (UC-29) and driver
 /// payout requests (UC-31), plus sets each company's credit limit (the
 /// one-time setup every company needs before it can create any priced
 /// offer at all — see Company::canAffordOffer()).
 class AdminFinancePage extends StatefulWidget {
-  const AdminFinancePage({super.key});
+  /// Lets a notification tap land directly on the relevant tab (0=Top-ups,
+  /// 1=Payouts, 2=Credit limits, 3=Adjustments) instead of always opening
+  /// on Top-ups.
+  final int initialTabIndex;
+  const AdminFinancePage({super.key, this.initialTabIndex = 0});
 
   @override
   State<AdminFinancePage> createState() => _AdminFinancePageState();
@@ -27,7 +32,11 @@ class _AdminFinancePageState extends State<AdminFinancePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 3),
+    );
   }
 
   @override
@@ -50,10 +59,12 @@ class _AdminFinancePageState extends State<AdminFinancePage>
           indicatorColor: AppColors.gold,
           labelColor: AppColors.gold,
           unselectedLabelColor: AppColors.muted,
+          isScrollable: true,
           tabs: const [
             Tab(text: 'Top-ups'),
             Tab(text: 'Payouts'),
             Tab(text: 'Credit limits'),
+            Tab(text: 'Adjustments'),
           ],
         ),
       ),
@@ -63,6 +74,7 @@ class _AdminFinancePageState extends State<AdminFinancePage>
           _PaymentOrdersTab(),
           _PayoutRequestsTab(),
           _CreditLimitsTab(),
+          AdjustmentsTab(),
         ],
       ),
     );

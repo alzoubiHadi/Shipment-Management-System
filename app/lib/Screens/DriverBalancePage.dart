@@ -4,6 +4,7 @@ import '../API/PayoutRequestService.dart';
 import '../API/ReportService.dart';
 import '../API/config.dart';
 import '../models/PayoutRequest.dart';
+import 'StatementPage.dart';
 
 /// Driver app (UC-30/31/32): view balance, request a payout, and
 /// confirm/dispute one Finance Admin marked as paid.
@@ -202,6 +203,16 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
         elevation: 0,
         title: const Text('My Balance', style: TextStyle(color: AppColors.cream)),
         iconTheme: const IconThemeData(color: AppColors.cream),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined, color: AppColors.cream),
+            tooltip: 'Statement',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StatementPage()),
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [

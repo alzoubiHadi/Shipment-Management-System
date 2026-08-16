@@ -5,12 +5,15 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ComplianceReportController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DriverController;
+use App\Http\Controllers\FinancialAdjustmentController;
+use App\Http\Controllers\FinancialTransactionController;
 use App\Http\Controllers\DriverRatingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentOrderController;
 use App\Http\Controllers\PayoutRequestController;
 use App\Http\Controllers\PlatformSettingController;
 use App\Http\Controllers\PriceListController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\ShipmentOfferController;
@@ -51,6 +54,34 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/price-list/destinations', [PriceListController::class, 'destinationOptions']);
     Route::get('/platform-settings', [PlatformSettingController::class, 'index'])->middleware('permission:finance');
     Route::put('/platform-settings/{key}', [PlatformSettingController::class, 'update'])->middleware('permission:finance');
+
+    // Manual balance adjustments — dual control (Finance Admin proposes,
+    // Super Admin approves/rejects; enforced again inside the controller
+    // for approve/reject since 'permission:finance' alone isn't strict
+    // enough for those two).
+    Route::get('/financial-adjustments', [FinancialAdjustmentController::class, 'index'])->middleware('permission:finance');
+    Route::post('/financial-adjustments', [FinancialAdjustmentController::class, 'store'])->middleware('permission:finance');
+    Route::put('/financial-adjustments/{adjustment}/approve', [FinancialAdjustmentController::class, 'approve']);
+    Route::put('/financial-adjustments/{adjustment}/reject', [FinancialAdjustmentController::class, 'reject']);
+
+    // Ledger read access — any authenticated company/driver can see their
+    // own statement; Finance Admin can pull up any account's.
+    Route::get('/my-transactions', [FinancialTransactionController::class, 'myTransactions']);
+    Route::get('/financial-transactions', [FinancialTransactionController::class, 'index'])->middleware('permission:finance');
+
+    // Self-service profile page (every role) — name/phone/email/avatar
+    // apply immediately; documents/destinations/company license go through
+    // the pending-approval queue below instead (dual control, same
+    // permission:finance + manual isSuperAdmin() pattern as the manual
+    // adjustments above).
+    Route::get('/me/profile', [ProfileController::class, 'show']);
+    Route::put('/me/profile', [ProfileController::class, 'updateBasic']);
+    Route::post('/me/profile/avatar', [ProfileController::class, 'uploadAvatar']);
+    Route::get('/me/profile/edit-requests', [ProfileController::class, 'myEditRequests']);
+    Route::post('/me/company/license', [ProfileController::class, 'submitCompanyLicense']);
+    Route::get('/admin/profile-edit-requests', [ProfileController::class, 'adminIndex'])->middleware('permission:finance');
+    Route::put('/admin/profile-edit-requests/{profileEditRequest}/approve', [ProfileController::class, 'approve']);
+    Route::put('/admin/profile-edit-requests/{profileEditRequest}/reject', [ProfileController::class, 'reject']);
 
     // Composable admin permissions (Super Admin only in practice — the
     // frontend hides this from sub-admins, and each individual endpoint

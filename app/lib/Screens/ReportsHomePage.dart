@@ -2,19 +2,22 @@ import 'package:flutter/material.dart';
 
 import '../API/ReportService.dart';
 import '../API/config.dart';
-import '../utils/logout_helper.dart';
+import '../models/Appuser.dart';
 import 'ActivityLogPage.dart';
 import 'AdminCompliancePage.dart';
-import 'AdminFinancePage.dart';
+import 'AppBarWidget.dart';
 import 'CompanyReportsPage.dart';
 import 'DriverReportsPage.dart';
-import 'AdminSettingsPage.dart';
-import 'PriceListAdminPage.dart';
 
 /// Admin landing page for the Reports tab: overall commission summary at
 /// the top, with links into the per-driver and per-company breakdowns.
+/// Finance/Price List/Settings used to live here too — they've moved into
+/// the account-menu Settings page (tap the avatar) so this tab is reports
+/// only, and the app bar is now the same avatar+bell one every other admin
+/// tab uses instead of a bare Settings/Logout pair.
 class ReportsHomePage extends StatefulWidget {
-  const ReportsHomePage({super.key});
+  final AppUser user;
+  const ReportsHomePage({super.key, required this.user});
 
   @override
   State<ReportsHomePage> createState() => _ReportsHomePageState();
@@ -36,29 +39,17 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        elevation: 0,
-        title: const Text('Reports', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.cream),
-            tooltip: 'Settings',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AdminSettingsPage()),
-            ),
-          ),
-          logoutAction(context),
-        ],
-      ),
       body: RefreshIndicator(
         color: AppColors.gold,
         onRefresh: () async => _refresh(),
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            AppBarWidget(user: widget.user, subtitle: 'Reports'),
+            SliverPadding(
+              padding: const EdgeInsets.all(20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
             FutureBuilder<Map<String, dynamic>>(
               future: _summaryFuture,
               builder: (context, snapshot) {
@@ -139,26 +130,6 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
             ),
             const SizedBox(height: 12),
             _ReportLinkCard(
-              icon: Icons.price_change_outlined,
-              title: 'Price List',
-              subtitle: 'Finance Admin: export/import the central price matrix (UC-33)',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PriceListAdminPage()),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _ReportLinkCard(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'Finance',
-              subtitle: 'Review top-ups, driver payouts, and set company credit limits',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminFinancePage()),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _ReportLinkCard(
               icon: Icons.gpp_maybe_outlined,
               title: 'Compliance',
               subtitle: 'Review driver reports and decide appeals (UC-25/26)',
@@ -175,6 +146,9 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ActivityLogPage()),
+              ),
+            ),
+                ]),
               ),
             ),
           ],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../API/DriverService.dart';
 import '../API/config.dart'; // Ensure AppColors is imported from here
 import '../models/Driver.dart';
+import '../models/DriverDocument.dart';
 
 class DriverDetailsPage extends StatefulWidget {
   final Driver driver;
@@ -18,6 +20,27 @@ class DriverDetailsPage extends StatefulWidget {
 class _DriverDetailsPageState extends State<DriverDetailsPage> {
   late Driver driver = widget.driver;
   bool _busy = false;
+  late Future<List<DriverDocument>> _documentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _documentsFuture = DriverService.fetchDocumentsFor(driver.user_id);
+  }
+
+  /// Opens an uploaded document (license/passport/residency/...) in an
+  /// external viewer — the admin needs to actually see the file content to
+  /// approve a join request responsibly, not just its expiry date.
+  Future<void> _openFile(String path) async {
+    if (path.isEmpty) return;
+    final uri = Uri.parse(storageUrl(path));
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open file')),
+      );
+    }
+  }
 
   Color get _approvalColor => switch (driver.approvalStatus) {
         'approved' => AppColors.success,
@@ -353,25 +376,152 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               const Divider(color: AppColors.border, thickness: 1),
               const SizedBox(height: 16),
 
-              // Details List
+              // Uploaded documents — the admin needs to actually open and
+              // look at these to approve a join request responsibly, not
+              // just see an expiry-date text field.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Documents',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.cream,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              FutureBuilder<List<DriverDocument>>(
+                future: _documentsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: CircularProgressIndicator(color: AppColors.gold),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('Could not load documents', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                    );
+                  }
+
+                  final all = snapshot.data ?? [];
+                  final current = <String, DriverDocument>{};
+                  for (final d in all) {
+                    if (d.isCurrent) current[d.type] = d;
+                  }
+
+                  if (current.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('No documents uploaded yet', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    );
+                  }
+
+                  return Column(
+                    children: current.values.map((doc) {
+                      final expired = doc.isExpired;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.border, width: 0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.description_outlined,
+                                color: expired ? AppColors.error : AppColors.gold, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(driverDocumentTypeLabel(doc.type),
+                                      style: const TextStyle(color: AppColors.cream, fontSize: 13, fontWeight: FontWeight.w600)),
+                                  if (doc.expiryDate != null)
+                                    Text(
+                                      'exp. ${doc.expiryDate!.year}-${doc.expiryDate!.month.toString().padLeft(2, '0')}-${doc.expiryDate!.day.toString().padLeft(2, '0')}',
+                                      style: TextStyle(
+                                        color: expired ? AppColors.error : AppColors.muted,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => _openFile(doc.filePath),
+                              child: const Text('View', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(color: AppColors.border, thickness: 1),
+              const SizedBox(height: 16),
+
+              // Driver Information — same order and fields as the
+              // registration form's Section 1 (DriverRegisterScreen), so
+              // what the admin reviews here always matches what the driver
+              // actually submitted. "Employment Type" used to show here
+              // too, but registration hasn't collected that field since
+              // the two-section rebuild — removed rather than showing a
+              // value the driver never actually provided.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Driver Information',
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.cream, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
               _buildItem("ID", driver.id?.toString()),
               _buildItem("Phone", driver.phone),
-              _buildItem("Truck Number", driver.truck_number),
-              _buildItem("Truck Type", driver.truck_type),
               _buildItem("Nationality", driver.nationality),
               _buildItem("Age", driver.age),
               _buildItem("Driver License", driver.driver_license),
               _buildItem("License Expiry", driver.license_expiry),
-              _buildItem("Employment Type", driver.employmentType),
-              _buildItem("Work Status", driver.status),
-              _buildItem("Residency Expiry", driver.residencyExpiry),
               _buildItem("Passport Expiry", driver.passportExpiry),
+              _buildItem("Residency Expiry", driver.residencyExpiry),
               _buildItem("Blood Type", driver.bloodType),
+              _buildItem("Health Conditions", driver.healthConditions),
+              FutureBuilder<List<String>>(
+                future: DriverService.fetchDestinationsFor(driver.user_id),
+                builder: (context, snapshot) {
+                  final list = snapshot.data;
+                  return _buildItem(
+                    "Work Destinations",
+                    list == null ? null : (list.isEmpty ? null : list.join(', ')),
+                  );
+                },
+              ),
+              _buildItem("Work Status", driver.status),
               _buildItem("User ID", driver.user_id),
 
               // Hide password if empty or null
               if (driver.password != null && driver.password!.isNotEmpty)
                 _buildItem("Password", "********"),
+
+              const SizedBox(height: 12),
+              const Divider(color: AppColors.border, thickness: 1),
+              const SizedBox(height: 16),
+
+              // Truck Information — Section 2 of registration.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Truck Information',
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.cream, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
+              _buildItem("Truck Number", driver.truck_number),
+              _buildItem("Truck Type", driver.truck_type),
 
               if (driver.approvalStatus == 'pending') ...[
                 const SizedBox(height: 20),

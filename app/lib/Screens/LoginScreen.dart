@@ -223,11 +223,22 @@ class _LoginScreenState extends State<LoginScreen> {
               // Forgot password
               Align(
                 alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () {},
-                  child: const Text(
-                    'Forgot password?',
-                    style: TextStyle(fontSize: 13, color: Color(0xFFD4AF37)),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Contact your admin to reset your password')),
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                      child: Text(
+                        'Forgot password?',
+                        style: TextStyle(fontSize: 13, color: Color(0xFFD4AF37)),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -298,7 +309,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Sign up link
               Center(
-                child: GestureDetector(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -319,6 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ),

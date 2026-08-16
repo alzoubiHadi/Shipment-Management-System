@@ -18,7 +18,11 @@ class DriverDocument extends Model
     ];
 
     protected $casts = [
-        'expiry_date' => 'date',
+        // 'date:Y-m-d' (not plain 'date') so the API/JSON response is a bare
+        // date like "2027-01-01" — plain 'date' still serializes Carbon's
+        // full ISO datetime, which is why the app was showing a time
+        // alongside every expiry date.
+        'expiry_date' => 'date:Y-m-d',
         'is_current' => 'boolean',
     ];
 

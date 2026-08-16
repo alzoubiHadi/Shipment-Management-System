@@ -4,7 +4,9 @@ import '../API/NotificationService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../utils/logout_helper.dart';
+import 'AdminSettingsPage.dart';
 import 'NotificationsPage.dart';
+import 'UserProfilePage.dart';
 
 class AppBarWidget extends StatelessWidget {
   final AppUser user;
@@ -50,53 +52,98 @@ class AppBarWidget extends StatelessWidget {
       automaticallyImplyLeading: false,
       title: Row(
         children: [
-          // Avatar
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.gold.withOpacity(0.4),
-                width: 1.5,
+          // Avatar — tap opens a dropdown with Settings (admin only) and
+          // Logout, so those two stop competing for AppBar icon space.
+          PopupMenuButton<String>(
+            tooltip: 'Account menu',
+            offset: const Offset(0, 46),
+            color: AppColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: EdgeInsets.zero,
+            onSelected: (value) {
+              if (value == 'settings') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSettingsPage()));
+              } else if (value == 'logout') {
+                confirmAndLogout(context);
+              }
+            },
+            itemBuilder: (ctx) => [
+              if (_isAdmin)
+                const PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings_outlined, color: AppColors.cream, size: 18),
+                      SizedBox(width: 10),
+                      Text('Settings', style: TextStyle(color: AppColors.cream)),
+                    ],
+                  ),
+                ),
+              PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: const [
+                    Icon(Icons.logout, color: AppColors.error, size: 18),
+                    SizedBox(width: 10),
+                    Text('Log out', style: TextStyle(color: AppColors.error)),
+                  ],
+                ),
               ),
-              color: AppColors.surfaceHigh,
-            ),
-            child: Center(
-              child: Text(
-                //  Safe: uses helper method instead of direct indexing
-                _getAvatarInitials(),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.gold,
+            ],
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.gold.withOpacity(0.4),
+                  width: 1.5,
+                ),
+                color: AppColors.surfaceHigh,
+              ),
+              child: Center(
+                child: Text(
+                  //  Safe: uses helper method instead of direct indexing
+                  _getAvatarInitials(),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gold,
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subtitle ?? 'Good ${_greeting()},',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.muted,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => UserProfilePage(user: user)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subtitle ?? 'Good ${_greeting()},',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.muted,
+                    ),
                   ),
-                ),
-                Text(
-                  //  Also guard user.name display in case it's null/empty
-                  user.name?.isNotEmpty == true ? user.name! : 'Guest',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.cream,
-                    letterSpacing: -0.3,
+                  Text(
+                    //  Also guard user.name display in case it's null/empty
+                    user.name?.isNotEmpty == true ? user.name! : 'Guest',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.cream,
+                      letterSpacing: -0.3,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           // Role badge
@@ -120,18 +167,14 @@ class AppBarWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          const _NotificationBell(),
-          IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.cream, size: 20),
-            tooltip: 'Log out',
-            splashRadius: 20,
-            onPressed: () => confirmAndLogout(context),
-          ),
+          _NotificationBell(user: user),
           if (actions != null) ...actions!,
         ],
       ),
     );
   }
+
+  bool get _isAdmin => ['admin', 'super_admin', 'sub_admin'].contains(user.role.toLowerCase());
 
   String _greeting() {
     final h = DateTime.now().hour;
@@ -144,7 +187,8 @@ class AppBarWidget extends StatelessWidget {
 /// Bell icon shown on every role's app bar — opens the in-app notification
 /// center and shows a small dot while there's at least one unread item.
 class _NotificationBell extends StatefulWidget {
-  const _NotificationBell();
+  final AppUser user;
+  const _NotificationBell({required this.user});
 
   @override
   State<_NotificationBell> createState() => _NotificationBellState();
@@ -172,7 +216,7 @@ class _NotificationBellState extends State<_NotificationBell> {
   Future<void> _open() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const NotificationsPage()),
+      MaterialPageRoute(builder: (_) => NotificationsPage(user: widget.user)),
     );
     _loadUnreadCount();
   }

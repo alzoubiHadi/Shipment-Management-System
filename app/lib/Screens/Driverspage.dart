@@ -72,20 +72,6 @@ class _DriverspageState extends State<Driverspage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.gold,
-        child: const Icon(Icons.add, color: AppColors.bg),
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddDriverPage()),
-          );
-
-          if (result != null) {
-            _refresh();
-          }
-        },
-      ),
       body: RefreshIndicator(
         color: AppColors.gold,
         onRefresh: () async {
@@ -318,8 +304,9 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = highlight && !selected ? AppColors.gold : AppColors.border;
 
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -409,31 +396,40 @@ class DriverItem extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Status badge + License + Actions
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.gold,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  driver.email ?? '',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.bg,
-                    fontWeight: FontWeight.w600,
+          // Status badge + License + Actions — width-capped so a long
+          // email/license string can never squeeze the leading Expanded
+          // name column down to near-zero (that squeeze is what made the
+          // "Pending review" badge wrap one character per line).
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 130),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    driver.email ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.bg,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                driver.driver_license ?? '',
-                style: const TextStyle(fontSize: 10, color: AppColors.muted),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                Text(
+                  driver.driver_license ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                ),
+                const SizedBox(height: 8),
 
               // Action Buttons Row
               Row(
@@ -587,6 +583,7 @@ class DriverItem extends StatelessWidget {
                 ],
               ),
             ],
+            ),
           ),
         ],
       ),
@@ -623,6 +620,9 @@ class _ApprovalBadge extends StatelessWidget {
       ),
       child: Text(
         _label,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 9, color: _color, fontWeight: FontWeight.w600),
       ),
     );

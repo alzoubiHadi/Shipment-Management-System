@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\PaymentOrder;
 use App\Notifications\AppPushNotification;
+use App\Services\LedgerService;
 use Illuminate\Http\Request;
 
 /**
@@ -92,7 +93,16 @@ class PaymentOrderController extends Controller
         ]);
 
         $company = $order->company;
-        $company->increment('balance', (float) $order->amount);
+        // LedgerService locks the row and writes the FinancialTransaction +
+        // balance update atomically — this used to be a bare increment()
+        // with no lock and no ledger row at all.
+        app(LedgerService::class)->record(
+            $company,
+            'COMPANY_DEPOSIT',
+            (float) $order->amount,
+            $order,
+            "Approved top-up of {$order->amount} AED",
+        );
         ActivityLog::record(
             'payment_order.approved',
             $order,

@@ -39,9 +39,12 @@ class Driver extends Model
     ];
 
     protected $casts = [
-        'license_expiry' => 'date',
-        'residency_expiry' => 'date',
-        'passport_expiry' => 'date',
+        // 'date:Y-m-d' so these serialize as a bare date ("2027-01-01"),
+        // not a full ISO datetime — the app was showing a time component
+        // alongside every expiry date because of this.
+        'license_expiry' => 'date:Y-m-d',
+        'residency_expiry' => 'date:Y-m-d',
+        'passport_expiry' => 'date:Y-m-d',
         'rating' => 'decimal:2',
         'balance' => 'decimal:2',
         'last_lat' => 'decimal:7',

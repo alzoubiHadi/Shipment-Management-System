@@ -3,12 +3,25 @@ import 'package:flutter/material.dart';
 import '../API/NotificationService.dart';
 import '../API/config.dart';
 import '../models/AppNotification.dart';
+import '../models/Appuser.dart';
+import 'AdminFinancePage.dart';
+import 'AdminProfileEditRequestsPage.dart';
+import 'Companiespage.dart';
+import 'CompnayShipments.dart';
+import 'DriverBalancePage.dart';
+import 'DriverComplianceReportsPage.dart';
+import 'DriverOffersPage.dart';
+import 'Driverspage.dart';
+import 'CompanyBalancePage.dart';
+import 'ShipmentOffersAdminPage.dart';
+import 'ShipmentPageAdmin.dart';
 
 /// In-app notification center — shared by every role (driver, company,
 /// admin). Always populated regardless of whether real FCM push is set up
 /// (see server's NotificationController docblock).
 class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key});
+  final AppUser user;
+  const NotificationsPage({super.key, required this.user});
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -41,6 +54,74 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (notification.isUnread) {
       await _service.markRead(notification.id);
       if (mounted) _refresh();
+    }
+    if (mounted) _navigateFor(notification);
+  }
+
+  /// Best-effort routing to the screen the notification is about. Every
+  /// notification_type below is only ever sent to one role (see the
+  /// AppPushNotification call sites on the backend), so the type alone is
+  /// enough to pick a destination — no extra lookup call needed.
+  void _navigateFor(AppNotification notification) {
+    final data = notification.data;
+    Widget? target;
+
+    switch (notification.notificationType) {
+      case 'offer_matched':
+        target = const DriverOffersPage();
+        break;
+      case 'manual_pricing_required':
+        target = const ShipmentOffersAdminPage();
+        break;
+      case 'compliance_report_upheld':
+      case 'compliance_appeal_resolved':
+        target = const DriverComplianceReportsPage();
+        break;
+      case 'adjustment_proposed':
+        target = const AdminFinancePage(initialTabIndex: 3);
+        break;
+      case 'payment_order_submitted':
+        target = const AdminFinancePage(initialTabIndex: 0);
+        break;
+      case 'payment_order_approved':
+      case 'payment_order_rejected':
+        target = const CompanyBalancePage();
+        break;
+      case 'balance_credited':
+      case 'dispute_resolved_against_driver':
+      case 'payout_paid':
+      case 'payout_rejected':
+      case 'payout_dispute_resolved':
+        target = const DriverBalancePage();
+        break;
+      case 'adjustment_resolved':
+        target = widget.user.role.toLowerCase() == 'company'
+            ? const CompanyBalancePage()
+            : const DriverBalancePage();
+        break;
+      case 'profile_edit_pending':
+        target = const AdminProfileEditRequestsPage();
+        break;
+      case 'profile_edit_resolved':
+        target = widget.user.role.toLowerCase() == 'company'
+            ? const CompanyBalancePage()
+            : const DriverBalancePage();
+        break;
+      case 'delivery_awaiting_confirmation':
+      case 'delivery_disputed':
+        target = widget.user.role.toLowerCase() == 'company'
+            ? Compnayshipments(user: widget.user)
+            : Shipmentpageadmin(user: widget.user);
+        break;
+      case 'new_registration_pending':
+        target = data['type']?.toString() == 'company'
+            ? Companiespage(user: widget.user)
+            : Driverspage(user: widget.user);
+        break;
+    }
+
+    if (target != null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => target!));
     }
   }
 

@@ -58,8 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           NavItem(
-            icon: Icons.local_shipping_outlined,
-            activeIcon: Icons.local_shipping_rounded,
+            icon: Icons.handshake_outlined,
+            activeIcon: Icons.handshake_rounded,
             label: 'Offers',
           ),
 
@@ -79,8 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
           NavItem(
-            icon: Icons.local_shipping_outlined,
-            activeIcon: Icons.local_shipping_rounded,
+            icon: Icons.handshake_outlined,
+            activeIcon: Icons.handshake_rounded,
             label: 'Offers',
           ),
 
@@ -111,13 +111,13 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Companies',
           ),
           NavItem(
-            icon: Icons.settings_outlined,
-            activeIcon: Icons.settings_rounded,
+            icon: Icons.local_shipping_outlined,
+            activeIcon: Icons.local_shipping_rounded,
             label: 'Shipments',
           ),
           NavItem(
-            icon: Icons.local_shipping_outlined,
-            activeIcon: Icons.local_shipping_rounded,
+            icon: Icons.handshake_outlined,
+            activeIcon: Icons.handshake_rounded,
             label: 'Offers',
           ),
           NavItem(
@@ -166,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Companiespage(user: widget.user),
           Shipmentpageadmin(user: widget.user),
           const ShipmentOffersAdminPage(),
-          const ReportsHomePage(),
+          ReportsHomePage(user: widget.user),
         ];
 
       default:

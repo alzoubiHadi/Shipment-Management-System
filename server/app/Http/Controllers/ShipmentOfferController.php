@@ -9,6 +9,7 @@ use App\Models\ShipmentOffer;
 use App\Models\Truck;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
+use App\Services\LedgerService;
 use App\Services\MatchingService;
 use App\Services\PricingService;
 use App\Support\Destinations;
@@ -91,6 +92,12 @@ class ShipmentOfferController extends Controller
                     'message' => "This shipment would exceed your company's credit limit",
                 ], 422);
             }
+
+            // Reserve the price against the company's available balance the
+            // moment it's known, so a second offer created a second later
+            // can't also spend this same headroom before either is
+            // accepted/cancelled — see Company::reservedAmount().
+            $validated['financial_status'] = 'reserved';
         }
 
         $offer = ShipmentOffer::create($validated);
@@ -137,6 +144,7 @@ class ShipmentOfferController extends Controller
             'pricing_mode' => 'manual',
             'priced_by_user_id' => $request->user()->id,
             'status' => 'pending',
+            'financial_status' => 'reserved',
         ]);
 
         app(MatchingService::class)->matchNextBatch($offer);
@@ -171,7 +179,11 @@ class ShipmentOfferController extends Controller
             return response()->json(['message' => 'The price can only be raised, not lowered'], 422);
         }
 
-        if (! $company->canAffordOffer((float) $validated['price_to_client'])) {
+        // Exclude this offer's own existing reservation from the check —
+        // otherwise its old (lower) price would be double-counted: once as
+        // part of the current reservation total, and again as the new
+        // price being tested against it.
+        if (! $company->canAffordOffer((float) $validated['price_to_client'], $offer->id)) {
             return response()->json([
                 'message' => "This price would exceed your company's credit limit",
             ], 422);
@@ -436,6 +448,10 @@ class ShipmentOfferController extends Controller
         $offer->update([
             'status' => 'cancelled',
             'cancellation_reason' => $validated['cancellation_reason'],
+            // Frees the hold on the company's available balance — no
+            // ledger transaction was ever posted for this offer, so there
+            // is nothing to reverse, only the reservation to release.
+            'financial_status' => $offer->financial_status === 'reserved' ? 'released' : $offer->financial_status,
         ]);
 
         return response()->json([
@@ -504,7 +520,24 @@ class ShipmentOfferController extends Controller
             'accepted_by_driver_id' => $driver->id,
             'accepted_truck_id' => $truck->id,
             'accepted_at' => now(),
+            // The reservation converts into a real charge below — net
+            // effect on the company's available balance is zero at this
+            // exact moment (reserved amount drops by X, balance drops by
+            // X), so no fresh canAffordOffer() re-check is needed here.
+            'financial_status' => 'committed',
         ]);
+
+        // Company is only actually charged once the shipment is real (a
+        // driver has committed to it) — NOT at offer creation, and not
+        // merely reserved. This was previously missing entirely: balance
+        // only ever went up (deposits), never down for shipment charges.
+        app(LedgerService::class)->record(
+            $offer->company,
+            'SHIPMENT_CHARGE',
+            -(float) $offer->price_to_client,
+            $shipment,
+            "Charged for shipment {$shipment->tracking_number}",
+        );
 
         $driver->update(['status' => 'busy']);
 

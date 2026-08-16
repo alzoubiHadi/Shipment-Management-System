@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\PayoutRequest;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
+use App\Services\LedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -209,13 +210,26 @@ class PayoutRequestController extends Controller
 
         DB::transaction(function () use ($payout, $driver) {
             $driver = Driver::lockForUpdate()->findOrFail($driver->id);
-            $driver->decrement('balance', (float) $payout->amount);
+            app(LedgerService::class)->record(
+                $driver,
+                'DRIVER_PAYOUT',
+                -(float) $payout->amount,
+                $payout,
+                "Payout #{$payout->id} confirmed received",
+            );
 
             $payout->update([
                 'status' => 'confirmed',
                 'confirmed_at' => now(),
             ]);
         });
+
+        ActivityLog::record(
+            'payout.confirmed',
+            $payout,
+            "Driver '{$driver->name}' confirmed receipt of payout #{$payout->id} ({$payout->amount} AED)",
+            ['amount' => $payout->amount]
+        );
 
         return response()->json([
             'message' => 'Receipt confirmed — your balance has been updated',
@@ -281,7 +295,13 @@ class PayoutRequestController extends Controller
         DB::transaction(function () use ($payout, $validated) {
             if ($validated['resolution'] === 'confirm') {
                 $driver = Driver::lockForUpdate()->findOrFail($payout->driver_id);
-                $driver->decrement('balance', (float) $payout->amount);
+                app(LedgerService::class)->record(
+                    $driver,
+                    'DRIVER_PAYOUT',
+                    -(float) $payout->amount,
+                    $payout,
+                    "Payout #{$payout->id} confirmed via dispute resolution",
+                );
 
                 $payout->update(['status' => 'confirmed', 'confirmed_at' => now()]);
             } else {

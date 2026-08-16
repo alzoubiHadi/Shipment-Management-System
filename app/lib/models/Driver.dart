@@ -28,6 +28,9 @@ class Driver {
   // UC-25/26: active | warning | suspended | banned — separate axis from
   // approvalStatus. Suspended/banned drivers never appear in matching.
   final String complianceStatus;
+  // Free-text health notes captured at registration (e.g. "Diabetic") —
+  // shown to admin during join-request review, never to companies.
+  final String? healthConditions;
 
   Driver({
     required this.id,
@@ -52,6 +55,7 @@ class Driver {
     this.documentIssues = const [],
     this.rating = 4.50,
     this.complianceStatus = 'active',
+    this.healthConditions,
   });
 
   factory Driver.fromMap(Map<String, dynamic> map) {
@@ -81,6 +85,7 @@ class Driver {
           : const [],
       rating: double.tryParse(map['rating']?.toString() ?? '') ?? 4.50,
       complianceStatus: map['compliance_status']?.toString() ?? 'active',
+      healthConditions: map['health_conditions']?.toString(),
     );
   }
 

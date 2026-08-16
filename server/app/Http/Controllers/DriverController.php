@@ -6,7 +6,9 @@ use App\Models\ActivityLog;
 use App\Models\Driver;
 use App\Models\DriverDestination;
 use App\Models\DriverDocument;
+use App\Models\ProfileEditRequest;
 use App\Models\User;
+use App\Notifications\AppPushNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -317,14 +319,15 @@ public function restore( $id)
     }
 
     /**
-     * Uploads a new document version. The previous "current" document of
-     * the same type is flipped to is_current=false — it is NEVER deleted,
-     * preserving full audit history. The matching legacy expiry column
-     * (license_expiry / passport_expiry / residency_expiry) is kept in
-     * sync so the existing eligibility checks (Driver::isEligibleForNewJob,
-     * documentIssues, meetsCrossBorderResidencyRule) keep working unchanged
-     * — those remain the single source of truth for matching eligibility,
-     * driver_documents is the audit trail behind them.
+     * A driver renewing/uploading their own document is a change that's
+     * material to eligibility (it directly feeds Driver::isEligibleForNewJob
+     * / documentIssues), so it is NEVER applied straight away here — it's
+     * stored as a pending ProfileEditRequest and only actually written into
+     * driver_documents (see the exact apply logic in
+     * ProfileController::applyDocument()) once an admin approves it. The
+     * uploaded file itself is stored immediately (so nothing is lost while
+     * it waits for review), just not yet linked as the driver's current
+     * document.
      */
     public function uploadDocument(Request $request, $driver_user_id)
     {
@@ -349,34 +352,29 @@ public function restore( $id)
 
         $path = $request->file('file')->store('driver_documents', 'public');
 
-        $document = DB::transaction(function () use ($driver, $validated, $path, $request) {
-            $driver->documents()->where('type', $validated['type'])->update(['is_current' => false]);
-
-            $document = $driver->documents()->create([
+        $editRequest = ProfileEditRequest::create([
+            'user_id' => $driver_user_id,
+            'category' => 'document',
+            'payload' => [
                 'type' => $validated['type'],
                 'file_path' => $path,
                 'expiry_date' => $validated['expiry_date'] ?? null,
-                'is_current' => true,
-                'uploaded_by_user_id' => $request->user()?->id,
-            ]);
+            ],
+            'status' => 'pending',
+        ]);
 
-            $legacyColumn = match ($validated['type']) {
-                'license' => 'license_expiry',
-                'passport' => 'passport_expiry',
-                'residency' => 'residency_expiry',
-                default => null,
-            };
-
-            if ($legacyColumn) {
-                $driver->update([$legacyColumn => $validated['expiry_date'] ?? null]);
-            }
-
-            return $document;
-        });
+        foreach (User::whereIn('type', ['admin', 'super_admin', 'sub_admin'])->get() as $admin) {
+            $admin->notify(new AppPushNotification(
+                'profile_edit_pending',
+                'Driver document awaiting review',
+                sprintf('%s submitted a %s renewal for review.', $driver->name, $validated['type']),
+                ['request_id' => $editRequest->id],
+            ));
+        }
 
         return response()->json([
-            'message' => 'Document uploaded successfully',
-            'document' => $document,
+            'message' => 'Document submitted for admin review — it will apply once approved.',
+            'edit_request' => $editRequest,
         ], 201);
     }
 
@@ -407,6 +405,10 @@ public function restore( $id)
     /**
      * Full replace of the driver's destination list (at least 1 required —
      * a driver must be reachable by the matching algorithm for something).
+     * Same as uploadDocument(): the driver's own change to their coverage
+     * area is material to matching eligibility, so it's queued as a
+     * pending ProfileEditRequest instead of applied immediately — an admin
+     * must approve it first (see ProfileController::applyDestinations()).
      */
     public function syncDestinations(Request $request, $driver_user_id)
     {
@@ -421,16 +423,25 @@ public function restore( $id)
             'destinations.*' => ['string', 'in:' . implode(',', array_keys(DriverDestination::DESTINATIONS))],
         ]);
 
-        DB::transaction(function () use ($driver, $validated) {
-            $driver->destinations()->delete();
-            foreach (array_unique($validated['destinations']) as $destination) {
-                $driver->destinations()->create(['destination' => $destination]);
-            }
-        });
+        $editRequest = ProfileEditRequest::create([
+            'user_id' => $driver_user_id,
+            'category' => 'destinations',
+            'payload' => ['destinations' => array_values(array_unique($validated['destinations']))],
+            'status' => 'pending',
+        ]);
+
+        foreach (User::whereIn('type', ['admin', 'super_admin', 'sub_admin'])->get() as $admin) {
+            $admin->notify(new AppPushNotification(
+                'profile_edit_pending',
+                'Driver destinations awaiting review',
+                sprintf('%s submitted a change to their work destinations for review.', $driver->name),
+                ['request_id' => $editRequest->id],
+            ));
+        }
 
         return response()->json([
-            'message' => 'Destinations updated successfully',
-            'destinations' => $driver->destinations()->pluck('destination'),
+            'message' => 'Destination change submitted for admin review — it will apply once approved.',
+            'edit_request' => $editRequest,
         ], 200);
     }
 

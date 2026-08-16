@@ -157,6 +157,17 @@ class TruckController extends Controller
             return response()->json(['message' => 'Driver not found'], 404);
         }
 
+        // A driver registers with exactly one truck and may only ever have
+        // one — this endpoint used to let them add unlimited extra trucks,
+        // which contradicted that. To register a *different* truck, the
+        // existing one must be removed first (admin-assisted, not exposed
+        // here on purpose).
+        if (Truck::where('default_driver_id', $driver->id)->exists()) {
+            return response()->json([
+                'message' => 'You already have a registered truck. Contact an admin to replace it.',
+            ], 422);
+        }
+
         try {
             $validated = $request->validate([
                 'truck_number' => ['required', 'string', 'unique:trucks,truck_number'],

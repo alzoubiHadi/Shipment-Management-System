@@ -299,6 +299,9 @@ class CompanyItem extends StatelessWidget {
                     ),
                     child: const Text(
                       'Pending review',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 9, color: AppColors.info, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -312,6 +315,9 @@ class CompanyItem extends StatelessWidget {
                     ),
                     child: const Text(
                       'Rejected',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 9, color: AppColors.error, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -321,31 +327,39 @@ class CompanyItem extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Status badge + License + Actions
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.gold,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  company.email ?? '',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.bg,
-                    fontWeight: FontWeight.w600,
+          // Status badge + License + Actions — width-capped, same fix as
+          // DriverItem, so a long email can't squeeze the leading Expanded
+          // name column and wrap the status badge one character per line.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 130),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    company.email ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.bg,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                company.phone ?? '',
-                style: const TextStyle(fontSize: 10, color: AppColors.muted),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                Text(
+                  company.phone ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                ),
+                const SizedBox(height: 8),
 
               // Action Buttons Row
               Row(
@@ -430,6 +444,7 @@ class CompanyItem extends StatelessWidget {
                 ],
               ),
             ],
+            ),
           ),
         ],
       ),

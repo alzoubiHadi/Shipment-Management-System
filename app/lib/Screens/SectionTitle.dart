@@ -30,11 +30,15 @@ class SectionTitle extends StatelessWidget {
             ),
           ),
           if (actionLabel != null)
-            GestureDetector(
+            InkWell(
               onTap: onAction,
-              child: Text(
-                actionLabel!,
-                style: const TextStyle(fontSize: 13, color: AppColors.gold),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                child: Text(
+                  actionLabel!,
+                  style: const TextStyle(fontSize: 13, color: AppColors.gold),
+                ),
               ),
             ),
         ],

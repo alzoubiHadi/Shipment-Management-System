@@ -150,7 +150,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
               .where((c) => c.name.toLowerCase().contains(query.toLowerCase()))
               .toList();
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom),
             child: SizedBox(
               height: MediaQuery.of(ctx).size.height * 0.7,
               child: Column(
@@ -241,7 +241,8 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         return StatefulBuilder(builder: (ctx, setSheetState) {
           return Padding(
             padding: EdgeInsets.only(
-              left: 16, right: 16, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              left: 16, right: 16, top: 16,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 16,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

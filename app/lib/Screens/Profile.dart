@@ -255,20 +255,31 @@ class _ProfileState extends State<Profile> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _SectionTitle('My Trucks'),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final added = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const AddTruckPage()),
+                  // A driver registers with exactly one truck and can only
+                  // ever have one (server now enforces this too) — so this
+                  // button only shows up before that one truck exists, not
+                  // as a way to keep adding more.
+                  FutureBuilder<List<Truck>>(
+                    future: _trucksFuture,
+                    builder: (context, snapshot) {
+                      final hasTruck = (snapshot.data ?? []).isNotEmpty;
+                      if (hasTruck) return const SizedBox.shrink();
+                      return TextButton.icon(
+                        onPressed: () async {
+                          final added = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const AddTruckPage()),
+                          );
+                          if (added == true) _refreshTrucks();
+                        },
+                        icon: const Icon(Icons.add, size: 16, color: AppColors.gold),
+                        label: const Text(
+                          'Add Truck',
+                          style: TextStyle(color: AppColors.gold, fontSize: 13),
+                        ),
                       );
-                      if (added == true) _refreshTrucks();
                     },
-                    icon: const Icon(Icons.add, size: 16, color: AppColors.gold),
-                    label: const Text(
-                      'Add Truck',
-                      style: TextStyle(color: AppColors.gold, fontSize: 13),
-                    ),
                   ),
                 ],
               ),

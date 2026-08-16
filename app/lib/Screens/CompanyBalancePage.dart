@@ -6,6 +6,7 @@ import '../API/PaymentOrderService.dart';
 import '../API/config.dart';
 import '../models/Company.dart';
 import '../models/PaymentOrder.dart';
+import 'StatementPage.dart';
 
 /// Company app (UC-28): view current balance/credit limit and submit /
 /// track top-up requests.
@@ -152,6 +153,16 @@ class _CompanyBalancePageState extends State<CompanyBalancePage> {
         elevation: 0,
         title: const Text('My Balance', style: TextStyle(color: AppColors.cream)),
         iconTheme: const IconThemeData(color: AppColors.cream),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined, color: AppColors.cream),
+            tooltip: 'Statement',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StatementPage()),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _isSubmitting ? null : _submitTopUp,

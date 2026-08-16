@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import 'AdminFinancePage.dart';
+import 'AdminProfileEditRequestsPage.dart';
 import 'DeletedDrivers.dart';
 import 'Deletedcompanies.dart';
+import 'PriceListAdminPage.dart';
 import 'SubAdminsPage.dart';
 
-/// Super Admin settings hub. Reached from a gear icon on the admin's
-/// Reports tab. Groups two things that used to be scattered: the recycle
-/// bin (previously a top-bar icon on the Drivers/Companies list pages) and
-/// sub-admin account management (create/permissions/suspend).
+/// Super Admin settings hub — reached from the account-menu dropdown on
+/// any AppBar (tap the avatar). Groups everything that isn't a report:
+/// sub-admin account management, financial/pricing tools (moved out of
+/// the Reports tab, which now only holds actual reports), the profile
+/// edit-request review queue, and the recycle bin.
 class AdminSettingsPage extends StatelessWidget {
   const AdminSettingsPage({super.key});
 
@@ -34,6 +38,38 @@ class AdminSettingsPage extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SubAdminsPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: Icons.fact_check_outlined,
+            title: 'Profile Edit Requests',
+            subtitle: 'Review driver/company self-service changes before they apply',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminProfileEditRequestsPage()),
+            ),
+          ),
+          const SizedBox(height: 28),
+          const _SettingsSectionTitle('Finance & Payments'),
+          const SizedBox(height: 12),
+          _SettingsTile(
+            icon: Icons.account_balance_wallet_outlined,
+            title: 'Finance',
+            subtitle: 'Review top-ups, driver payouts, and set company credit limits',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminFinancePage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: Icons.price_change_outlined,
+            title: 'Price List',
+            subtitle: 'Finance Admin: export/import the central price matrix (UC-33)',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PriceListAdminPage()),
             ),
           ),
           const SizedBox(height: 28),

@@ -60,7 +60,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                 left: 20,
                 right: 20,
                 top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

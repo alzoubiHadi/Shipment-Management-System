@@ -50,14 +50,42 @@ class Company extends Model
     }
 
     /**
-     * Forward-looking credit check for UC-11: creating a new offer must not
-     * push (balance - offer price) below -credit_limit. This checks the
-     * PROSPECTIVE balance after the new shipment's price, not merely the
-     * currently realized balance.
+     * Sum of price_to_client across every offer currently holding a
+     * reservation against this company (financial_status='reserved') — see
+     * the 2026_08_18_000105 migration. Not yet a real SHIPMENT_CHARGE
+     * ledger entry, just a hold that keeps a second concurrent offer from
+     * spending the same headroom before this one is accepted or cancelled.
+     *
+     * $excludingOfferId lets a caller re-evaluate ONE specific offer's own
+     * price (raisePrice()) without double-counting its own existing hold.
      */
-    public function canAffordOffer(float $offerPrice): bool
+    public function reservedAmount(?int $excludingOfferId = null): float
     {
-        return ((float) $this->balance - $offerPrice) >= -((float) $this->credit_limit);
+        $query = ShipmentOffer::where('company_id', $this->id)->where('financial_status', 'reserved');
+
+        if ($excludingOfferId) {
+            $query->where('id', '!=', $excludingOfferId);
+        }
+
+        return (float) $query->sum('price_to_client');
+    }
+
+    /** Balance minus every other offer's active reservation. */
+    public function availableBalance(?int $excludingOfferId = null): float
+    {
+        return (float) $this->balance - $this->reservedAmount($excludingOfferId);
+    }
+
+    /**
+     * Forward-looking credit check for UC-11: creating (or repricing) an
+     * offer must not push (available balance - offer price) below
+     * -credit_limit. Uses availableBalance() (balance minus other active
+     * reservations), not the raw balance, so two offers created back to
+     * back can't both pass this check against the same headroom.
+     */
+    public function canAffordOffer(float $offerPrice, ?int $excludingOfferId = null): bool
+    {
+        return ($this->availableBalance($excludingOfferId) - $offerPrice) >= -((float) $this->credit_limit);
     }
 
     public function isActive(): bool
