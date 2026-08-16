@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import 'register_shared.dart';
 
 /// Login-design screen 4 ("Login Successful — Select your role to
 /// continue"). Per the 2026-08-19 design review: this account model has
@@ -34,42 +35,44 @@ class _RoleConfirmScreenState extends State<RoleConfirmScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 84,
-                  height: 84,
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.12),
-                    shape: BoxShape.circle,
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(color: LightColors.successBg, shape: BoxShape.circle),
+                    child: const Icon(Icons.check_circle_rounded, color: LightColors.success, size: 46),
                   ),
-                  child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 44),
-                ),
+                  const Positioned(top: 0, right: 6, child: Text('🎉', style: TextStyle(fontSize: 16))),
+                  const Positioned(bottom: 4, left: 4, child: Text('✨', style: TextStyle(fontSize: 14))),
+                ],
               ),
               const SizedBox(height: 24),
               const Center(
                 child: Text(
                   'Welcome Back!',
-                  style: TextStyle(color: AppColors.cream, fontSize: 24, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: LightColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w800),
                 ),
               ),
               const SizedBox(height: 6),
               const Center(
                 child: Text(
                   'Login successful',
-                  style: TextStyle(color: AppColors.muted, fontSize: 14),
+                  style: TextStyle(color: LightColors.textSecondary, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 36),
               const Text(
-                'Continue as',
-                style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                'Select your role to continue',
+                style: TextStyle(color: LightColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.3),
               ),
               const SizedBox(height: 12),
               _RoleCard(
@@ -96,21 +99,7 @@ class _RoleConfirmScreenState extends State<RoleConfirmScreen> {
                 onTap: _isAdmin ? _continue : null,
               ),
               const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _continue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.gold,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(color: AppColors.bg, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
+              LightPrimaryButton(label: 'Continue', color: LightColors.navy, onPressed: _continue),
             ],
           ),
         ),
@@ -144,9 +133,9 @@ class _RoleCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: active ? AppColors.gold.withOpacity(0.08) : AppColors.surface,
+            color: LightColors.surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: active ? AppColors.gold : AppColors.border, width: active ? 1.2 : 0.5),
+            border: Border.all(color: active ? LightColors.gold : LightColors.border, width: active ? 1.4 : 1),
           ),
           child: Row(
             children: [
@@ -154,10 +143,10 @@ class _RoleCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: active ? AppColors.gold.withOpacity(0.15) : AppColors.border.withOpacity(0.4),
+                  color: active ? LightColors.gold.withOpacity(0.15) : LightColors.bg,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: active ? AppColors.gold : AppColors.muted, size: 20),
+                child: Icon(icon, color: active ? LightColors.goldMuted : const Color(0xFFA0A4AC), size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -167,20 +156,20 @@ class _RoleCard extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: active ? AppColors.cream : AppColors.muted,
+                        color: active ? LightColors.textPrimary : const Color(0xFFA0A4AC),
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                      style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              if (active) const Icon(Icons.chevron_right_rounded, color: AppColors.gold),
+              if (active) const Icon(Icons.chevron_right_rounded, color: LightColors.gold),
             ],
           ),
         ),

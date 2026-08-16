@@ -62,6 +62,30 @@ class AppColors {
   static const info         = Color(0xFF64B5F6);
 }
 
+/// Light theme tokens (2026-08-21 design pass) — used by the auth/
+/// onboarding screens (Welcome screen stays dark/gold; everything after it
+/// — Login, role confirm, registration wizards, account-status screens —
+/// switches to this light palette to match the design mockups). Kept
+/// separate from [AppColors] (dark) since the rest of the app — dashboard,
+/// shipments, admin screens — hasn't been redesigned yet and still relies
+/// on the dark palette; migrating those is a separate, larger follow-up.
+class LightColors {
+  static const bg           = Color(0xFFF7F8FA);
+  static const surface      = Color(0xFFFFFFFF);
+  static const border       = Color(0xFFE3E5EA);
+  static const textPrimary  = Color(0xFF14161A);
+  static const textSecondary = Color(0xFF6B7280);
+  static const gold         = Color(0xFFD4AF37);
+  static const goldMuted    = Color(0xFFB8962E);
+  static const navy         = Color(0xFF16213E);
+  static const success      = Color(0xFF16A34A);
+  static const successBg    = Color(0xFFE9F8EF);
+  static const pending      = Color(0xFFF59E0B);
+  static const pendingBg    = Color(0xFFFEF3E2);
+  static const error        = Color(0xFFDC2626);
+  static const errorBg      = Color(0xFFFDECEC);
+}
+
 String statusLabel(dynamic status) {
   switch (status) {
     case 0:

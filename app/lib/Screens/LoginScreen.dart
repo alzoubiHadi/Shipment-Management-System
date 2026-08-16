@@ -1,18 +1,16 @@
-
-
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../API/AuthResponse.dart';
-
-import '../models/Appuser.dart';
-import 'DriverApprovalStatusPage.dart';
-import 'ForceChangePasswordScreen.dart';
-import 'HomeScreen.dart';
+import '../API/config.dart';
+import 'LoggingInScreen.dart';
 import 'RegisterScreen.dart';
-import 'RoleConfirmScreen.dart';
+import 'register_shared.dart';
 
+/// Login-design screen 2 ("Log In"). Light theme, matching the mockup:
+/// white background, back arrow, black bold heading, email/password
+/// fields with icons, gold "Forgot password?" link, gold "Log In" button,
+/// Google/Apple placeholders, gold "Sign Up" link. The actual API call and
+/// all of the post-login routing now lives in LoggingInScreen (design
+/// screen 3, "Logging you in...").
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -34,8 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-
-
   Future<void> _handleLogin() async {
     final email = _emailCtrl.text.trim();
     final password = _passCtrl.text;
@@ -50,185 +46,71 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    try {
-      final response = await ApiService.login(email: email, password: password);
-      print(response);
+    final error = await Navigator.push<String?>(
+      context,
+      MaterialPageRoute(builder: (_) => LoggingInScreen(email: email, password: password)),
+    );
 
-      // A sub-admin logging in for the first time on their one-time
-      // temporary password must set a real one before reaching anything
-      // else (UC-7) — no token/prefs are saved as "logged in" yet.
-      if (response.mustChangePassword) {
-        if (mounted) {
-          final prefs = await SharedPreferences.getInstance();
-          prefs.setString('token', response.token);
-          prefs.setString('email', response.email);
-          prefs.setString('id', response.userId);
-          prefs.setString('name', response.name);
-          prefs.setString('role', response.role.toString());
-          prefs.setBool('loggedIn', true);
-
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ForceChangePasswordScreen(
-                user: AppUser(name: response.name, email: response.email, role: response.role, id: response.userId),
-              ),
-            ),
-            (route) => false,
-          );
-        }
-        return;
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-
-      prefs.setString('token', response.token);
-      prefs.setString('email', response.email);
-      prefs.setString('id', response.userId);
-      prefs.setString('name', response.name);
-      prefs.setString('role', response.role.toString());
-      print(response.role.toString());
-      prefs.setBool('loggedIn', true);
-
-      if (mounted) {
-        // A driver/company whose account isn't approved yet (pending,
-        // changes_required, or rejected) must not reach the normal app —
-        // send them to the status screen instead, on every login, until
-        // an admin approves them.
-        final isUnapprovedDriver = response.role == 'driver' &&
-            response.driverApprovalStatus != 'approved';
-        final isUnapprovedCompany = response.role == 'company' &&
-            response.companyApprovalStatus != 'approved';
-
-        // Login NEVER shows the OTP code screen — that only ever appears
-        // once, immediately after a brand-new sign-up
-        // (DriverRegisterScreen/CompanyRegisterScreen). Email verification
-        // status plays no role here at all; the only thing login checks is
-        // whether there are outstanding items (admin approval, documents)
-        // — shown via DriverApprovalStatusPage, never a code entry field.
-        final destination = isUnapprovedDriver
-            ? DriverApprovalStatusPage(
-                approvalStatus: response.driverApprovalStatus,
-                rejectionReason: response.driverRejectionReason,
-                documentIssues: response.driverDocumentIssues,
-              )
-            : isUnapprovedCompany
-                ? DriverApprovalStatusPage(
-                    accountType: 'company',
-                    approvalStatus: response.companyApprovalStatus,
-                    rejectionReason: response.companyRejectionReason,
-                  )
-                : HomeScreen(user: AppUser(name: response.name, email: email, role: response.role, id: response.userId));
-
-        // Navigate to the role-confirmation screen first (design step 4 —
-        // "Login successful, select your role to continue"; this account
-        // model has exactly one fixed role per account, so it's a
-        // confirmation display, not a real picker — see
-        // RoleConfirmScreen). Clears the Splash/Login/Register screens
-        // from the stack entirely so the back button can't land back on
-        // them (which looked like being logged out).
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => RoleConfirmScreen(role: response.role, next: destination),
-          ),
-          (route) => false,
-        );
-      }
-    } on ApiException catch (e) {
-      // The server no longer blocks login on an unverified email (see
-      // UserController::login) — any ApiException here is a real error
-      // (wrong password, suspended account, etc.), so just show it as-is.
-      if (mounted) {
-        setState(() => _errorMessage = e.message);
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    // If LoggingInScreen succeeded it already replaced the whole nav stack,
+    // so this widget is gone and `mounted` is false — this branch only
+    // runs on failure, when it popped back here with an error message.
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        if (error != null) _errorMessage = error;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0C),
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(
+        backgroundColor: LightColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo
-              Center(
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: const Color(0xFFD4AF37),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'U',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w300,
-                        color: Color(0xFF0A0A0C),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 48),
-
-              // Headline
               const Text(
-                'Welcome\nback.',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w300,
-                  color: Color(0xFFF5F0E8),
-                  height: 1.1,
-                  letterSpacing: -1,
-                ),
+                'Log In',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: LightColors.textPrimary),
               ),
-
-              const SizedBox(height: 8),
-
+              const SizedBox(height: 6),
               const Text(
-                'Sign in to continue',
-                style: TextStyle(fontSize: 15, color: Color(0xFF6B6660)),
+                'Welcome back! Please enter your credentials to access your account.',
+                style: TextStyle(fontSize: 13, color: LightColors.textSecondary, height: 1.5),
               ),
-
-              const SizedBox(height: 48),
-
-              // Email field
-              _buildTextField(
+              const SizedBox(height: 28),
+              buildLightTextField(
                 controller: _emailCtrl,
-                label: 'Email address',
+                label: 'Email',
+                hint: 'you@example.com',
                 keyboardType: TextInputType.emailAddress,
+                prefixIcon: const Icon(Icons.mail_outline, color: Color(0xFFA0A4AC), size: 20),
               ),
-
-              const SizedBox(height: 14),
-
-              // Password field
-              _buildTextField(
+              const SizedBox(height: 16),
+              buildLightTextField(
                 controller: _passCtrl,
                 label: 'Password',
+                hint: '••••••••••',
                 obscure: _obscure,
+                prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFFA0A4AC), size: 20),
                 suffix: IconButton(
                   onPressed: () => setState(() => _obscure = !_obscure),
                   icon: Icon(
                     _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: const Color(0xFF6B6660),
+                    color: const Color(0xFFA0A4AC),
                     size: 18,
                   ),
                 ),
               ),
-
-              const SizedBox(height: 12),
-
-              // Forgot password
+              const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerRight,
                 child: Material(
@@ -242,95 +124,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                      child: Text(
-                        'Forgot password?',
-                        style: TextStyle(fontSize: 13, color: Color(0xFFD4AF37)),
-                      ),
+                      child: Text('Forgot Password?', style: TextStyle(fontSize: 13, color: LightColors.gold, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 32),
-
-              // Inside the Column, just above the sign in button:
-
+              const SizedBox(height: 20),
               if (_errorMessage != null) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A0F0F),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE57373).withOpacity(0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Color(0xFFE57373), size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(fontSize: 13, color: Color(0xFFE57373)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                LightErrorBanner(message: _errorMessage!),
                 const SizedBox(height: 12),
               ],
-
-              // Sign in button
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4AF37),
-                    disabledBackgroundColor: const Color(0xFFD4AF37),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Color(0xFF0A0A0C),
-                    ),
-                  )
-                      : const Text(
-                    'Sign in',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF0A0A0C),
-                    ),
-                  ),
-                ),
+              LightPrimaryButton(
+                label: 'Log In',
+                icon: Icons.login_rounded,
+                color: LightColors.gold,
+                textColor: LightColors.textPrimary,
+                loading: _loading,
+                onPressed: _handleLogin,
               ),
-
-              const SizedBox(height: 24),
-
-              // Social sign-in — UI only for now. Google/Apple aren't
-              // wired to the backend yet (needs a Google OAuth client +,
-              // for Apple, a paid Apple Developer Program enrollment this
-              // Android-only project doesn't have set up yet), so these
-              // just say so rather than silently doing nothing.
+              const SizedBox(height: 20),
               Row(
                 children: [
-                  Expanded(child: Divider(color: const Color(0xFF2A2520))),
+                  const Expanded(child: Divider(color: LightColors.border)),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'or continue with',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF6B6660)),
-                    ),
+                    child: Text('or continue with', style: TextStyle(fontSize: 12, color: LightColors.textSecondary)),
                   ),
-                  Expanded(child: Divider(color: const Color(0xFF2A2520))),
+                  const Expanded(child: Divider(color: LightColors.border)),
                 ],
               ),
               const SizedBox(height: 16),
@@ -357,82 +177,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 24),
-
-              // Sign up link
               Center(
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                    );
-                  },
-                  child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(fontSize: 14, color: Color(0xFF6B6660)),
-                      children: [
-                        TextSpan(text: "Don't have an account? "),
-                        TextSpan(
-                          text: 'Sign up',
-                          style: TextStyle(
-                            color: Color(0xFFD4AF37),
-                            fontWeight: FontWeight.w600,
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                    },
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 14, color: LightColors.textSecondary),
+                        children: [
+                          TextSpan(text: "Don't have an account? "),
+                          TextSpan(
+                            text: 'Sign Up',
+                            style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w700),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 40),
-
-
+              const SizedBox(height: 24),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    bool obscure = false,
-    TextInputType? keyboardType,
-    Widget? suffix,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboardType,
-      style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 15),
-      cursorColor: const Color(0xFFD4AF37),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF4A4540), fontSize: 13),
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: const Color(0xFF111113),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF2A2520)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF2A2520)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFD4AF37)),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       ),
     );
   }
@@ -450,20 +222,21 @@ class _SocialButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          height: 50,
+          height: 48,
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF2A2520)),
-            borderRadius: BorderRadius.circular(14),
+            color: LightColors.surface,
+            border: Border.all(color: LightColors.border),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: const Color(0xFFF5F0E8), size: 20),
+              Icon(icon, color: LightColors.textPrimary, size: 20),
               const SizedBox(width: 8),
-              Text(label, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 14)),
+              Text(label, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
             ],
           ),
         ),

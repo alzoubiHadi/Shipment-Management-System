@@ -172,7 +172,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     return showModalBottomSheet<CountryInfo>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF111113),
+      backgroundColor: LightColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setSheetState) {
@@ -192,17 +192,17 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                       children: [
                         Text(title,
                             style: const TextStyle(
-                                color: Color(0xFFF5F0E8), fontSize: 16, fontWeight: FontWeight.w700)),
+                                color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 10),
                         TextField(
                           autofocus: true,
-                          style: const TextStyle(color: Color(0xFFF5F0E8)),
+                          style: const TextStyle(color: LightColors.textPrimary),
                           decoration: InputDecoration(
                             hintText: 'Search country',
-                            hintStyle: const TextStyle(color: Color(0xFF6B6660)),
-                            prefixIcon: const Icon(Icons.search, color: Color(0xFF6B6660)),
+                            hintStyle: const TextStyle(color: LightColors.textSecondary),
+                            prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary),
                             filled: true,
-                            fillColor: const Color(0xFF0A0A0C),
+                            fillColor: LightColors.bg,
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                           ),
@@ -217,8 +217,8 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                       itemBuilder: (context, i) {
                         final c = filtered[i];
                         return ListTile(
-                          title: Text(c.name, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 14)),
-                          trailing: Text('+${c.dialCode}', style: const TextStyle(color: Color(0xFF6B6660))),
+                          title: Text(c.name, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14)),
+                          trailing: Text('+${c.dialCode}', style: const TextStyle(color: LightColors.textSecondary)),
                           onTap: () => Navigator.pop(ctx, c),
                         );
                       },
@@ -271,7 +271,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF111113),
+      backgroundColor: LightColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setSheetState) {
@@ -285,7 +285,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(title,
-                    style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 16, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
@@ -295,8 +295,8 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                       final isSelected = working.contains(opt);
                       return CheckboxListTile(
                         value: isSelected,
-                        title: Text(opt, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 13)),
-                        activeColor: const Color(0xFFD4AF37),
+                        title: Text(opt, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
+                        activeColor: LightColors.gold,
                         controlAffinity: ListTileControlAffinity.leading,
                         onChanged: (v) => setSheetState(() {
                           if (exclusiveFirstOption && opt == options.first && v == true) {
@@ -321,12 +321,12 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                 SizedBox(
                   height: 46,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37)),
+                    style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold),
                     onPressed: () {
                       onSaved(working);
                       Navigator.pop(ctx);
                     },
-                    child: const Text('Done', style: TextStyle(color: Color(0xFF0A0A0C), fontWeight: FontWeight.w600)),
+                    child: const Text('Done', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -340,14 +340,14 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   Future<String?> _pickFromList(String title, List<String> options) {
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF111113),
+      backgroundColor: LightColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => SafeArea(
         child: ListView(
           shrinkWrap: true,
           children: options
               .map((t) => ListTile(
-                    title: Text(t, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 13)),
+                    title: Text(t, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
                     onTap: () => Navigator.pop(ctx, t),
                   ))
               .toList(),
@@ -505,35 +505,44 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   // ── UI ─────────────────────────────────────────────────────────────────
 
   static const _stepTitles = [
-    'Account Info',
-    'Driver Info',
-    'Documents',
+    'Account Information',
+    'Driver Information',
+    'Driver Documents',
     'Health & Coverage',
-    'Truck Info',
+    'Truck Information',
     'Truck Documents',
-    'Review & Submit',
+    'Review Your Information',
+  ];
+
+  static const _stepSubtitles = [
+    'Enter your account details',
+    'All fields are mandatory',
+    'All documents are mandatory',
+    'Tell us about your health and work coverage',
+    'Enter your truck details',
+    'All documents are mandatory',
+    'Please review all information before submitting',
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.cream),
+          icon: const Icon(Icons.arrow_back, color: LightColors.textPrimary),
           onPressed: _loading ? null : _back,
-        ),
-        title: Text(
-          'Step ${_step + 1} of $_totalSteps — ${_stepTitles[_step]}',
-          style: const TextStyle(color: AppColors.cream, fontSize: 14),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            _StepProgress(current: _step, total: _totalSteps),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: LightStepProgress(current: _step, total: _totalSteps),
+            ),
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -556,27 +565,39 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     );
   }
 
-  Widget _pageScaffold(List<Widget> children) {
+  Widget _pageScaffold(int stepIndex, List<Widget> children) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(_stepTitles[stepIndex],
+              style: const TextStyle(color: LightColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(_stepSubtitles[stepIndex], style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: 22),
+          ...children,
+        ],
+      ),
     );
   }
 
   Widget _accountInfoStep() {
-    return _pageScaffold([
-      buildAuthTextField(controller: _nameCtrl, label: 'Full name'),
+    return _pageScaffold(0, [
+      buildLightTextField(controller: _nameCtrl, label: 'Full Name', hint: 'Mohamed Ali'),
       const SizedBox(height: 14),
-      buildAuthTextField(controller: _emailCtrl, label: 'Email address', keyboardType: TextInputType.emailAddress),
+      buildLightTextField(
+          controller: _emailCtrl, label: 'Email', hint: 'mohamed.ali@example.com', keyboardType: TextInputType.emailAddress),
       const SizedBox(height: 14),
-      buildAuthTextField(
+      buildLightTextField(
         controller: _passCtrl,
         label: 'Password',
+        hint: '••••••••••',
         obscure: _obscurePass,
         suffix: IconButton(
           onPressed: () => setState(() => _obscurePass = !_obscurePass),
           icon: Icon(_obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-              color: const Color(0xFF6B6660), size: 18),
+              color: const Color(0xFFA0A4AC), size: 18),
         ),
       ),
       if (_strength != PasswordStrength.none) ...[
@@ -584,20 +605,21 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         PasswordStrengthBar(strength: _strength),
       ],
       const SizedBox(height: 14),
-      buildAuthTextField(
+      buildLightTextField(
         controller: _confirmCtrl,
-        label: 'Confirm password',
+        label: 'Confirm Password',
+        hint: '••••••••••',
         obscure: _obscureConfirm,
         hasError: !_passwordsMatch,
         suffix: IconButton(
           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
           icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-              color: const Color(0xFF6B6660), size: 18),
+              color: const Color(0xFFA0A4AC), size: 18),
         ),
       ),
       if (!_passwordsMatch) ...[
         const SizedBox(height: 6),
-        const Text('Passwords do not match', style: TextStyle(fontSize: 11, color: Color(0xFFE57373))),
+        const Text('Passwords do not match', style: TextStyle(fontSize: 11, color: LightColors.error)),
       ],
       const SizedBox(height: 20),
       GestureDetector(
@@ -612,16 +634,16 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
               margin: const EdgeInsets.only(top: 1),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: _agreed ? const Color(0xFFD4AF37) : const Color(0xFF3A3530), width: 1.5),
-                color: _agreed ? const Color(0xFFD4AF37) : Colors.transparent,
+                border: Border.all(color: _agreed ? LightColors.gold : LightColors.border, width: 1.5),
+                color: _agreed ? LightColors.gold : Colors.transparent,
               ),
-              child: _agreed ? const Icon(Icons.check, size: 13, color: Color(0xFF0A0A0C)) : null,
+              child: _agreed ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
             ),
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'I agree to the Terms of Service and Privacy Policy',
-                style: TextStyle(fontSize: 13, color: Color(0xFF6B6660), height: 1.5),
+                'I agree to the Terms & Conditions',
+                style: TextStyle(fontSize: 13, color: LightColors.textSecondary, height: 1.5),
               ),
             ),
           ],
@@ -631,39 +653,48 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   }
 
   Widget _driverInfoStep() {
-    return _pageScaffold([
+    return _pageScaffold(1, [
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 110,
-            child: InkWell(
-              onTap: () async {
-                final picked = await _pickCountry('Phone country');
-                if (picked != null) setState(() => _phoneCountry = picked);
-              },
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111113),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF2A2520)),
+            width: 100,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Code', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () async {
+                    final picked = await _pickCountry('Phone country');
+                    if (picked != null) setState(() => _phoneCountry = picked);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+                    decoration: BoxDecoration(
+                      color: LightColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: LightColors.border),
+                    ),
+                    child: Text('+${_phoneCountry.dialCode}', style: const TextStyle(color: LightColors.textPrimary, fontSize: 14)),
+                  ),
                 ),
-                child: Text('+${_phoneCountry.dialCode}', style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 14)),
-              ),
+              ],
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: buildAuthTextField(controller: _phoneNumberCtrl, label: 'Phone number', keyboardType: TextInputType.phone),
+            child: buildLightTextField(
+                controller: _phoneNumberCtrl, label: 'Phone Number', hint: '50 123 4567', keyboardType: TextInputType.phone),
           ),
         ],
       ),
       const SizedBox(height: 14),
-      PickerField(
+      LightPickerField(
         label: 'Nationality',
         value: _nationality?.name,
+        hint: 'Select nationality',
         icon: Icons.public,
         onTap: () async {
           final picked = await _pickCountry('Nationality');
@@ -671,14 +702,14 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 14),
-      buildAuthTextField(controller: _ageCtrl, label: 'Age (18-65)', keyboardType: TextInputType.number),
+      buildLightTextField(controller: _ageCtrl, label: 'Age (18-65)', hint: '30', keyboardType: TextInputType.number),
       const SizedBox(height: 14),
-      buildAuthTextField(controller: _driverLicenseCtrl, label: 'Driving license number'),
+      buildLightTextField(controller: _driverLicenseCtrl, label: 'Driver License Number', hint: 'D1234567'),
     ]);
   }
 
   Widget _documentsStep() {
-    return _pageScaffold([
+    return _pageScaffold(2, [
       const _SubLabel('Driving license — front'),
       const SizedBox(height: 8),
       _DocumentRow(
@@ -696,8 +727,9 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       const SizedBox(height: 16),
       const _SubLabel('Driving license — back (optional)'),
       const SizedBox(height: 8),
-      PickerField(
-        label: 'Upload (PDF/JPG/PNG)',
+      LightPickerField(
+        label: 'Upload',
+        hint: 'PDF/JPG/PNG',
         value: _licenseBackFile?.name,
         icon: Icons.upload_file_outlined,
         onTap: () async {
@@ -738,8 +770,9 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       const SizedBox(height: 16),
       const _SubLabel('Driver photo (optional)'),
       const SizedBox(height: 8),
-      PickerField(
-        label: 'Upload a portrait photo',
+      LightPickerField(
+        label: 'Upload',
+        hint: 'A clear portrait photo',
         value: _driverPhotoFile?.name,
         icon: Icons.person_outline,
         onTap: () async {
@@ -747,18 +780,16 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
           if (f != null) setState(() => _driverPhotoFile = f);
         },
       ),
-      const SizedBox(height: 10),
-      const Text(
-        'All documents must be clear and valid. Expired documents are not accepted.',
-        style: TextStyle(fontSize: 11, color: Color(0xFF6B6660)),
-      ),
+      const SizedBox(height: 14),
+      const _NoticeBanner('All documents must be clear and valid. Expired documents are not accepted.'),
     ]);
   }
 
   Widget _healthStep() {
-    return _pageScaffold([
-      PickerField(
-        label: 'Health status',
+    return _pageScaffold(3, [
+      LightPickerField(
+        label: 'Health Status',
+        hint: 'Select any conditions',
         value: _healthConditions.isEmpty ? null : _healthConditions.join(', '),
         icon: Icons.health_and_safety_outlined,
         onTap: () => _pickMultiSelectSheet(
@@ -773,11 +804,12 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       ),
       if (_healthConditions.contains(kOtherHealthOption)) ...[
         const SizedBox(height: 10),
-        buildAuthTextField(controller: _healthOtherCtrl, label: 'Describe the other condition'),
+        buildLightTextField(controller: _healthOtherCtrl, label: 'Describe the other condition'),
       ],
       const SizedBox(height: 14),
-      PickerField(
-        label: 'Blood type',
+      LightPickerField(
+        label: 'Blood Type',
+        hint: 'Select blood type',
         value: _bloodType,
         icon: Icons.bloodtype_outlined,
         onTap: () async {
@@ -786,8 +818,9 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 14),
-      PickerField(
-        label: 'Work destinations',
+      LightPickerField(
+        label: 'Work Destinations',
+        hint: 'Countries you operate in',
         value: _destinations.isEmpty ? null : _destinations.map((k) => kDriverDestinationOptions[k]).join(', '),
         icon: Icons.map_outlined,
         onTap: () => _pickMultiSelectSheet(
@@ -803,9 +836,10 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   }
 
   Widget _truckInfoStep() {
-    return _pageScaffold([
-      PickerField(
-        label: 'Truck type',
+    return _pageScaffold(4, [
+      LightPickerField(
+        label: 'Truck Type',
+        hint: 'Select truck type',
         value: _truckType,
         icon: Icons.local_shipping_outlined,
         onTap: () async {
@@ -814,14 +848,14 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 14),
-      buildAuthTextField(controller: _truckNumberCtrl, label: 'Truck plate / number'),
+      buildLightTextField(controller: _truckNumberCtrl, label: 'Truck Plate / Number', hint: 'C 12345'),
       const SizedBox(height: 14),
-      buildAuthTextField(controller: _permitTypeCtrl, label: 'Permit type (optional)'),
+      buildLightTextField(controller: _permitTypeCtrl, label: 'Permit Type (optional)'),
     ]);
   }
 
   Widget _truckDocumentsStep() {
-    return _pageScaffold([
+    return _pageScaffold(5, [
       const _SubLabel('Vehicle registration'),
       const SizedBox(height: 8),
       _DocumentRow(
@@ -866,47 +900,39 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
           if (d != null) setState(() => _truckInspectionExpiry = d);
         },
       ),
-      const SizedBox(height: 10),
-      const Text(
-        'Make sure the vehicle registration is valid — expired documents are not accepted.',
-        style: TextStyle(fontSize: 11, color: Color(0xFF6B6660)),
-      ),
+      const SizedBox(height: 14),
+      const _NoticeBanner('Make sure the vehicle registration is valid — expired documents are not accepted.'),
     ]);
   }
 
   Widget _reviewStep() {
-    return _pageScaffold([
-      const Text(
-        'Please review your information before submitting.',
-        style: TextStyle(color: Color(0xFF6B6660), fontSize: 13, height: 1.5),
-      ),
-      const SizedBox(height: 16),
-      _ReviewCard(icon: Icons.person_outline, title: 'Account', lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
+    return _pageScaffold(6, [
+      _ReviewCard(icon: Icons.person_outline, title: 'Account Information', lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.badge_outlined, title: 'Driver information', lines: [
+      _ReviewCard(icon: Icons.badge_outlined, title: 'Driver Information', lines: [
         '${_nationality?.name ?? '—'} · Age ${_ageCtrl.text.trim()}',
         'License #${_driverLicenseCtrl.text.trim()}',
       ]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.folder_open_outlined, title: 'Documents', lines: [
+      _ReviewCard(icon: Icons.folder_open_outlined, title: 'Driver Documents', lines: [
         '${[
           _licenseFile,
           _licenseBackFile,
           _passportFile,
           _residencyFile,
           _driverPhotoFile,
-        ].where((f) => f != null).length} file(s) uploaded',
+        ].where((f) => f != null).length}/5 uploaded',
       ]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.local_shipping_outlined, title: 'Truck', lines: [
+      _ReviewCard(icon: Icons.local_shipping_outlined, title: 'Truck Information', lines: [
         '${_truckType ?? '—'} · Plate ${_truckNumberCtrl.text.trim()}',
-        '${[_truckLicenseFile, _truckInsuranceFile, _truckInspectionFile].where((f) => f != null).length} document(s) uploaded',
+      ]),
+      const SizedBox(height: 10),
+      _ReviewCard(icon: Icons.description_outlined, title: 'Truck Documents', lines: [
+        '${[_truckLicenseFile, _truckInsuranceFile, _truckInspectionFile].where((f) => f != null).length}/3 uploaded',
       ]),
       const SizedBox(height: 16),
-      const Text(
-        "You won't be able to edit this after submission — an admin will review it (if they ask for changes, you'll be able to fix and resubmit).",
-        style: TextStyle(fontSize: 11, color: Color(0xFF6B6660), height: 1.5),
-      ),
+      const _NoticeBanner("You won't be able to edit this after submission."),
     ]);
   }
 
@@ -917,74 +943,15 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_errorMessage != null) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A0F0F),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE57373).withOpacity(0.4)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: Color(0xFFE57373), size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_errorMessage!, style: const TextStyle(fontSize: 13, color: Color(0xFFE57373)))),
-                ],
-              ),
-            ),
+            LightErrorBanner(message: _errorMessage!),
             const SizedBox(height: 12),
           ],
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _next,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: _loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0A0A0C)),
-                    )
-                  : Text(
-                      _step == _totalSteps - 1 ? 'Submit for review' : 'Next',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0A0A0C)),
-                    ),
-            ),
+          LightPrimaryButton(
+            label: _step == _totalSteps - 1 ? 'Submit for Review' : 'Next',
+            loading: _loading,
+            onPressed: _next,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StepProgress extends StatelessWidget {
-  final int current;
-  final int total;
-  const _StepProgress({required this.current, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Row(
-        children: List.generate(total, (i) {
-          final done = i <= current;
-          return Expanded(
-            child: Container(
-              height: 4,
-              margin: EdgeInsets.only(right: i < total - 1 ? 4 : 0),
-              decoration: BoxDecoration(
-                color: done ? const Color(0xFFD4AF37) : const Color(0xFF2A2520),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          );
-        }),
       ),
     );
   }
@@ -1002,24 +969,24 @@ class _ReviewCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF111113),
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2A2520)),
+        border: Border.all(color: LightColors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFFD4AF37), size: 18),
+          Icon(icon, color: LightColors.goldMuted, size: 18),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(title, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 ...lines.map((l) => Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(l, style: const TextStyle(color: Color(0xFF6B6660), fontSize: 12)),
+                      child: Text(l, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                     )),
               ],
             ),
@@ -1036,7 +1003,35 @@ class _SubLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(color: Color(0xFF6B6660), fontSize: 12, fontWeight: FontWeight.w600));
+    return Text(text, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600));
+  }
+}
+
+/// Amber notice box matching the "All documents must be clear and valid..."
+/// callouts in the mockups.
+class _NoticeBanner extends StatelessWidget {
+  final String text;
+  const _NoticeBanner(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: LightColors.pendingBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: LightColors.pending.withOpacity(0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline, color: LightColors.pending, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A6D1F), height: 1.4))),
+        ],
+      ),
+    );
   }
 }
 
@@ -1060,8 +1055,9 @@ class _DocumentRow extends StatelessWidget {
       children: [
         Expanded(
           flex: 3,
-          child: PickerField(
-            label: 'Upload (PDF/JPG/PNG)',
+          child: LightPickerField(
+            label: 'Upload',
+            hint: 'PDF/JPG/PNG',
             value: fileName,
             icon: Icons.upload_file_outlined,
             onTap: onPickFile,
@@ -1070,8 +1066,9 @@ class _DocumentRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           flex: 2,
-          child: PickerField(
-            label: 'Expiry date',
+          child: LightPickerField(
+            label: 'Expiry Date',
+            hint: 'dd/mm/yyyy',
             value: expiry == null
                 ? null
                 : '${expiry!.year}-${expiry!.month.toString().padLeft(2, '0')}-${expiry!.day.toString().padLeft(2, '0')}',
