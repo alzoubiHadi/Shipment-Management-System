@@ -8,9 +8,14 @@ import 'register_shared.dart';
 /// Login-design screen 2 ("Log In"). Light theme, matching the mockup:
 /// white background, back arrow, black bold heading, email/password
 /// fields with icons, gold "Forgot password?" link, gold "Log In" button,
-/// Google/Apple placeholders, gold "Sign Up" link. The actual API call and
-/// all of the post-login routing now lives in LoggingInScreen (design
-/// screen 3, "Logging you in...").
+/// gold "Sign Up" link. The actual API call and all of the post-login
+/// routing now lives in LoggingInScreen (design screen 3, "Logging you
+/// in...").
+///
+/// No Google/Apple sign-in here (2026-08-21: removed on request — not
+/// wired up and not wanted right now). Re-add later behind the same
+/// "coming soon" pattern once there's an actual backend for it (see task
+/// #51/#52).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -142,41 +147,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 loading: _loading,
                 onPressed: _handleLogin,
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: LightColors.border)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or continue with', style: TextStyle(fontSize: 12, color: LightColors.textSecondary)),
-                  ),
-                  const Expanded(child: Divider(color: LightColors.border)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SocialButton(
-                      label: 'Google',
-                      icon: Icons.g_mobiledata_rounded,
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Google sign-in is coming soon')),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SocialButton(
-                      label: 'Apple',
-                      icon: Icons.apple_rounded,
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Apple sign-in is coming soon')),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 24),
               Center(
                 child: Material(
@@ -202,41 +172,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SocialButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _SocialButton({required this.label, required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: LightColors.surface,
-            border: Border.all(color: LightColors.border),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: LightColors.textPrimary, size: 20),
-              const SizedBox(width: 8),
-              Text(label, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
