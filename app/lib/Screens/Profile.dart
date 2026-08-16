@@ -4,6 +4,7 @@ import '../API/TruckService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Truck.dart';
+import '../utils/logout_helper.dart';
 import 'AddTruckPage.dart';
 import 'CompanyBalancePage.dart';
 import 'DriverBalancePage.dart';
@@ -55,6 +56,7 @@ class _ProfileState extends State<Profile> {
           style: TextStyle(color: AppColors.cream),
         ),
         iconTheme: const IconThemeData(color: AppColors.cream),
+        actions: [logoutAction(context)],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),

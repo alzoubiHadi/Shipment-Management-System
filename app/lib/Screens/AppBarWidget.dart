@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../API/NotificationService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
+import '../utils/logout_helper.dart';
 import 'NotificationsPage.dart';
 
 class AppBarWidget extends StatelessWidget {
@@ -120,6 +121,12 @@ class AppBarWidget extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           const _NotificationBell(),
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.cream, size: 20),
+            tooltip: 'Log out',
+            splashRadius: 20,
+            onPressed: () => confirmAndLogout(context),
+          ),
           if (actions != null) ...actions!,
         ],
       ),

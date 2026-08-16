@@ -7,6 +7,7 @@ import '../API/config.dart';
 import '../models/Driver.dart';
 import '../models/ShipmentOffer.dart';
 import '../models/Truck.dart';
+import '../utils/logout_helper.dart';
 
 /// Admin screen: shows every shipment offer logged by companies, its current
 /// status, and how many drivers are eligible for it right now. Offers are
@@ -338,6 +339,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
         elevation: 0,
         title: const Text('Shipment Offers', style: TextStyle(color: AppColors.cream)),
         iconTheme: const IconThemeData(color: AppColors.cream),
+        actions: [logoutAction(context)],
       ),
       body: RefreshIndicator(
         color: AppColors.gold,

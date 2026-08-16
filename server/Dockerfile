@@ -27,5 +27,12 @@ RUN composer dump-autoload --optimize \
 
 # Render sets $PORT at runtime and routes external traffic to it — the
 # service must bind to that exact port, not a hardcoded one.
+#
+# --no-reload is required for PHP_CLI_SERVER_WORKERS (set on Render, under
+# Environment) to actually take effect — without it, `php artisan serve`
+# silently falls back to a single worker (logs a WARN and ignores the env
+# var), which under Render's periodic health-check pings plus real traffic
+# causes requests to queue up or get dropped ("connection abort" / generic
+# 500s), since only one request can be handled at a time.
 EXPOSE 8080
-CMD php artisan config:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}
+CMD php artisan config:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8080} --no-reload

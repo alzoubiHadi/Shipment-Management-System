@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ReportService.dart';
 import '../API/config.dart';
+import '../utils/logout_helper.dart';
 import 'ActivityLogPage.dart';
 import 'AdminCompliancePage.dart';
 import 'AdminFinancePage.dart';
@@ -39,6 +40,7 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
         elevation: 0,
         title: const Text('Reports', style: TextStyle(color: AppColors.cream)),
         iconTheme: const IconThemeData(color: AppColors.cream),
+        actions: [logoutAction(context)],
       ),
       body: RefreshIndicator(
         color: AppColors.gold,
