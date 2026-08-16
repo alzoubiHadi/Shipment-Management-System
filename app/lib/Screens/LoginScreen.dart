@@ -10,7 +10,6 @@ import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
 import 'HomeScreen.dart';
-import 'OtpVerificationScreen.dart';
 import 'RegisterScreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -106,16 +105,14 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            // Unverified accounts (the OTP code from sign-up was never
-            // entered) are still allowed to log in — the server issues a
-            // fresh token and queues a new OTP either way (see
-            // UserController::login). They just land on the same
-            // verification screen used right after sign-up instead of
-            // Home, exactly like an unapproved driver/company lands on
-            // DriverApprovalStatusPage instead of Home.
-            builder: (_) => !response.emailVerified
-                ? OtpVerificationScreen(email: response.email)
-                : isUnapprovedDriver
+            // Login NEVER shows the OTP code screen — that only ever
+            // appears once, immediately after a brand-new sign-up
+            // (DriverRegisterScreen/CompanyRegisterScreen). Email
+            // verification status plays no role here at all; the only
+            // thing login checks is whether there are outstanding items
+            // (admin approval, documents) — shown via
+            // DriverApprovalStatusPage, never a code entry field.
+            builder: (_) => isUnapprovedDriver
                 ? DriverApprovalStatusPage(
                     approvalStatus: response.driverApprovalStatus,
                     rejectionReason: response.driverRejectionReason,
