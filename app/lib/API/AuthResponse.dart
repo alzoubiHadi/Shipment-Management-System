@@ -287,6 +287,18 @@ class ApiService {
     required String truckLicenseFileName,
     String? truckLicenseExpiry,
     String? permitType,
+    // New-registration-design batch (2026-08-19) — all optional so this
+    // still works if a caller doesn't collect them.
+    Uint8List? licenseBackFileBytes,
+    String? licenseBackFileName,
+    Uint8List? driverPhotoFileBytes,
+    String? driverPhotoFileName,
+    Uint8List? truckInsuranceFileBytes,
+    String? truckInsuranceFileName,
+    String? truckInsuranceExpiry,
+    Uint8List? truckInspectionFileBytes,
+    String? truckInspectionFileName,
+    String? truckInspectionExpiry,
   }) async {
     final uri = Uri.parse('$baseUrl/register');
 
@@ -319,11 +331,25 @@ class ApiService {
       request.fields['truck_type'] = truckType;
       if (truckLicenseExpiry != null) request.fields['truck_license_expiry'] = truckLicenseExpiry;
       if (permitType != null && permitType.isNotEmpty) request.fields['permit_type'] = permitType;
+      if (truckInsuranceExpiry != null) request.fields['truck_insurance_expiry'] = truckInsuranceExpiry;
+      if (truckInspectionExpiry != null) request.fields['truck_inspection_expiry'] = truckInspectionExpiry;
 
       request.files.add(http.MultipartFile.fromBytes('license_file', licenseFileBytes, filename: licenseFileName));
       request.files.add(http.MultipartFile.fromBytes('passport_file', passportFileBytes, filename: passportFileName));
       request.files.add(http.MultipartFile.fromBytes('residency_file', residencyFileBytes, filename: residencyFileName));
       request.files.add(http.MultipartFile.fromBytes('truck_license_file', truckLicenseFileBytes, filename: truckLicenseFileName));
+      if (licenseBackFileBytes != null && licenseBackFileName != null) {
+        request.files.add(http.MultipartFile.fromBytes('license_back_file', licenseBackFileBytes, filename: licenseBackFileName));
+      }
+      if (driverPhotoFileBytes != null && driverPhotoFileName != null) {
+        request.files.add(http.MultipartFile.fromBytes('driver_photo_file', driverPhotoFileBytes, filename: driverPhotoFileName));
+      }
+      if (truckInsuranceFileBytes != null && truckInsuranceFileName != null) {
+        request.files.add(http.MultipartFile.fromBytes('truck_insurance_file', truckInsuranceFileBytes, filename: truckInsuranceFileName));
+      }
+      if (truckInspectionFileBytes != null && truckInspectionFileName != null) {
+        request.files.add(http.MultipartFile.fromBytes('truck_inspection_file', truckInspectionFileBytes, filename: truckInspectionFileName));
+      }
 
       final streamed = await request.send().timeout(const Duration(seconds: 60));
       final response = await http.Response.fromStream(streamed);

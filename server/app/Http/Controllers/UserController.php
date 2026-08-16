@@ -69,6 +69,11 @@ class UserController extends Controller
             $rules['passport_expiry'] = ['required', 'date'];
             $rules['residency_file'] = ['required', 'file', 'max:10240'];
             $rules['residency_expiry'] = ['required', 'date'];
+            // New-registration-design batch (2026-08-19): license back side
+            // and a driver photo, both optional so older app builds that
+            // don't send them still work.
+            $rules['license_back_file'] = ['nullable', 'file', 'max:10240'];
+            $rules['driver_photo_file'] = ['nullable', 'file', 'max:10240'];
 
             $rules['blood_type'] = ['required', 'string', 'in:A+,A-,B+,B-,O+,O-,AB+,AB-'];
             $rules['health_conditions'] = ['nullable', 'string', 'max:1000'];
@@ -82,6 +87,13 @@ class UserController extends Controller
             $rules['truck_license_file'] = ['required', 'file', 'max:10240'];
             $rules['truck_license_expiry'] = ['nullable', 'date'];
             $rules['permit_type'] = ['nullable', 'string', 'max:255'];
+            // New-registration-design batch: insurance + technical
+            // inspection, both optional at registration (can still be added
+            // later via the driver's own truck-edit path).
+            $rules['truck_insurance_file'] = ['nullable', 'file', 'max:10240'];
+            $rules['truck_insurance_expiry'] = ['nullable', 'date'];
+            $rules['truck_inspection_file'] = ['nullable', 'file', 'max:10240'];
+            $rules['truck_inspection_expiry'] = ['nullable', 'date'];
         }
 
         if ($type === 'company') {
@@ -109,6 +121,10 @@ class UserController extends Controller
         $passportFilePath = null;
         $residencyFilePath = null;
         $truckLicenseFilePath = null;
+        $licenseBackFilePath = null;
+        $driverPhotoFilePath = null;
+        $truckInsuranceFilePath = null;
+        $truckInspectionFilePath = null;
 
         if ($type === 'company' && $request->hasFile('license_file')) {
             $licenseFilePath = $request->file('license_file')->store('company_licenses', 'public');
@@ -124,8 +140,20 @@ class UserController extends Controller
             if ($request->hasFile('residency_file')) {
                 $residencyFilePath = $request->file('residency_file')->store('driver_documents', 'public');
             }
+            if ($request->hasFile('license_back_file')) {
+                $licenseBackFilePath = $request->file('license_back_file')->store('driver_documents', 'public');
+            }
+            if ($request->hasFile('driver_photo_file')) {
+                $driverPhotoFilePath = $request->file('driver_photo_file')->store('driver_documents', 'public');
+            }
             if ($request->hasFile('truck_license_file')) {
                 $truckLicenseFilePath = $request->file('truck_license_file')->store('truck_licenses', 'public');
+            }
+            if ($request->hasFile('truck_insurance_file')) {
+                $truckInsuranceFilePath = $request->file('truck_insurance_file')->store('truck_insurance', 'public');
+            }
+            if ($request->hasFile('truck_inspection_file')) {
+                $truckInspectionFilePath = $request->file('truck_inspection_file')->store('truck_inspections', 'public');
             }
         }
 
@@ -133,7 +161,8 @@ class UserController extends Controller
 
         [$user, $driver, $company] = DB::transaction(function () use (
             $validated, $type, $otp, $licenseFilePath,
-            $driverLicenseFilePath, $passportFilePath, $residencyFilePath, $truckLicenseFilePath
+            $driverLicenseFilePath, $passportFilePath, $residencyFilePath, $truckLicenseFilePath,
+            $licenseBackFilePath, $driverPhotoFilePath, $truckInsuranceFilePath, $truckInspectionFilePath
         ) {
             $user = User::create([
                 'name' => $validated['name'],
@@ -178,6 +207,10 @@ class UserController extends Controller
                     ['type' => 'license', 'path' => $driverLicenseFilePath, 'expiry' => $validated['license_expiry']],
                     ['type' => 'passport', 'path' => $passportFilePath, 'expiry' => $validated['passport_expiry']],
                     ['type' => 'residency', 'path' => $residencyFilePath, 'expiry' => $validated['residency_expiry']],
+                    // Optional — new-registration-design batch. No separate
+                    // expiry field: the back side shares the front's expiry.
+                    ['type' => 'license_back', 'path' => $licenseBackFilePath, 'expiry' => $validated['license_expiry']],
+                    ['type' => 'driver_photo', 'path' => $driverPhotoFilePath, 'expiry' => null],
                 ];
                 foreach ($documents as $doc) {
                     if (! $doc['path']) {
@@ -206,6 +239,10 @@ class UserController extends Controller
                     'license_file_path' => $truckLicenseFilePath,
                     'license_expiry' => $validated['truck_license_expiry'] ?? null,
                     'permit_type' => $validated['permit_type'] ?? null,
+                    'insurance_file_path' => $truckInsuranceFilePath,
+                    'insurance_expiry' => $validated['truck_insurance_expiry'] ?? null,
+                    'technical_inspection_file_path' => $truckInspectionFilePath,
+                    'technical_inspection_expiry' => $validated['truck_inspection_expiry'] ?? null,
                     'default_driver_id' => $driver->id,
                 ]);
             }

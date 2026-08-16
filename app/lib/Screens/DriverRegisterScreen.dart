@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../API/AuthResponse.dart';
+import '../API/config.dart';
 import '../utils/countries.dart';
 import 'OtpVerificationScreen.dart';
 import 'register_shared.dart';
@@ -54,9 +55,27 @@ const List<String> kDriverTruckTypes = [
   'Car Career',
 ];
 
-/// UC-3 (revised): full driver sign-up in one form, two sections — driver
-/// info (incl. documents, health, destinations) then truck info. All of it
-/// is submitted together via ApiService.registerDriver().
+/// UC-3 (revised 2026-08-19 to match the agreed step-by-step design): a
+/// 7-page wizard — Account Info, Driver Info, Documents, Health & Coverage,
+/// Truck Info, Truck Documents, Review — submitted all together at the end
+/// via ApiService.registerDriver() exactly as before (one atomic
+/// request), with the OTP screen shown after that succeeds.
+///
+/// One deliberate deviation from the design mockup, flagged rather than
+/// silently done: the mockup shows email OTP verification as step 3,
+/// BEFORE the driver/truck info steps. Moving it there would mean
+/// splitting account creation into two separate backend calls (auth-only,
+/// then a second authenticated call to fill in the rest) — a real
+/// architecture change to a working, tested flow. This keeps OTP as the
+/// last step instead (after Review & Submit), which is functionally
+/// identical from the driver's point of view — same steps, same data,
+/// same one-time code — just verified right after everything is entered
+/// rather than in between.
+///
+/// The "Select Truck from a fleet list" mockup step does not apply here —
+/// confirmed 2026-08-19: drivers still register their own truck directly
+/// (no shared fleet concept in this system), so that step is just "Truck
+/// Info" like before.
 class DriverRegisterScreen extends StatefulWidget {
   const DriverRegisterScreen({super.key});
 
@@ -65,6 +84,10 @@ class DriverRegisterScreen extends StatefulWidget {
 }
 
 class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
+  final _pageController = PageController();
+  int _step = 0;
+  static const int _totalSteps = 7;
+
   // Basic account fields
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -91,10 +114,12 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
   PlatformFile? _licenseFile;
   DateTime? _licenseExpiry;
+  PlatformFile? _licenseBackFile;
   PlatformFile? _passportFile;
   DateTime? _passportExpiry;
   PlatformFile? _residencyFile;
   DateTime? _residencyExpiry;
+  PlatformFile? _driverPhotoFile;
 
   final Set<String> _healthConditions = {};
   String? _bloodType;
@@ -103,6 +128,10 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   String? _truckType;
   PlatformFile? _truckLicenseFile;
   DateTime? _truckLicenseExpiry;
+  PlatformFile? _truckInsuranceFile;
+  DateTime? _truckInsuranceExpiry;
+  PlatformFile? _truckInspectionFile;
+  DateTime? _truckInspectionExpiry;
 
   @override
   void initState() {
@@ -122,6 +151,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
@@ -209,6 +239,12 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
       withData: true,
     );
+    if (result != null && result.files.isNotEmpty) return result.files.single;
+    return null;
+  }
+
+  Future<PlatformFile?> _pickPhotoFile() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
     if (result != null && result.files.isNotEmpty) return result.files.single;
     return null;
   }
@@ -301,84 +337,108 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     );
   }
 
-  // ── Submit ─────────────────────────────────────────────────────────────
+  Future<String?> _pickFromList(String title, List<String> options) {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF111113),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: options
+              .map((t) => ListTile(
+                    title: Text(t, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 13)),
+                    onTap: () => Navigator.pop(ctx, t),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+  }
+
+  // ── Step navigation ───────────────────────────────────────────────────
 
   bool get _isEmailValid => RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(_emailCtrl.text.trim());
 
+  String? _validateStep(int step) {
+    switch (step) {
+      case 0: // Account info
+        if (_nameCtrl.text.trim().isEmpty ||
+            _emailCtrl.text.trim().isEmpty ||
+            _passCtrl.text.isEmpty ||
+            _confirmCtrl.text.isEmpty) {
+          return 'Please fill in all required fields';
+        }
+        if (!_isEmailValid) return 'Please enter a valid email address';
+        if (_passCtrl.text != _confirmCtrl.text) return 'Passwords do not match';
+        if (!_agreed) return 'Please agree to the Terms of Service and Privacy Policy';
+        return null;
+      case 1: // Driver info
+        if (!isValidLocalPhoneNumber(_phoneNumberCtrl.text.trim())) {
+          return 'Please enter a valid phone number (digits only)';
+        }
+        if (_nationality == null) return 'Please select your nationality';
+        final age = int.tryParse(_ageCtrl.text.trim());
+        if (age == null || age < 18 || age > 65) return 'Age must be between 18 and 65';
+        if (_driverLicenseCtrl.text.trim().isEmpty) return 'Please enter your driving license number';
+        return null;
+      case 2: // Documents
+        if (_licenseFile?.bytes == null || _licenseExpiry == null) {
+          return 'Please attach your driving license (front) and its expiry date';
+        }
+        if (_passportFile?.bytes == null || _passportExpiry == null) {
+          return 'Please attach your passport and its expiry date';
+        }
+        if (_residencyFile?.bytes == null || _residencyExpiry == null) {
+          return 'Please attach your Emirates ID / residency and its expiry date';
+        }
+        return null;
+      case 3: // Health & coverage
+        if (_bloodType == null) return 'Please select your blood type';
+        if (_destinations.isEmpty) return 'Please pick at least one destination you work on';
+        return null;
+      case 4: // Truck info
+        if (_truckType == null) return 'Please select your truck type';
+        if (_truckNumberCtrl.text.trim().isEmpty) return 'Please enter your truck plate/number';
+        return null;
+      case 5: // Truck documents
+        if (_truckLicenseFile?.bytes == null) return 'Please attach the vehicle registration file';
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  void _next() {
+    final error = _validateStep(_step);
+    if (error != null) {
+      setState(() => _errorMessage = error);
+      return;
+    }
+    setState(() => _errorMessage = null);
+    if (_step == _totalSteps - 1) {
+      _handleRegister();
+      return;
+    }
+    setState(() => _step++);
+    _pageController.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  void _back() {
+    if (_step == 0) {
+      Navigator.pop(context);
+      return;
+    }
+    setState(() {
+      _step--;
+      _errorMessage = null;
+    });
+    _pageController.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────────────
+
   Future<void> _handleRegister() async {
-    if (!_agreed) return;
-
-    final name = _nameCtrl.text.trim();
-    final email = _emailCtrl.text.trim();
-    final password = _passCtrl.text;
-    final confirm = _confirmCtrl.text;
-    final phoneNumber = _phoneNumberCtrl.text.trim();
-    final driverLicense = _driverLicenseCtrl.text.trim();
-    final ageText = _ageCtrl.text.trim();
-    final truckNumber = _truckNumberCtrl.text.trim();
-
-    if (name.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
-      setState(() => _errorMessage = 'Please fill in all required fields');
-      return;
-    }
-    if (!_isEmailValid) {
-      setState(() => _errorMessage = 'Please enter a valid email address');
-      return;
-    }
-    if (password != confirm) {
-      setState(() => _errorMessage = 'Passwords do not match');
-      return;
-    }
-    if (!isValidLocalPhoneNumber(phoneNumber)) {
-      setState(() => _errorMessage = 'Please enter a valid phone number (digits only)');
-      return;
-    }
-    if (_nationality == null) {
-      setState(() => _errorMessage = 'Please select your nationality');
-      return;
-    }
-    final age = int.tryParse(ageText);
-    if (age == null || age < 18 || age > 65) {
-      setState(() => _errorMessage = 'Age must be between 18 and 65');
-      return;
-    }
-    if (driverLicense.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your driving license number');
-      return;
-    }
-    if (_licenseFile?.bytes == null || _licenseExpiry == null) {
-      setState(() => _errorMessage = 'Please attach your driving license and its expiry date');
-      return;
-    }
-    if (_passportFile?.bytes == null || _passportExpiry == null) {
-      setState(() => _errorMessage = 'Please attach your passport and its expiry date');
-      return;
-    }
-    if (_residencyFile?.bytes == null || _residencyExpiry == null) {
-      setState(() => _errorMessage = 'Please attach your residency/ID and its expiry date');
-      return;
-    }
-    if (_bloodType == null) {
-      setState(() => _errorMessage = 'Please select your blood type');
-      return;
-    }
-    if (_destinations.isEmpty) {
-      setState(() => _errorMessage = 'Please pick at least one destination you work on');
-      return;
-    }
-    if (_truckType == null) {
-      setState(() => _errorMessage = 'Please select your truck type');
-      return;
-    }
-    if (truckNumber.isEmpty) {
-      setState(() => _errorMessage = 'Please enter your truck plate/number');
-      return;
-    }
-    if (_truckLicenseFile?.bytes == null) {
-      setState(() => _errorMessage = 'Please attach the vehicle license file');
-      return;
-    }
-
     setState(() {
       _loading = true;
       _errorMessage = null;
@@ -391,13 +451,13 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
     try {
       final result = await ApiService.registerDriver(
-        name: name,
-        email: email,
-        password: password,
-        passwordConfirmation: confirm,
-        phone: '+${_phoneCountry.dialCode}$phoneNumber',
-        driverLicense: driverLicense,
-        age: age.toString(),
+        name: _nameCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+        passwordConfirmation: _confirmCtrl.text,
+        phone: '+${_phoneCountry.dialCode}${_phoneNumberCtrl.text.trim()}',
+        driverLicense: _driverLicenseCtrl.text.trim(),
+        age: _ageCtrl.text.trim(),
         nationality: _nationality!.name,
         licenseFileBytes: _licenseFile!.bytes!,
         licenseFileName: _licenseFile!.name,
@@ -411,12 +471,22 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         bloodType: _bloodType!,
         healthConditions: healthLabels.isEmpty ? null : healthLabels.join(', '),
         destinations: _destinations.toList(),
-        truckNumber: truckNumber,
+        truckNumber: _truckNumberCtrl.text.trim(),
         truckType: _truckType!,
         truckLicenseFileBytes: _truckLicenseFile!.bytes!,
         truckLicenseFileName: _truckLicenseFile!.name,
         truckLicenseExpiry: _truckLicenseExpiry != null ? _fmtDate(_truckLicenseExpiry!) : null,
         permitType: _permitTypeCtrl.text.trim().isEmpty ? null : _permitTypeCtrl.text.trim(),
+        licenseBackFileBytes: _licenseBackFile?.bytes,
+        licenseBackFileName: _licenseBackFile?.name,
+        driverPhotoFileBytes: _driverPhotoFile?.bytes,
+        driverPhotoFileName: _driverPhotoFile?.name,
+        truckInsuranceFileBytes: _truckInsuranceFile?.bytes,
+        truckInsuranceFileName: _truckInsuranceFile?.name,
+        truckInsuranceExpiry: _truckInsuranceExpiry != null ? _fmtDate(_truckInsuranceExpiry!) : null,
+        truckInspectionFileBytes: _truckInspectionFile?.bytes,
+        truckInspectionFileName: _truckInspectionFile?.name,
+        truckInspectionExpiry: _truckInspectionExpiry != null ? _fmtDate(_truckInspectionExpiry!) : null,
       );
 
       if (mounted) {
@@ -434,386 +504,528 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
   // ── UI ─────────────────────────────────────────────────────────────────
 
+  static const _stepTitles = [
+    'Account Info',
+    'Driver Info',
+    'Documents',
+    'Health & Coverage',
+    'Truck Info',
+    'Truck Documents',
+    'Review & Submit',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0C),
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A0C),
+        backgroundColor: AppColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFF5F0E8)),
-        title: const Text('Driver Sign Up', style: TextStyle(color: Color(0xFFF5F0E8))),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.cream),
+          onPressed: _loading ? null : _back,
+        ),
+        title: Text(
+          'Step ${_step + 1} of $_totalSteps — ${_stepTitles[_step]}',
+          style: const TextStyle(color: AppColors.cream, fontSize: 14),
+        ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _SectionHeader(title: '1. Driver Information'),
-              const SizedBox(height: 14),
-              buildAuthTextField(controller: _nameCtrl, label: 'Full name'),
-              const SizedBox(height: 14),
-              buildAuthTextField(
-                controller: _emailCtrl,
-                label: 'Email address',
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 14),
-              buildAuthTextField(
-                controller: _passCtrl,
-                label: 'Password',
-                obscure: _obscurePass,
-                suffix: IconButton(
-                  onPressed: () => setState(() => _obscurePass = !_obscurePass),
-                  icon: Icon(_obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: const Color(0xFF6B6660), size: 18),
-                ),
-              ),
-              if (_strength != PasswordStrength.none) ...[
-                const SizedBox(height: 10),
-                PasswordStrengthBar(strength: _strength),
-              ],
-              const SizedBox(height: 14),
-              buildAuthTextField(
-                controller: _confirmCtrl,
-                label: 'Confirm password',
-                obscure: _obscureConfirm,
-                hasError: !_passwordsMatch,
-                suffix: IconButton(
-                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                  icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: const Color(0xFF6B6660), size: 18),
-                ),
-              ),
-              if (!_passwordsMatch) ...[
-                const SizedBox(height: 6),
-                const Text('Passwords do not match', style: TextStyle(fontSize: 11, color: Color(0xFFE57373))),
-              ],
-              const SizedBox(height: 14),
-
-              // Phone: country code + number
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          children: [
+            _StepProgress(current: _step, total: _totalSteps),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  SizedBox(
-                    width: 110,
-                    child: InkWell(
-                      onTap: () async {
-                        final picked = await _pickCountry('Phone country');
-                        if (picked != null) setState(() => _phoneCountry = picked);
-                      },
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF111113),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFF2A2520)),
-                        ),
-                        child: Text('+${_phoneCountry.dialCode}',
-                            style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 14)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: buildAuthTextField(
-                      controller: _phoneNumberCtrl,
-                      label: 'Phone number',
-                      keyboardType: TextInputType.phone,
-                    ),
-                  ),
+                  _accountInfoStep(),
+                  _driverInfoStep(),
+                  _documentsStep(),
+                  _healthStep(),
+                  _truckInfoStep(),
+                  _truckDocumentsStep(),
+                  _reviewStep(),
                 ],
               ),
-              const SizedBox(height: 14),
+            ),
+            _bottomBar(),
+          ],
+        ),
+      ),
+    );
+  }
 
-              PickerField(
-                label: 'Nationality',
-                value: _nationality?.name,
-                icon: Icons.public,
-                onTap: () async {
-                  final picked = await _pickCountry('Nationality');
-                  if (picked != null) setState(() => _nationality = picked);
-                },
+  Widget _pageScaffold(List<Widget> children) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+    );
+  }
+
+  Widget _accountInfoStep() {
+    return _pageScaffold([
+      buildAuthTextField(controller: _nameCtrl, label: 'Full name'),
+      const SizedBox(height: 14),
+      buildAuthTextField(controller: _emailCtrl, label: 'Email address', keyboardType: TextInputType.emailAddress),
+      const SizedBox(height: 14),
+      buildAuthTextField(
+        controller: _passCtrl,
+        label: 'Password',
+        obscure: _obscurePass,
+        suffix: IconButton(
+          onPressed: () => setState(() => _obscurePass = !_obscurePass),
+          icon: Icon(_obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              color: const Color(0xFF6B6660), size: 18),
+        ),
+      ),
+      if (_strength != PasswordStrength.none) ...[
+        const SizedBox(height: 10),
+        PasswordStrengthBar(strength: _strength),
+      ],
+      const SizedBox(height: 14),
+      buildAuthTextField(
+        controller: _confirmCtrl,
+        label: 'Confirm password',
+        obscure: _obscureConfirm,
+        hasError: !_passwordsMatch,
+        suffix: IconButton(
+          onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+          icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              color: const Color(0xFF6B6660), size: 18),
+        ),
+      ),
+      if (!_passwordsMatch) ...[
+        const SizedBox(height: 6),
+        const Text('Passwords do not match', style: TextStyle(fontSize: 11, color: Color(0xFFE57373))),
+      ],
+      const SizedBox(height: 20),
+      GestureDetector(
+        onTap: () => setState(() => _agreed = !_agreed),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 20,
+              height: 20,
+              margin: const EdgeInsets.only(top: 1),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: _agreed ? const Color(0xFFD4AF37) : const Color(0xFF3A3530), width: 1.5),
+                color: _agreed ? const Color(0xFFD4AF37) : Colors.transparent,
               ),
-              const SizedBox(height: 14),
-
-              buildAuthTextField(controller: _ageCtrl, label: 'Age (18-65)', keyboardType: TextInputType.number),
-              const SizedBox(height: 14),
-
-              buildAuthTextField(controller: _driverLicenseCtrl, label: 'Driving license number'),
-              const SizedBox(height: 20),
-
-              const _SubLabel('Driving License'),
-              const SizedBox(height: 8),
-              _DocumentRow(
-                fileName: _licenseFile?.name,
-                expiry: _licenseExpiry,
-                onPickFile: () async {
-                  final f = await _pickDocumentFile();
-                  if (f != null) setState(() => _licenseFile = f);
-                },
-                onPickDate: () async {
-                  final d = await _pickExpiryDate();
-                  if (d != null) setState(() => _licenseExpiry = d);
-                },
+              child: _agreed ? const Icon(Icons.check, size: 13, color: Color(0xFF0A0A0C)) : null,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'I agree to the Terms of Service and Privacy Policy',
+                style: TextStyle(fontSize: 13, color: Color(0xFF6B6660), height: 1.5),
               ),
-              const SizedBox(height: 16),
+            ),
+          ],
+        ),
+      ),
+    ]);
+  }
 
-              const _SubLabel('Passport'),
-              const SizedBox(height: 8),
-              _DocumentRow(
-                fileName: _passportFile?.name,
-                expiry: _passportExpiry,
-                onPickFile: () async {
-                  final f = await _pickDocumentFile();
-                  if (f != null) setState(() => _passportFile = f);
-                },
-                onPickDate: () async {
-                  final d = await _pickExpiryDate();
-                  if (d != null) setState(() => _passportExpiry = d);
-                },
-              ),
-              const SizedBox(height: 16),
-
-              const _SubLabel('Residency / ID'),
-              const SizedBox(height: 8),
-              _DocumentRow(
-                fileName: _residencyFile?.name,
-                expiry: _residencyExpiry,
-                onPickFile: () async {
-                  final f = await _pickDocumentFile();
-                  if (f != null) setState(() => _residencyFile = f);
-                },
-                onPickDate: () async {
-                  final d = await _pickExpiryDate();
-                  if (d != null) setState(() => _residencyExpiry = d);
-                },
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Your account is auto-suspended if any mandatory document expires without a renewal on file.',
-                style: TextStyle(fontSize: 11, color: Color(0xFF6B6660)),
-              ),
-              const SizedBox(height: 20),
-
-              PickerField(
-                label: 'Health status',
-                value: _healthConditions.isEmpty ? null : _healthConditions.join(', '),
-                icon: Icons.health_and_safety_outlined,
-                onTap: () => _pickMultiSelectSheet(
-                  title: 'Health status',
-                  options: kHealthConditionOptions,
-                  selected: _healthConditions,
-                  exclusiveFirstOption: true,
-                  onSaved: (v) => setState(() => _healthConditions
-                    ..clear()
-                    ..addAll(v)),
+  Widget _driverInfoStep() {
+    return _pageScaffold([
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: InkWell(
+              onTap: () async {
+                final picked = await _pickCountry('Phone country');
+                if (picked != null) setState(() => _phoneCountry = picked);
+              },
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111113),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2A2520)),
                 ),
+                child: Text('+${_phoneCountry.dialCode}', style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 14)),
               ),
-              if (_healthConditions.contains(kOtherHealthOption)) ...[
-                const SizedBox(height: 10),
-                buildAuthTextField(controller: _healthOtherCtrl, label: 'Describe the other condition'),
-              ],
-              const SizedBox(height: 14),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: buildAuthTextField(controller: _phoneNumberCtrl, label: 'Phone number', keyboardType: TextInputType.phone),
+          ),
+        ],
+      ),
+      const SizedBox(height: 14),
+      PickerField(
+        label: 'Nationality',
+        value: _nationality?.name,
+        icon: Icons.public,
+        onTap: () async {
+          final picked = await _pickCountry('Nationality');
+          if (picked != null) setState(() => _nationality = picked);
+        },
+      ),
+      const SizedBox(height: 14),
+      buildAuthTextField(controller: _ageCtrl, label: 'Age (18-65)', keyboardType: TextInputType.number),
+      const SizedBox(height: 14),
+      buildAuthTextField(controller: _driverLicenseCtrl, label: 'Driving license number'),
+    ]);
+  }
 
-              PickerField(
-                label: 'Blood type',
-                value: _bloodType,
-                icon: Icons.bloodtype_outlined,
-                onTap: () async {
-                  final picked = await showModalBottomSheet<String>(
-                    context: context,
-                    backgroundColor: const Color(0xFF111113),
-                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-                    builder: (ctx) => SafeArea(
-                      child: Wrap(
-                        children: kBloodTypes
-                            .map((b) => ListTile(
-                                  title: Text(b, style: const TextStyle(color: Color(0xFFF5F0E8))),
-                                  onTap: () => Navigator.pop(ctx, b),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                  );
-                  if (picked != null) setState(() => _bloodType = picked);
-                },
+  Widget _documentsStep() {
+    return _pageScaffold([
+      const _SubLabel('Driving license — front'),
+      const SizedBox(height: 8),
+      _DocumentRow(
+        fileName: _licenseFile?.name,
+        expiry: _licenseExpiry,
+        onPickFile: () async {
+          final f = await _pickDocumentFile();
+          if (f != null) setState(() => _licenseFile = f);
+        },
+        onPickDate: () async {
+          final d = await _pickExpiryDate();
+          if (d != null) setState(() => _licenseExpiry = d);
+        },
+      ),
+      const SizedBox(height: 16),
+      const _SubLabel('Driving license — back (optional)'),
+      const SizedBox(height: 8),
+      PickerField(
+        label: 'Upload (PDF/JPG/PNG)',
+        value: _licenseBackFile?.name,
+        icon: Icons.upload_file_outlined,
+        onTap: () async {
+          final f = await _pickDocumentFile();
+          if (f != null) setState(() => _licenseBackFile = f);
+        },
+      ),
+      const SizedBox(height: 16),
+      const _SubLabel('Passport (first page)'),
+      const SizedBox(height: 8),
+      _DocumentRow(
+        fileName: _passportFile?.name,
+        expiry: _passportExpiry,
+        onPickFile: () async {
+          final f = await _pickDocumentFile();
+          if (f != null) setState(() => _passportFile = f);
+        },
+        onPickDate: () async {
+          final d = await _pickExpiryDate();
+          if (d != null) setState(() => _passportExpiry = d);
+        },
+      ),
+      const SizedBox(height: 16),
+      const _SubLabel('Emirates ID / Residency'),
+      const SizedBox(height: 8),
+      _DocumentRow(
+        fileName: _residencyFile?.name,
+        expiry: _residencyExpiry,
+        onPickFile: () async {
+          final f = await _pickDocumentFile();
+          if (f != null) setState(() => _residencyFile = f);
+        },
+        onPickDate: () async {
+          final d = await _pickExpiryDate();
+          if (d != null) setState(() => _residencyExpiry = d);
+        },
+      ),
+      const SizedBox(height: 16),
+      const _SubLabel('Driver photo (optional)'),
+      const SizedBox(height: 8),
+      PickerField(
+        label: 'Upload a portrait photo',
+        value: _driverPhotoFile?.name,
+        icon: Icons.person_outline,
+        onTap: () async {
+          final f = await _pickPhotoFile();
+          if (f != null) setState(() => _driverPhotoFile = f);
+        },
+      ),
+      const SizedBox(height: 10),
+      const Text(
+        'All documents must be clear and valid. Expired documents are not accepted.',
+        style: TextStyle(fontSize: 11, color: Color(0xFF6B6660)),
+      ),
+    ]);
+  }
+
+  Widget _healthStep() {
+    return _pageScaffold([
+      PickerField(
+        label: 'Health status',
+        value: _healthConditions.isEmpty ? null : _healthConditions.join(', '),
+        icon: Icons.health_and_safety_outlined,
+        onTap: () => _pickMultiSelectSheet(
+          title: 'Health status',
+          options: kHealthConditionOptions,
+          selected: _healthConditions,
+          exclusiveFirstOption: true,
+          onSaved: (v) => setState(() => _healthConditions
+            ..clear()
+            ..addAll(v)),
+        ),
+      ),
+      if (_healthConditions.contains(kOtherHealthOption)) ...[
+        const SizedBox(height: 10),
+        buildAuthTextField(controller: _healthOtherCtrl, label: 'Describe the other condition'),
+      ],
+      const SizedBox(height: 14),
+      PickerField(
+        label: 'Blood type',
+        value: _bloodType,
+        icon: Icons.bloodtype_outlined,
+        onTap: () async {
+          final picked = await _pickFromList('Blood type', kBloodTypes);
+          if (picked != null) setState(() => _bloodType = picked);
+        },
+      ),
+      const SizedBox(height: 14),
+      PickerField(
+        label: 'Work destinations',
+        value: _destinations.isEmpty ? null : _destinations.map((k) => kDriverDestinationOptions[k]).join(', '),
+        icon: Icons.map_outlined,
+        onTap: () => _pickMultiSelectSheet(
+          title: 'Work destinations',
+          options: kDriverDestinationOptions.keys.toList(),
+          selected: _destinations,
+          onSaved: (v) => setState(() => _destinations
+            ..clear()
+            ..addAll(v)),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _truckInfoStep() {
+    return _pageScaffold([
+      PickerField(
+        label: 'Truck type',
+        value: _truckType,
+        icon: Icons.local_shipping_outlined,
+        onTap: () async {
+          final picked = await _pickFromList('Truck type', kDriverTruckTypes);
+          if (picked != null) setState(() => _truckType = picked);
+        },
+      ),
+      const SizedBox(height: 14),
+      buildAuthTextField(controller: _truckNumberCtrl, label: 'Truck plate / number'),
+      const SizedBox(height: 14),
+      buildAuthTextField(controller: _permitTypeCtrl, label: 'Permit type (optional)'),
+    ]);
+  }
+
+  Widget _truckDocumentsStep() {
+    return _pageScaffold([
+      const _SubLabel('Vehicle registration'),
+      const SizedBox(height: 8),
+      _DocumentRow(
+        fileName: _truckLicenseFile?.name,
+        expiry: _truckLicenseExpiry,
+        onPickFile: () async {
+          final f = await _pickDocumentFile();
+          if (f != null) setState(() => _truckLicenseFile = f);
+        },
+        onPickDate: () async {
+          final d = await _pickExpiryDate();
+          if (d != null) setState(() => _truckLicenseExpiry = d);
+        },
+      ),
+      const SizedBox(height: 16),
+      const _SubLabel('Insurance (optional)'),
+      const SizedBox(height: 8),
+      _DocumentRow(
+        fileName: _truckInsuranceFile?.name,
+        expiry: _truckInsuranceExpiry,
+        onPickFile: () async {
+          final f = await _pickDocumentFile();
+          if (f != null) setState(() => _truckInsuranceFile = f);
+        },
+        onPickDate: () async {
+          final d = await _pickExpiryDate();
+          if (d != null) setState(() => _truckInsuranceExpiry = d);
+        },
+      ),
+      const SizedBox(height: 16),
+      const _SubLabel('Technical inspection (optional)'),
+      const SizedBox(height: 8),
+      _DocumentRow(
+        fileName: _truckInspectionFile?.name,
+        expiry: _truckInspectionExpiry,
+        onPickFile: () async {
+          final f = await _pickDocumentFile();
+          if (f != null) setState(() => _truckInspectionFile = f);
+        },
+        onPickDate: () async {
+          final d = await _pickExpiryDate();
+          if (d != null) setState(() => _truckInspectionExpiry = d);
+        },
+      ),
+      const SizedBox(height: 10),
+      const Text(
+        'Make sure the vehicle registration is valid — expired documents are not accepted.',
+        style: TextStyle(fontSize: 11, color: Color(0xFF6B6660)),
+      ),
+    ]);
+  }
+
+  Widget _reviewStep() {
+    return _pageScaffold([
+      const Text(
+        'Please review your information before submitting.',
+        style: TextStyle(color: Color(0xFF6B6660), fontSize: 13, height: 1.5),
+      ),
+      const SizedBox(height: 16),
+      _ReviewCard(icon: Icons.person_outline, title: 'Account', lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
+      const SizedBox(height: 10),
+      _ReviewCard(icon: Icons.badge_outlined, title: 'Driver information', lines: [
+        '${_nationality?.name ?? '—'} · Age ${_ageCtrl.text.trim()}',
+        'License #${_driverLicenseCtrl.text.trim()}',
+      ]),
+      const SizedBox(height: 10),
+      _ReviewCard(icon: Icons.folder_open_outlined, title: 'Documents', lines: [
+        '${[
+          _licenseFile,
+          _licenseBackFile,
+          _passportFile,
+          _residencyFile,
+          _driverPhotoFile,
+        ].where((f) => f != null).length} file(s) uploaded',
+      ]),
+      const SizedBox(height: 10),
+      _ReviewCard(icon: Icons.local_shipping_outlined, title: 'Truck', lines: [
+        '${_truckType ?? '—'} · Plate ${_truckNumberCtrl.text.trim()}',
+        '${[_truckLicenseFile, _truckInsuranceFile, _truckInspectionFile].where((f) => f != null).length} document(s) uploaded',
+      ]),
+      const SizedBox(height: 16),
+      const Text(
+        "You won't be able to edit this after submission — an admin will review it (if they ask for changes, you'll be able to fix and resubmit).",
+        style: TextStyle(fontSize: 11, color: Color(0xFF6B6660), height: 1.5),
+      ),
+    ]);
+  }
+
+  Widget _bottomBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_errorMessage != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A0F0F),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE57373).withOpacity(0.4)),
               ),
-              const SizedBox(height: 14),
-
-              PickerField(
-                label: 'Work destinations',
-                value: _destinations.isEmpty
-                    ? null
-                    : _destinations.map((k) => kDriverDestinationOptions[k]).join(', '),
-                icon: Icons.map_outlined,
-                onTap: () => _pickMultiSelectSheet(
-                  title: 'Work destinations',
-                  options: kDriverDestinationOptions.keys.toList(),
-                  selected: _destinations,
-                  onSaved: (v) => setState(() => _destinations
-                    ..clear()
-                    ..addAll(v)),
-                ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Color(0xFFE57373), size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_errorMessage!, style: const TextStyle(fontSize: 13, color: Color(0xFFE57373)))),
+                ],
               ),
-
-              const SizedBox(height: 32),
-              _SectionHeader(title: '2. Truck Information'),
-              const SizedBox(height: 14),
-
-              PickerField(
-                label: 'Truck type',
-                value: _truckType,
-                icon: Icons.local_shipping_outlined,
-                onTap: () async {
-                  final picked = await showModalBottomSheet<String>(
-                    context: context,
-                    backgroundColor: const Color(0xFF111113),
-                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-                    builder: (ctx) => SafeArea(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: kDriverTruckTypes
-                            .map((t) => ListTile(
-                                  title: Text(t, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 13)),
-                                  onTap: () => Navigator.pop(ctx, t),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                  );
-                  if (picked != null) setState(() => _truckType = picked);
-                },
+            ),
+            const SizedBox(height: 12),
+          ],
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _next,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD4AF37),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              const SizedBox(height: 14),
-
-              buildAuthTextField(controller: _truckNumberCtrl, label: 'Truck plate / number'),
-              const SizedBox(height: 20),
-
-              const _SubLabel('Vehicle License'),
-              const SizedBox(height: 8),
-              _DocumentRow(
-                fileName: _truckLicenseFile?.name,
-                expiry: _truckLicenseExpiry,
-                onPickFile: () async {
-                  final f = await _pickDocumentFile();
-                  if (f != null) setState(() => _truckLicenseFile = f);
-                },
-                onPickDate: () async {
-                  final d = await _pickExpiryDate();
-                  if (d != null) setState(() => _truckLicenseExpiry = d);
-                },
-              ),
-              const SizedBox(height: 14),
-
-              buildAuthTextField(controller: _permitTypeCtrl, label: 'Permit type (optional)'),
-
-              const SizedBox(height: 26),
-              GestureDetector(
-                onTap: () => setState(() => _agreed = !_agreed),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
+              child: _loading
+                  ? const SizedBox(
                       width: 20,
                       height: 20,
-                      margin: const EdgeInsets.only(top: 1),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: _agreed ? const Color(0xFFD4AF37) : const Color(0xFF3A3530),
-                          width: 1.5,
-                        ),
-                        color: _agreed ? const Color(0xFFD4AF37) : Colors.transparent,
-                      ),
-                      child: _agreed ? const Icon(Icons.check, size: 13, color: Color(0xFF0A0A0C)) : null,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0A0A0C)),
+                    )
+                  : Text(
+                      _step == _totalSteps - 1 ? 'Submit for review' : 'Next',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF0A0A0C)),
                     ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'I agree to the Terms of Service and Privacy Policy',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF6B6660), height: 1.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              if (_errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A0F0F),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE57373).withOpacity(0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Color(0xFFE57373), size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(_errorMessage!, style: const TextStyle(fontSize: 13, color: Color(0xFFE57373))),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: (_agreed && !_loading) ? _handleRegister : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4AF37),
-                    disabledBackgroundColor: const Color(0xFF1E1C18),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0A0A0C)),
-                        )
-                      : Text(
-                          'Create account',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: _agreed ? const Color(0xFF0A0A0C) : const Color(0xFF4A4540),
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader({required this.title});
+class _StepProgress extends StatelessWidget {
+  final int current;
+  final int total;
+  const _StepProgress({required this.current, required this.total});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(width: 10),
-        const Expanded(child: Divider(color: Color(0xFF2A2520))),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: List.generate(total, (i) {
+          final done = i <= current;
+          return Expanded(
+            child: Container(
+              height: 4,
+              margin: EdgeInsets.only(right: i < total - 1 ? 4 : 0),
+              decoration: BoxDecoration(
+                color: done ? const Color(0xFFD4AF37) : const Color(0xFF2A2520),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _ReviewCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<String> lines;
+  const _ReviewCard({required this.icon, required this.title, required this.lines});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111113),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2A2520)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: const Color(0xFFD4AF37), size: 18),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                ...lines.map((l) => Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(l, style: const TextStyle(color: Color(0xFF6B6660), fontSize: 12)),
+                    )),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
