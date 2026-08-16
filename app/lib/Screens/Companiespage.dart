@@ -15,7 +15,12 @@ import 'DriverDetails.dart';
 
 class Companiespage extends StatefulWidget {
   final AppUser user;
-  const Companiespage({super.key, required this.user});
+  // Lets a caller (e.g. the admin drawer's "Registration Requests"
+  // shortcut) land here pre-filtered to just 'pending' companies instead
+  // of the full list. No visible filter-chip UI yet (unlike Driverspage) —
+  // this is a silent initial filter for that one entry point.
+  final String? initialApprovalFilter;
+  const Companiespage({super.key, required this.user, this.initialApprovalFilter});
 
   @override
   State<Companiespage> createState() => _CompaniespageState();
@@ -46,9 +51,13 @@ class _CompaniespageState extends State<Companiespage> {
   });
 
   List<Company> _filterdata(List<Company> list) {
-    if (_searchQuery.isEmpty) return list;
+    var result = list;
+    if (widget.initialApprovalFilter != null) {
+      result = result.where((c) => c.approvalStatus == widget.initialApprovalFilter).toList();
+    }
+    if (_searchQuery.isEmpty) return result;
 
-    return list.where((s) {
+    return result.where((s) {
       final name = (s.name ?? '').toLowerCase();
       return name.contains(_searchQuery);
     }).toList();

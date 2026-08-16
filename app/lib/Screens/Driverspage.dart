@@ -11,7 +11,11 @@ import 'DriverDetails.dart';
 
 class Driverspage extends StatefulWidget {
   final AppUser user;
-  const Driverspage({super.key, required this.user});
+  // Lets a caller (e.g. the admin drawer's "Registration Requests" shortcut)
+  // land here with a filter chip already selected instead of always
+  // starting on 'all'.
+  final String initialFilter;
+  const Driverspage({super.key, required this.user, this.initialFilter = 'all'});
 
   @override
   State<Driverspage> createState() => _DriverspageState();
@@ -27,11 +31,12 @@ class _DriverspageState extends State<Driverspage> {
 
   // 'all' | 'pending' | 'approved' | 'rejected' — lets the admin quickly
   // isolate self-registered drivers awaiting review from everyone else.
-  String _approvalFilter = 'all';
+  late String _approvalFilter;
 
   @override
   void initState() {
     super.initState();
+    _approvalFilter = widget.initialFilter;
     _driverFuture = _service.fetchDriver();
 
     _searchController.addListener(() {

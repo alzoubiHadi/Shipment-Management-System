@@ -9,6 +9,8 @@ import '../models/Appuser.dart';
 import '../models/NavItem.dart';
 
 
+import 'AdminDashboardScreen.dart';
+import 'AdminDrawer.dart';
 import 'CelebrateBottomNav.dart';
 import 'Companiespage.dart';
 import 'CompanyOffersPage.dart';
@@ -37,6 +39,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  bool get _isAdmin =>
+      widget.user.role == 'admin' || widget.user.role == 'super_admin' || widget.user.role == 'sub_admin';
 
   @override
   void initState() {
@@ -179,6 +185,10 @@ class _HomeScreenState extends State<HomeScreen> {
       case "super_admin":
       case "sub_admin":
         return [
+          AdminDashboardScreen(
+            user: widget.user,
+            onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
           Driverspage(user: widget.user),
           Companiespage(user: widget.user),
           Shipmentpageadmin(user: widget.user),
@@ -195,7 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = _navItems;
     final pages = _pages;
 
     // SAFE INDEX
@@ -203,6 +212,33 @@ class _HomeScreenState extends State<HomeScreen> {
       0,
       pages.length - 1,
     );
+
+    // Admins navigate via a slide-out Drawer (Phase 1 of the admin
+    // dashboard redesign) instead of the bottom nav — the mockup's fixed
+    // desktop sidebar, adapted to mobile.
+    if (_isAdmin) {
+      return Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: LightColors.bg,
+        drawer: AdminDrawer(
+          user: widget.user,
+          currentTabIndex: safeIndex,
+          onSelectTab: (i) {
+            if (i < pages.length) {
+              setState(() {
+                _selectedIndex = i;
+              });
+            }
+          },
+        ),
+        body: IndexedStack(
+          index: safeIndex,
+          children: pages,
+        ),
+      );
+    }
+
+    final items = _navItems;
 
     return Scaffold(
       backgroundColor: AppColors.bg,

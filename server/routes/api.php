@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\ComplianceReportController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DriverController;
@@ -43,6 +44,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::post('/me/fcm-token', [NotificationController::class, 'updateFcmToken']);
+
+    // Admin Dashboard "Home" screen — one summary-counts endpoint.
+    Route::get('/admin/dashboard-stats', [AdminDashboardController::class, 'stats']);
 
     // Central price list (Finance Admin, UC-33) + editable platform settings
     Route::get('/price-list', [PriceListController::class, 'index'])->middleware('permission:finance');
