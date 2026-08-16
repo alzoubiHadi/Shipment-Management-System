@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Driver;
+use App\Models\DriverDestination;
+use App\Models\DriverDocument;
+use App\Models\Truck;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
 use App\Notifications\OtpCodeNotification;
@@ -28,9 +31,11 @@ class UserController extends Controller
      * still needs Super Admin final approval (approval_status stays
      * 'pending' — see DriverController/CompanyController::approve()).
      *
-     * The truck itself is NOT collected here on purpose: a truck is its
-     * own record (see TruckController) that a driver can add or change at
-     * any time, so it must not be tied to the driver's account at sign-up.
+     * For drivers, the truck IS now collected here too (per the revised
+     * sign-up UX: one form, two sections — driver info then truck info) —
+     * a departure from the original design where a truck was always added
+     * later from the driver's own account (TruckController::addMyTruck
+     * still exists unchanged for adding further/replacement trucks).
      */
     public function register(Request $request)
     {
@@ -51,7 +56,32 @@ class UserController extends Controller
         ];
 
         if ($type === 'driver') {
+            $rules['phone'] = ['required', 'string', 'max:20'];
             $rules['driver_license'] = ['required', 'string', 'unique:drivers,driver_license'];
+            $rules['age'] = ['required', 'integer', 'min:18', 'max:65'];
+            $rules['nationality'] = ['required', 'string', 'max:100'];
+
+            // Driver documents — all three collected up front now (the
+            // revised sign-up form), rather than deferred to UC-8.
+            $rules['license_file'] = ['required', 'file', 'max:10240'];
+            $rules['license_expiry'] = ['required', 'date'];
+            $rules['passport_file'] = ['required', 'file', 'max:10240'];
+            $rules['passport_expiry'] = ['required', 'date'];
+            $rules['residency_file'] = ['required', 'file', 'max:10240'];
+            $rules['residency_expiry'] = ['required', 'date'];
+
+            $rules['blood_type'] = ['required', 'string', 'in:A+,A-,B+,B-,O+,O-,AB+,AB-'];
+            $rules['health_conditions'] = ['nullable', 'string', 'max:1000'];
+
+            $rules['destinations'] = ['required', 'array', 'min:1'];
+            $rules['destinations.*'] = ['string', 'in:' . implode(',', array_keys(DriverDestination::DESTINATIONS))];
+
+            // Truck (section 2 of the sign-up form).
+            $rules['truck_number'] = ['required', 'string', 'unique:trucks,truck_number'];
+            $rules['truck_type'] = ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)];
+            $rules['truck_license_file'] = ['required', 'file', 'max:10240'];
+            $rules['truck_license_expiry'] = ['nullable', 'date'];
+            $rules['permit_type'] = ['nullable', 'string', 'max:255'];
         }
 
         if ($type === 'company') {
@@ -75,13 +105,36 @@ class UserController extends Controller
         }
 
         $licenseFilePath = null;
+        $driverLicenseFilePath = null;
+        $passportFilePath = null;
+        $residencyFilePath = null;
+        $truckLicenseFilePath = null;
+
         if ($type === 'company' && $request->hasFile('license_file')) {
             $licenseFilePath = $request->file('license_file')->store('company_licenses', 'public');
         }
 
+        if ($type === 'driver') {
+            if ($request->hasFile('license_file')) {
+                $driverLicenseFilePath = $request->file('license_file')->store('driver_documents', 'public');
+            }
+            if ($request->hasFile('passport_file')) {
+                $passportFilePath = $request->file('passport_file')->store('driver_documents', 'public');
+            }
+            if ($request->hasFile('residency_file')) {
+                $residencyFilePath = $request->file('residency_file')->store('driver_documents', 'public');
+            }
+            if ($request->hasFile('truck_license_file')) {
+                $truckLicenseFilePath = $request->file('truck_license_file')->store('truck_licenses', 'public');
+            }
+        }
+
         $otp = $this->generateOtp();
 
-        [$user, $driver, $company] = DB::transaction(function () use ($validated, $type, $otp, $licenseFilePath) {
+        [$user, $driver, $company] = DB::transaction(function () use (
+            $validated, $type, $otp, $licenseFilePath,
+            $driverLicenseFilePath, $passportFilePath, $residencyFilePath, $truckLicenseFilePath
+        ) {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -97,8 +150,10 @@ class UserController extends Controller
             if ($type === 'driver') {
                 $driver = Driver::create([
                     'name' => $validated['name'],
-                    'phone' => $validated['phone'] ?? null,
+                    'phone' => $validated['phone'],
                     'driver_license' => $validated['driver_license'],
+                    'age' => $validated['age'],
+                    'nationality' => $validated['nationality'],
                     'status' => 'unavailable',
                     // Self-registered drivers always start out pending — an
                     // admin must review their documents and approve them
@@ -107,7 +162,51 @@ class UserController extends Controller
                     // default to 'approved' instead, since the admin is
                     // already vouching for them at creation time.
                     'approval_status' => 'pending',
+                    'license_expiry' => $validated['license_expiry'],
+                    'passport_expiry' => $validated['passport_expiry'],
+                    'residency_expiry' => $validated['residency_expiry'],
+                    'blood_type' => $validated['blood_type'],
+                    'health_conditions' => $validated['health_conditions'] ?? null,
                     'user_id' => $user->id,
+                ]);
+
+                // Append-only document history (UC-8) — seeded from the
+                // three files uploaded at sign-up itself, so the driver's
+                // "My Documents" screen already shows them as on file, and
+                // the admin's document-issue check has something to review.
+                $documents = [
+                    ['type' => 'license', 'path' => $driverLicenseFilePath, 'expiry' => $validated['license_expiry']],
+                    ['type' => 'passport', 'path' => $passportFilePath, 'expiry' => $validated['passport_expiry']],
+                    ['type' => 'residency', 'path' => $residencyFilePath, 'expiry' => $validated['residency_expiry']],
+                ];
+                foreach ($documents as $doc) {
+                    if (! $doc['path']) {
+                        continue;
+                    }
+                    DriverDocument::create([
+                        'driver_id' => $driver->id,
+                        'type' => $doc['type'],
+                        'file_path' => $doc['path'],
+                        'expiry_date' => $doc['expiry'],
+                        'is_current' => true,
+                        'uploaded_by_user_id' => $user->id,
+                    ]);
+                }
+
+                foreach (array_unique($validated['destinations']) as $destination) {
+                    DriverDestination::create([
+                        'driver_id' => $driver->id,
+                        'destination' => $destination,
+                    ]);
+                }
+
+                Truck::create([
+                    'truck_number' => $validated['truck_number'],
+                    'truck_type' => $validated['truck_type'],
+                    'license_file_path' => $truckLicenseFilePath,
+                    'license_expiry' => $validated['truck_license_expiry'] ?? null,
+                    'permit_type' => $validated['permit_type'] ?? null,
+                    'default_driver_id' => $driver->id,
                 ]);
             }
 
@@ -244,6 +343,16 @@ class UserController extends Controller
                     'email' => ['The provided credentials are incorrect.']
                 ]
             ], 401);
+        }
+
+        // Super Admin can temporarily suspend a sub-admin account (see
+        // AdminController::suspend()) without deleting it — blocked here,
+        // before the OTP/approval checks below.
+        if ($user->is_suspended) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This account has been suspended. Contact the Super Admin.',
+            ], 403);
         }
 
         // Self-registered accounts (driver/company) must verify their email

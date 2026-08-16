@@ -64,6 +64,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/sub-admins', [AdminController::class, 'store']);
     Route::put('/admin/sub-admins/{admin}/permissions', [AdminController::class, 'updatePermissions']);
     Route::post('/admin/sub-admins/{admin}/reset-password', [AdminController::class, 'resetPassword']);
+    Route::put('/admin/sub-admins/{admin}/suspend', [AdminController::class, 'suspend']);
+    Route::put('/admin/sub-admins/{admin}/activate', [AdminController::class, 'activate']);
     Route::delete('/admin/sub-admins/{admin}', [AdminController::class, 'destroy']);
 
     // companies Requests

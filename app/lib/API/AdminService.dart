@@ -127,6 +127,38 @@ class AdminService {
     }
   }
 
+  Future<Map<String, dynamic>> suspendSubAdmin(String adminId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/admin/sub-admins/$adminId/suspend'),
+        headers: await _authHeaders(),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> activateSubAdmin(String adminId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/admin/sub-admins/$adminId/activate'),
+        headers: await _authHeaders(),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<bool> deleteSubAdmin(String adminId) async {
     try {
       final response = await http.delete(

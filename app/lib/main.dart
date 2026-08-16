@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
-      title: 'ALBA',
+      title: 'FMS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
@@ -161,30 +161,36 @@ class _SplashPageState extends State<SplashPage>
                           opacity: _fadeIn,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                    horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Image.asset(
-                                  'assets/images/albatrans-logo.png',
-                                  height: 22,
+                                child: const Text(
+                                  'FMS',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 2,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               const Flexible(
                                 child: Text(
-                                  'ALBA',
+                                  'Freight Management\nSystem',
                                   overflow: TextOverflow.ellipsis,
-                                  softWrap: false,
                                   style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 6,
+                                    color: Colors.white70,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                    height: 1.2,
                                   ),
                                 ),
                               ),
@@ -281,7 +287,13 @@ class _SplashPageState extends State<SplashPage>
                             children: [
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () {},
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => const LoginScreen()),
+                                    );
+                                  },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 16),
@@ -291,7 +303,7 @@ class _SplashPageState extends State<SplashPage>
                                     ),
                                     alignment: Alignment.center,
                                     child: const Text(
-                                      'Start Shipping',
+                                      'Login',
                                       style: TextStyle(
                                         color: Colors.black,
                                         fontSize: 15,

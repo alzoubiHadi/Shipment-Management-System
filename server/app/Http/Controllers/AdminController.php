@@ -141,6 +141,41 @@ class AdminController extends Controller
         ], 200);
     }
 
+    /**
+     * Temporarily blocks a sub-admin from logging in without deleting the
+     * account — enforced in UserController::login(). Reversible via
+     * activate() below, unlike destroy() which is permanent.
+     */
+    public function suspend(User $admin)
+    {
+        if ($admin->type !== 'sub_admin') {
+            return response()->json(['message' => 'This user is not a sub-admin account.'], 422);
+        }
+
+        $admin->update(['is_suspended' => true]);
+        ActivityLog::record('admin.sub_admin_suspended', $admin, "Suspended sub-admin account '{$admin->name}'");
+
+        return response()->json([
+            'message' => 'Sub-admin account suspended',
+            'admin' => $admin->load('permissions'),
+        ], 200);
+    }
+
+    public function activate(User $admin)
+    {
+        if ($admin->type !== 'sub_admin') {
+            return response()->json(['message' => 'This user is not a sub-admin account.'], 422);
+        }
+
+        $admin->update(['is_suspended' => false]);
+        ActivityLog::record('admin.sub_admin_activated', $admin, "Reactivated sub-admin account '{$admin->name}'");
+
+        return response()->json([
+            'message' => 'Sub-admin account reactivated',
+            'admin' => $admin->load('permissions'),
+        ], 200);
+    }
+
     public function destroy(User $admin)
     {
         if ($admin->type !== 'sub_admin') {

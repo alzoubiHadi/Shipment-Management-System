@@ -263,6 +263,49 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
     }
   }
 
+  Future<void> _toggleSuspend(SubAdmin admin) async {
+    final suspending = !admin.isSuspended;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text(suspending ? 'Suspend Sub-Admin' : 'Reactivate Sub-Admin',
+            style: const TextStyle(color: AppColors.cream)),
+        content: Text(
+          suspending
+              ? 'Block ${admin.name} from logging in until reactivated?'
+              : 'Allow ${admin.name} to log in again?',
+          style: const TextStyle(color: AppColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(suspending ? 'Suspend' : 'Reactivate',
+                style: TextStyle(color: suspending ? AppColors.error : AppColors.success)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final result = suspending
+        ? await _service.suspendSubAdmin(admin.id)
+        : await _service.activateSubAdmin(admin.id);
+
+    if (result['success'] == true) {
+      _refresh();
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? '')),
+      );
+    }
+  }
+
   Future<void> _delete(SubAdmin admin) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -371,7 +414,17 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                               ],
                             ),
                           ),
-                          if (admin.mustChangePassword)
+                          if (admin.isSuspended)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text('Suspended',
+                                  style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.w600)),
+                            )
+                          else if (admin.mustChangePassword)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
@@ -415,6 +468,15 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                             onPressed: () => _resetPassword(admin),
                             icon: const Icon(Icons.password, color: AppColors.gold, size: 20),
                             tooltip: 'Reset password',
+                          ),
+                          IconButton(
+                            onPressed: () => _toggleSuspend(admin),
+                            icon: Icon(
+                              admin.isSuspended ? Icons.play_circle_outline : Icons.pause_circle_outline,
+                              color: admin.isSuspended ? AppColors.success : AppColors.error,
+                              size: 20,
+                            ),
+                            tooltip: admin.isSuspended ? 'Reactivate' : 'Suspend',
                           ),
                           IconButton(
                             onPressed: () => _delete(admin),

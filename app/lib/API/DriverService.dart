@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 
 import '../models/Driver.dart';
+import '../models/DriverDocument.dart';
 import '../models/DriverRating.dart';
 import 'config.dart';
 
@@ -406,6 +408,161 @@ class DriverService {
         'success': response.statusCode == 200,
         'message': data['message'] ?? 'Server Error (${response.statusCode})',
       };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Documents (UC-8) ──────────────────────────────────────────────────
+
+  /// The driver's own document history (newest first, all versions —
+  /// server flags which one `isCurrent` is per type).
+  static Future<List<DriverDocument>> fetchMyDocuments() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final userId = prefs.getString('id');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/driver/$userId/documents'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return (data['documents'] as List)
+          .map((e) => DriverDocument.fromJson(e))
+          .toList();
+    }
+    throw Exception('Failed to load documents (HTTP ${response.statusCode})');
+  }
+
+  /// Uploads a new version of a document (type: one of DriverDocument
+  /// TYPES). The server flips the previous current one of the same type to
+  /// is_current=false but never deletes it — full audit trail.
+  static Future<Map<String, dynamic>> uploadMyDocument({
+    required String type,
+    required Uint8List fileBytes,
+    required String fileName,
+    DateTime? expiryDate,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final userId = prefs.getString('id');
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/driver/$userId/documents'),
+      );
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $token';
+      request.fields['type'] = type;
+      if (expiryDate != null) {
+        request.fields['expiry_date'] =
+            '${expiryDate.year.toString().padLeft(4, '0')}-${expiryDate.month.toString().padLeft(2, '0')}-${expiryDate.day.toString().padLeft(2, '0')}';
+      }
+      request.files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fileName));
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201) {
+        return {'success': true, 'message': data['message']};
+      }
+
+      String message = data['message'] ?? 'Could not upload document';
+      if (data['errors'] != null) {
+        (data['errors'] as Map).forEach((key, value) {
+          message += '\n${(value as List).first}';
+        });
+      }
+      return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Destinations ───────────────────────────────────────────────────────
+
+  /// Fixed key→label list of the 11 country-level destinations a driver
+  /// can pick as their work coverage (used both at profile completion and
+  /// shown read-only wherever destinations are listed).
+  static Future<Map<String, String>> fetchDestinationOptions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/driver/destination-options'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return Map<String, String>.from(data['destinations'] ?? {});
+    }
+    throw Exception('Failed to load destination options (HTTP ${response.statusCode})');
+  }
+
+  static Future<List<String>> fetchMyDestinations() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final userId = prefs.getString('id');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/driver/$userId/destinations'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<String>.from(data['destinations'] ?? []);
+    }
+    throw Exception('Failed to load destinations (HTTP ${response.statusCode})');
+  }
+
+  /// Full replace of the driver's destination list — at least one required.
+  static Future<Map<String, dynamic>> syncMyDestinations(List<String> destinations) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final userId = prefs.getString('id');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/driver/$userId/destinations'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'destinations': destinations}),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'],
+          'destinations': List<String>.from(data['destinations'] ?? []),
+        };
+      }
+
+      String message = data['message'] ?? 'Could not save destinations';
+      if (data['errors'] != null) {
+        (data['errors'] as Map).forEach((key, value) {
+          message += '\n${(value as List).first}';
+        });
+      }
+      return {'success': false, 'message': message};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }

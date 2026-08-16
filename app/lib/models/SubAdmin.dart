@@ -6,6 +6,7 @@ class SubAdmin {
   final String name;
   final String email;
   final bool mustChangePassword;
+  final bool isSuspended;
   final List<String> permissionKeys;
 
   SubAdmin({
@@ -13,6 +14,7 @@ class SubAdmin {
     required this.name,
     required this.email,
     required this.mustChangePassword,
+    this.isSuspended = false,
     required this.permissionKeys,
   });
 
@@ -23,6 +25,7 @@ class SubAdmin {
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       mustChangePassword: json['must_change_password'] == true,
+      isSuspended: json['is_suspended'] == true,
       permissionKeys: perms is List
           ? perms.map((p) => p['key']?.toString() ?? '').where((k) => k.isNotEmpty).toList()
           : const [],

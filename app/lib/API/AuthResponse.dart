@@ -178,25 +178,19 @@ class ApiService {
     }
   }
 
-  // ── Register ───────────────────────────────────────────────────────────────
+  // ── Register (company) ───────────────────────────────────────────────────
 
-  /// type must be 'driver' or 'company'. driverLicense is required when
-  /// type == 'driver'; address is optional and licenseFileBytes/Name are
-  /// required when type == 'company' (trade/commercial license upload).
+  /// Company self-registration (UC-2). Driver registration uses the
+  /// dedicated registerDriver() below, since it now collects a lot more
+  /// (documents, destinations, truck) that doesn't belong on this signature.
   /// Does NOT log the user in — see verifyOtp().
-  ///
-  /// Always sent as multipart/form-data (not JSON) so the company license
-  /// file can ride along in the same request — mirrors TruckService.addMyTruck,
-  /// and works identically for driver registrations (Laravel validates
-  /// multipart fields the same way as JSON ones).
   static Future<RegisterResult> register({
     required String name,
     required String email,
     required String password,
     required String passwordConfirmation,
-    String type = 'driver',
+    String type = 'company',
     String? phone,
-    String? driverLicense,
     String? address,
     Uint8List? licenseFileBytes,
     String? licenseFileName,
@@ -212,18 +206,13 @@ class ApiService {
       request.fields['password_confirmation'] = passwordConfirmation;
       request.fields['type'] = type;
       if (phone != null) request.fields['phone'] = phone;
-      if (type == 'driver' && driverLicense != null) {
-        request.fields['driver_license'] = driverLicense;
-      }
-      if (type == 'company') {
-        if (address != null) request.fields['address'] = address;
-        if (licenseFileBytes != null && licenseFileName != null) {
-          request.files.add(http.MultipartFile.fromBytes(
-            'license_file',
-            licenseFileBytes,
-            filename: licenseFileName,
-          ));
-        }
+      if (address != null) request.fields['address'] = address;
+      if (licenseFileBytes != null && licenseFileName != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'license_file',
+          licenseFileBytes,
+          filename: licenseFileName,
+        ));
       }
 
       final streamed = await request.send().timeout(const Duration(seconds: 60));
@@ -247,6 +236,101 @@ class ApiService {
       // TEMPORARY diagnostic: show the real error instead of the generic
       // message, so we can see exactly what's failing this time (server
       // error page instead of JSON, timeout, socket error, etc).
+      throw ApiException('Could not connect: $e');
+    }
+  }
+
+  // ── Register (driver) ────────────────────────────────────────────────────
+
+  /// UC-3, revised: one submission covers both the driver's own info
+  /// (documents, health, destinations) AND their truck — see
+  /// UserController::register()'s driver branch on the backend, which
+  /// creates the User+Driver+DriverDocument(x3)+DriverDestination(x N)+Truck
+  /// rows all in one DB transaction. Does NOT log the user in — see
+  /// verifyOtp().
+  static Future<RegisterResult> registerDriver({
+    required String name,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+    required String phone,
+    required String driverLicense,
+    required String age,
+    required String nationality,
+    required Uint8List licenseFileBytes,
+    required String licenseFileName,
+    required String licenseExpiry, // yyyy-MM-dd
+    required Uint8List passportFileBytes,
+    required String passportFileName,
+    required String passportExpiry,
+    required Uint8List residencyFileBytes,
+    required String residencyFileName,
+    required String residencyExpiry,
+    required String bloodType,
+    String? healthConditions,
+    required List<String> destinations,
+    required String truckNumber,
+    required String truckType,
+    required Uint8List truckLicenseFileBytes,
+    required String truckLicenseFileName,
+    String? truckLicenseExpiry,
+    String? permitType,
+  }) async {
+    final uri = Uri.parse('$baseUrl/register');
+
+    try {
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Accept'] = 'application/json';
+      request.fields['type'] = 'driver';
+      request.fields['name'] = name.trim();
+      request.fields['email'] = email.trim();
+      request.fields['password'] = password;
+      request.fields['password_confirmation'] = passwordConfirmation;
+      request.fields['phone'] = phone;
+      request.fields['driver_license'] = driverLicense;
+      request.fields['age'] = age;
+      request.fields['nationality'] = nationality;
+      request.fields['license_expiry'] = licenseExpiry;
+      request.fields['passport_expiry'] = passportExpiry;
+      request.fields['residency_expiry'] = residencyExpiry;
+      request.fields['blood_type'] = bloodType;
+      if (healthConditions != null && healthConditions.isNotEmpty) {
+        request.fields['health_conditions'] = healthConditions;
+      }
+      // http's MultipartRequest.fields is a Map, so a single repeated key
+      // would silently overwrite itself — Laravel accepts indexed keys
+      // (destinations[0], destinations[1], ...) as the array-field form.
+      for (var i = 0; i < destinations.length; i++) {
+        request.fields['destinations[$i]'] = destinations[i];
+      }
+      request.fields['truck_number'] = truckNumber;
+      request.fields['truck_type'] = truckType;
+      if (truckLicenseExpiry != null) request.fields['truck_license_expiry'] = truckLicenseExpiry;
+      if (permitType != null && permitType.isNotEmpty) request.fields['permit_type'] = permitType;
+
+      request.files.add(http.MultipartFile.fromBytes('license_file', licenseFileBytes, filename: licenseFileName));
+      request.files.add(http.MultipartFile.fromBytes('passport_file', passportFileBytes, filename: passportFileName));
+      request.files.add(http.MultipartFile.fromBytes('residency_file', residencyFileBytes, filename: residencyFileName));
+      request.files.add(http.MultipartFile.fromBytes('truck_license_file', truckLicenseFileBytes, filename: truckLicenseFileName));
+
+      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final response = await http.Response.fromStream(streamed);
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json['data'] ?? {};
+        final user = data['user'] ?? {};
+        return RegisterResult(
+          email: user['email'] ?? email.trim(),
+          type: user['type'] ?? 'driver',
+        );
+      }
+
+      throw ApiException(_errorMessage(json, 'Registration failed'), statusCode: response.statusCode);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
       throw ApiException('Could not connect: $e');
     }
   }

@@ -5,7 +5,6 @@ import '../models/Appuser.dart';
 import '../models/Driver.dart';
 import 'AddDriverPage.dart';
 import 'AppBarWidget.dart';
-import 'DeletedDrivers.dart';
 import 'DriverDetails.dart';
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -86,22 +85,6 @@ class _DriverspageState extends State<Driverspage> {
             _refresh();
           }
         },
-      ),
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_forever, color: AppColors.error),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => Deleteddrivers()),
-              );
-              _refresh();
-            },
-          ),
-        ],
       ),
       body: RefreshIndicator(
         color: AppColors.gold,

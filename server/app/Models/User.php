@@ -25,6 +25,7 @@ class User extends Authenticatable
         'password',
         'type',
         'must_change_password',
+        'is_suspended',
         'otp_code',
         'otp_expires_at',
         'fcm_token',
@@ -53,6 +54,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
+            'is_suspended' => 'boolean',
             'otp_expires_at' => 'datetime',
         ];
     }

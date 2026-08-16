@@ -9,8 +9,6 @@ import 'AddCompanyPage.dart';
 import 'AddDriverPage.dart';
 import 'AppBarWidget.dart';
 import 'CompanyDetailsPage.dart';
-import 'DeletedDrivers.dart';
-import 'Deletedcompanies.dart';
 import 'DriverDetails.dart';
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -79,21 +77,6 @@ class _CompaniespageState extends State<Companiespage> {
             _refresh();
           }
         },
-      ),
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_forever, color: AppColors.error),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) =>  Deletedcompanies()),
-              );
-            },
-          ),
-        ],
       ),
       body: RefreshIndicator(
         color: AppColors.gold,

@@ -9,6 +9,8 @@ import 'AddTruckPage.dart';
 import 'CompanyBalancePage.dart';
 import 'DriverBalancePage.dart';
 import 'DriverComplianceReportsPage.dart';
+import 'DriverDestinationsPage.dart';
+import 'DriverDocumentsPage.dart';
 
 class Profile extends StatefulWidget {
   final AppUser user;
@@ -224,6 +226,31 @@ class _ProfileState extends State<Profile> {
 
             if (_isDriver) ...[
               const SizedBox(height: 24),
+              _SectionTitle('Documents & Coverage'),
+              const SizedBox(height: 12),
+              _NavTile(
+                icon: Icons.description_outlined,
+                label: 'My Documents',
+                subtitle: 'License, passport, residency & more (UC-8)',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverDocumentsPage()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NavTile(
+                icon: Icons.map_outlined,
+                label: 'My Destinations',
+                subtitle: 'Countries you cover — used for matching',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverDestinationsPage()),
+                ),
+              ),
+            ],
+
+            if (_isDriver) ...[
+              const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -426,6 +453,70 @@ class _StatCard extends StatelessWidget {
             style: const TextStyle(color: AppColors.muted, fontSize: 12),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Nav tile ──────────────────────────────────────────────────────────────────
+
+class _NavTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _NavTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border, width: 0.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.gold.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.gold, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                        color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.muted),
+          ],
+        ),
       ),
     );
   }
