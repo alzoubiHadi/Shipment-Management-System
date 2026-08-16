@@ -321,6 +321,22 @@ class CompanyItem extends StatelessWidget {
                       style: TextStyle(fontSize: 9, color: AppColors.error, fontWeight: FontWeight.w600),
                     ),
                   ),
+                ] else if (company.approvalStatus == 'changes_required') ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Changes requested',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 9, color: AppColors.gold, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ],
               ],
             ),

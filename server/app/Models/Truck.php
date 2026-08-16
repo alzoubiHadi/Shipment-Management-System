@@ -40,8 +40,11 @@ class Truck extends Model
         'permit_type',
         'permit_expiry',
         'insurance_expiry',
+        'insurance_file_path',
         'license_expiry',
         'license_file_path',
+        'technical_inspection_expiry',
+        'technical_inspection_file_path',
         'default_driver_id',
         'is_active',
     ];
@@ -53,6 +56,7 @@ class Truck extends Model
         'permit_expiry' => 'date:Y-m-d',
         'insurance_expiry' => 'date:Y-m-d',
         'license_expiry' => 'date:Y-m-d',
+        'technical_inspection_expiry' => 'date:Y-m-d',
     ];
 
     /**
@@ -112,6 +116,10 @@ class Truck extends Model
         }
 
         if ($this->license_expiry && $this->license_expiry->isPast()) {
+            return false;
+        }
+
+        if ($this->technical_inspection_expiry && $this->technical_inspection_expiry->isPast()) {
             return false;
         }
 

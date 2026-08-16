@@ -6,7 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class DriverDocument extends Model
 {
-    const TYPES = ['license', 'passport', 'residency', 'id_card', 'medical_certificate', 'other'];
+    // 'license_back' and 'driver_photo' added for the new registration
+    // design (2026-08-19): license front is still plain 'license',
+    // 'license_back' is its reverse side, 'driver_photo' is a plain
+    // portrait photo of the driver (not a document scan).
+    const TYPES = ['license', 'license_back', 'passport', 'residency', 'id_card', 'driver_photo', 'medical_certificate', 'other'];
 
     protected $fillable = [
         'driver_id',

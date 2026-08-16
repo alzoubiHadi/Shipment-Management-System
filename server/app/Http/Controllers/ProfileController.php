@@ -161,6 +161,22 @@ class ProfileController extends Controller
 
         $path = $request->file('license_file')->store('company_licenses', 'public');
 
+        // While the admin has explicitly asked for changes, applying
+        // directly is safe — resubmit() is what triggers a fresh admin
+        // review, so a second gate here would be redundant.
+        if ($user->company->approval_status === 'changes_required') {
+            $oldPath = $user->company->license_file_path;
+            $user->company->update(['license_file_path' => $path]);
+            if ($oldPath) {
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            return response()->json([
+                'message' => 'Trade license updated',
+                'license_file_path' => $path,
+            ], 200);
+        }
+
         $editRequest = ProfileEditRequest::create([
             'user_id' => $user->id,
             'category' => 'company_license',

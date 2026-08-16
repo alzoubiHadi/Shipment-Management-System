@@ -145,6 +145,45 @@ class ProfileService {
     }
   }
 
+  /// Flips a driver's approval_status from 'changes_required' back to
+  /// 'pending' once they've fixed whatever the admin flagged (documents/
+  /// destinations already applied directly by the same endpoints while in
+  /// this status — see DriverController::uploadDocument()/
+  /// syncDestinations()). Only succeeds server-side while the account is
+  /// actually in 'changes_required'.
+  Future<Map<String, dynamic>> resubmitDriverApplication() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/me/driver-registration/resubmit'),
+        headers: await _authHeaders(),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Same as [resubmitDriverApplication] but for a company account.
+  Future<Map<String, dynamic>> resubmitCompanyApplication() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/me/company-registration/resubmit'),
+        headers: await _authHeaders(),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ── Admin review ─────────────────────────────────────────────────────
 
   Future<List<ProfileEditRequest>> fetchPendingEditRequests() async {

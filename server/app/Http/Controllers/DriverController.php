@@ -229,13 +229,17 @@ public function restore( $id)
     }
 
     /**
-     * UC-5 alt flow: instead of outright rejecting, return the application
-     * so the driver can complete missing documents/info. approval_status
-     * stays 'pending' — the message goes in admin_note, which is a
-     * dedicated field (unlike Company, which reuses rejection_reason for
-     * this — see the Phase 1 migration notes for why: Driver already had a
-     * rejection_reason column in use, so a separate admin_note column was
-     * added instead of overloading it).
+     * UC-5 alt flow (2026-08-19: now the "Changes Required" state):
+     * instead of outright rejecting, return the application so the driver
+     * can fix specific flagged items and resubmit themselves. Distinct
+     * from 'rejected' (permanently terminal, register-again-required) —
+     * this one supports a real self-service edit + resubmit loop (see
+     * updateDriverInfo()/uploadDocument()/syncDestinations(), all newly
+     * gated to apply directly rather than queue a ProfileEditRequest while
+     * status is 'changes_required', and resubmit() below which flips it
+     * back to 'pending' for a fresh admin review). Written to both
+     * rejection_reason (what DriverApprovalStatusPage already displays)
+     * and admin_note (kept for continuity with the older convention).
      */
     public function returnForCompletion(Request $request, Driver $driver)
     {
@@ -244,13 +248,81 @@ public function restore( $id)
         ]);
 
         $driver->update([
-            'approval_status' => 'pending',
+            'approval_status' => 'changes_required',
+            'rejection_reason' => $validated['message'],
             'admin_note' => $validated['message'],
         ]);
 
         return response()->json([
-            'message' => 'Application returned to the driver for completion',
+            'message' => 'Application returned to the driver for changes',
             'driver' => $driver,
+        ], 200);
+    }
+
+    /**
+     * Driver's own fix-up submission (2026-08-19), only reachable while
+     * approval_status === 'changes_required' — the admin already asked for
+     * this specific re-review, so unlike the post-approval self-service
+     * endpoints below, applying it does NOT go through the
+     * ProfileEditRequest queue first.
+     */
+    public function updateDriverInfo(Request $request)
+    {
+        $driver = Driver::where('user_id', $request->user()->id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        if ($driver->approval_status !== 'changes_required') {
+            return response()->json([
+                'message' => 'You can only edit your registration while an admin has requested changes',
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'nationality' => ['sometimes', 'string', 'max:100'],
+            'age' => ['sometimes', 'integer', 'min:18', 'max:80'],
+            'driver_license' => ['sometimes', 'string', 'max:100'],
+            'license_expiry' => ['sometimes', 'date'],
+            'passport_expiry' => ['sometimes', 'date'],
+            'residency_expiry' => ['sometimes', 'date'],
+            'blood_type' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'health_conditions' => ['sometimes', 'nullable', 'string', 'max:1000'],
+        ]);
+
+        $driver->update($validated);
+
+        return response()->json([
+            'message' => 'Driver information updated',
+            'driver' => $driver->fresh(),
+        ], 200);
+    }
+
+    /**
+     * Flips 'changes_required' back to 'pending' once the driver has
+     * finished editing whatever was flagged — this is what actually puts
+     * the application back in front of an admin for a fresh review.
+     */
+    public function resubmit(Request $request)
+    {
+        $driver = Driver::where('user_id', $request->user()->id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        if ($driver->approval_status !== 'changes_required') {
+            return response()->json([
+                'message' => 'Your application is not currently awaiting changes',
+            ], 409);
+        }
+
+        $driver->update(['approval_status' => 'pending']);
+
+        return response()->json([
+            'message' => 'Application resubmitted for review',
+            'driver' => $driver->fresh(),
         ], 200);
     }
 
@@ -352,6 +424,37 @@ public function restore( $id)
 
         $path = $request->file('file')->store('driver_documents', 'public');
 
+        // While the admin has explicitly asked for changes, applying
+        // directly is safe and correct — resubmit() is what puts the
+        // application back in front of an admin, so there's nothing to
+        // gate here that a second review step would add.
+        if ($driver->approval_status === 'changes_required') {
+            $driver->documents()->where('type', $validated['type'])->update(['is_current' => false]);
+
+            $document = $driver->documents()->create([
+                'type' => $validated['type'],
+                'file_path' => $path,
+                'expiry_date' => $validated['expiry_date'] ?? null,
+                'is_current' => true,
+                'uploaded_by_user_id' => $driver_user_id,
+            ]);
+
+            $legacyColumn = match ($validated['type']) {
+                'license' => 'license_expiry',
+                'passport' => 'passport_expiry',
+                'residency' => 'residency_expiry',
+                default => null,
+            };
+            if ($legacyColumn) {
+                $driver->update([$legacyColumn => $validated['expiry_date'] ?? null]);
+            }
+
+            return response()->json([
+                'message' => 'Document updated',
+                'document' => $document,
+            ], 201);
+        }
+
         $editRequest = ProfileEditRequest::create([
             'user_id' => $driver_user_id,
             'category' => 'document',
@@ -422,6 +525,18 @@ public function restore( $id)
             'destinations' => ['required', 'array', 'min:1'],
             'destinations.*' => ['string', 'in:' . implode(',', array_keys(DriverDestination::DESTINATIONS))],
         ]);
+
+        if ($driver->approval_status === 'changes_required') {
+            $driver->destinations()->delete();
+            foreach (array_unique($validated['destinations']) as $destination) {
+                $driver->destinations()->create(['destination' => $destination]);
+            }
+
+            return response()->json([
+                'message' => 'Destinations updated',
+                'destinations' => $driver->destinations()->pluck('destination'),
+            ], 200);
+        }
 
         $editRequest = ProfileEditRequest::create([
             'user_id' => $driver_user_id,

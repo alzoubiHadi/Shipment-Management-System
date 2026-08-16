@@ -11,6 +11,7 @@ import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
 import 'HomeScreen.dart';
 import 'RegisterScreen.dart';
+import 'RoleConfirmScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -90,41 +91,46 @@ class _LoginScreenState extends State<LoginScreen> {
       prefs.setBool('loggedIn', true);
 
       if (mounted) {
-        // A driver/company whose account isn't approved yet (pending or
-        // rejected) must not reach the normal app — send them to the
-        // status screen instead, on every login, until an admin approves
-        // them.
+        // A driver/company whose account isn't approved yet (pending,
+        // changes_required, or rejected) must not reach the normal app —
+        // send them to the status screen instead, on every login, until
+        // an admin approves them.
         final isUnapprovedDriver = response.role == 'driver' &&
             response.driverApprovalStatus != 'approved';
         final isUnapprovedCompany = response.role == 'company' &&
             response.companyApprovalStatus != 'approved';
 
-        // Navigate to home, clearing the Splash/Login/Register screens from
-        // the stack entirely so the browser back button can't land back on
+        // Login NEVER shows the OTP code screen — that only ever appears
+        // once, immediately after a brand-new sign-up
+        // (DriverRegisterScreen/CompanyRegisterScreen). Email verification
+        // status plays no role here at all; the only thing login checks is
+        // whether there are outstanding items (admin approval, documents)
+        // — shown via DriverApprovalStatusPage, never a code entry field.
+        final destination = isUnapprovedDriver
+            ? DriverApprovalStatusPage(
+                approvalStatus: response.driverApprovalStatus,
+                rejectionReason: response.driverRejectionReason,
+                documentIssues: response.driverDocumentIssues,
+              )
+            : isUnapprovedCompany
+                ? DriverApprovalStatusPage(
+                    accountType: 'company',
+                    approvalStatus: response.companyApprovalStatus,
+                    rejectionReason: response.companyRejectionReason,
+                  )
+                : HomeScreen(user: AppUser(name: response.name, email: email, role: response.role, id: response.userId));
+
+        // Navigate to the role-confirmation screen first (design step 4 —
+        // "Login successful, select your role to continue"; this account
+        // model has exactly one fixed role per account, so it's a
+        // confirmation display, not a real picker — see
+        // RoleConfirmScreen). Clears the Splash/Login/Register screens
+        // from the stack entirely so the back button can't land back on
         // them (which looked like being logged out).
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            // Login NEVER shows the OTP code screen — that only ever
-            // appears once, immediately after a brand-new sign-up
-            // (DriverRegisterScreen/CompanyRegisterScreen). Email
-            // verification status plays no role here at all; the only
-            // thing login checks is whether there are outstanding items
-            // (admin approval, documents) — shown via
-            // DriverApprovalStatusPage, never a code entry field.
-            builder: (_) => isUnapprovedDriver
-                ? DriverApprovalStatusPage(
-                    approvalStatus: response.driverApprovalStatus,
-                    rejectionReason: response.driverRejectionReason,
-                    documentIssues: response.driverDocumentIssues,
-                  )
-                : isUnapprovedCompany
-                    ? DriverApprovalStatusPage(
-                        accountType: 'company',
-                        approvalStatus: response.companyApprovalStatus,
-                        rejectionReason: response.companyRejectionReason,
-                      )
-                    : HomeScreen(user: AppUser(name: response.name, email: email, role: response.role, id: response.userId),),
+            builder: (_) => RoleConfirmScreen(role: response.role, next: destination),
           ),
           (route) => false,
         );
@@ -309,6 +315,51 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
 
+              // Social sign-in — UI only for now. Google/Apple aren't
+              // wired to the backend yet (needs a Google OAuth client +,
+              // for Apple, a paid Apple Developer Program enrollment this
+              // Android-only project doesn't have set up yet), so these
+              // just say so rather than silently doing nothing.
+              Row(
+                children: [
+                  Expanded(child: Divider(color: const Color(0xFF2A2520))),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or continue with',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF6B6660)),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: const Color(0xFF2A2520))),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SocialButton(
+                      label: 'Google',
+                      icon: Icons.g_mobiledata_rounded,
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Google sign-in is coming soon')),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SocialButton(
+                      label: 'Apple',
+                      icon: Icons.apple_rounded,
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Apple sign-in is coming soon')),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
               // Sign up link
               Center(
                 child: Material(
@@ -382,6 +433,40 @@ class _LoginScreenState extends State<LoginScreen> {
           borderSide: const BorderSide(color: Color(0xFFD4AF37)),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      ),
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SocialButton({required this.label, required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF2A2520)),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: const Color(0xFFF5F0E8), size: 20),
+              const SizedBox(width: 8),
+              Text(label, style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 14)),
+            ],
+          ),
+        ),
       ),
     );
   }

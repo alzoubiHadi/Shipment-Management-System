@@ -139,286 +139,157 @@ class _SplashPageState extends State<SplashPage>
             ),
           ),
 
-          // Content
+          // Content — matches the agreed "Welcome Screen" design
+          // (2026-08-19): centered hexagon truck mark + wordmark, "Welcome
+          // Back!" headline, Log In (filled) + Create New Account
+          // (outline) stacked buttons, version tag pinned to the bottom.
           SafeArea(
-            child: Column(
-              children: [
-                // Top bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24.0, vertical: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Wrapped in Flexible so this side shrinks (instead of
-                      // pushing the Login button off-screen) on narrower
-                      // portrait phone screens — previously this had no
-                      // Flexible/Expanded, so on some real devices in
-                      // portrait the Row overflowed and the Login button
-                      // was rendered off the visible edge (only reappearing
-                      // in landscape, where there's enough extra width).
-                      Flexible(
-                        child: FadeTransition(
-                          opacity: _fadeIn,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Text(
-                                  'FMS',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              const Flexible(
-                                child: Text(
-                                  'Freight Management\nSystem',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                    height: 1.2,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      FadeTransition(
-                        opacity: _fadeIn,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const LoginScreen()),
-                            );
-                          },
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Bottom content
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 48),
-                  child: SlideTransition(
-                    position: _slideUp,
-                    child: FadeTransition(
-                      opacity: _fadeIn,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  const Spacer(flex: 3),
+                  FadeTransition(
+                    opacity: _fadeIn,
+                    child: SlideTransition(
+                      position: _slideUp,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Tagline
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                            width: 96,
+                            height: 96,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color: Colors.white24, width: 1),
+                              color: const Color(0xFFD4AF37),
+                              borderRadius: BorderRadius.circular(24),
                             ),
-                            child: const Text(
-                              '✦  Global Cargo Solutions',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                letterSpacing: 1.5,
-                              ),
+                            child: const Icon(
+                              Icons.local_shipping_rounded,
+                              color: Color(0xFF0A0A0C),
+                              size: 48,
                             ),
                           ),
-
-                          const SizedBox(height: 20),
-
-                          // Main heading
+                          const SizedBox(height: 24),
                           const Text(
-                            'Import\nCargo\nMade Easy',
+                            'SHIPMENT',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 52,
-                              fontWeight: FontWeight.w900,
-                              height: 1.05,
-                              letterSpacing: -1,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 3,
                             ),
                           ),
-
-                          const SizedBox(height: 18),
-
-                          // Subtitle
-                          Text(
-                            'Fast, reliable truck delivery for your imports.\nTrack shipments and manage logistics with ease.',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 15,
-                              height: 1.6,
-                              letterSpacing: 0.2,
+                          RichText(
+                            textAlign: TextAlign.center,
+                            text: const TextSpan(
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2,
+                              ),
+                              children: [
+                                TextSpan(text: 'MANAGEMENT ', style: TextStyle(color: Colors.white70)),
+                                TextSpan(text: 'SYSTEM', style: TextStyle(color: Color(0xFFD4AF37))),
+                              ],
                             ),
-                          ),
-
-                          const SizedBox(height: 36),
-
-                          // Buttons
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(14),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (context) => const LoginScreen()),
-                                      );
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const Text(
-                                        'Login',
-                                        style: TextStyle(
-                                          color: Colors.black,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) => const RegisterScreen()),
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16, horizontal: 20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                          color: Colors.white30, width: 1),
-                                    ),
-                                    child: const Icon(
-                                      Icons.local_shipping_rounded,
-                                      color: Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 32),
-
-                          // Stats
-                          Row(
-                            children: [
-                              _StatItem(count: '500+', label: 'Shipments'),
-                              _Divider(),
-                              _StatItem(count: '120+', label: 'Trucks'),
-                              _Divider(),
-                              _StatItem(count: '24/7', label: 'Support'),
-                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
-              ],
+                  const Spacer(flex: 2),
+                  FadeTransition(
+                    opacity: _fadeIn,
+                    child: SlideTransition(
+                      position: _slideUp,
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Welcome Back!',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Sign in to your account to continue managing your shipments.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.65),
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                );
+                              },
+                              icon: const Icon(Icons.login_rounded, size: 18, color: Color(0xFF0A0A0C)),
+                              label: const Text(
+                                'Log In',
+                                style: TextStyle(
+                                  color: Color(0xFF0A0A0C),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD4AF37),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                                );
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.white30),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                              child: const Text(
+                                'Create New Account',
+                                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  FadeTransition(
+                    opacity: _fadeIn,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        'v1.0.0',
+                        style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 11),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final String count;
-  final String label;
-
-  const _StatItem({required this.count, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            count,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.55),
-              fontSize: 11,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 32,
-      color: Colors.white24,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
     );
   }
 }

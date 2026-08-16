@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Driver;
 use App\Models\Truck;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class TruckController extends Controller
@@ -198,5 +199,74 @@ class TruckController extends Controller
             'message' => 'Truck added successfully',
             'truck' => $truck,
         ], 201);
+    }
+
+    /**
+     * Driver's own fix-up submission (2026-08-19) for their existing truck,
+     * only reachable while their approval_status === 'changes_required' —
+     * same gating rationale as DriverController::updateDriverInfo().
+     * Every field is optional so the driver can send just what changed.
+     */
+    public function updateMyTruck(Request $request, $driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        if ($driver->approval_status !== 'changes_required') {
+            return response()->json([
+                'message' => 'You can only edit your truck while an admin has requested changes',
+            ], 409);
+        }
+
+        $truck = Truck::where('default_driver_id', $driver->id)->first();
+        if (! $truck) {
+            return response()->json(['message' => 'You do not have a registered truck yet'], 404);
+        }
+
+        try {
+            $validated = $request->validate([
+                'truck_number' => ['sometimes', 'string', 'unique:trucks,truck_number,' . $truck->id],
+                'truck_type' => ['sometimes', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
+                'max_load' => ['sometimes', 'nullable', 'numeric'],
+                'permit_type' => ['sometimes', 'nullable', 'string'],
+                'permit_expiry' => ['sometimes', 'nullable', 'date'],
+                'insurance_expiry' => ['sometimes', 'nullable', 'date'],
+                'license_expiry' => ['sometimes', 'nullable', 'date'],
+                'technical_inspection_expiry' => ['sometimes', 'nullable', 'date'],
+                'license_file' => ['sometimes', 'file', 'max:10240'],
+                'insurance_file' => ['sometimes', 'file', 'max:10240'],
+                'technical_inspection_file' => ['sometimes', 'file', 'max:10240'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        foreach ([
+            'license_file' => ['license_file_path', 'truck_licenses'],
+            'insurance_file' => ['insurance_file_path', 'truck_insurance'],
+            'technical_inspection_file' => ['technical_inspection_file_path', 'truck_inspections'],
+        ] as $inputKey => [$column, $folder]) {
+            if ($request->hasFile($inputKey)) {
+                $oldPath = $truck->{$column};
+                $validated[$column] = $request->file($inputKey)->store($folder, 'public');
+                if ($oldPath) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            }
+            unset($validated[$inputKey]);
+        }
+
+        $truck->update($validated);
+
+        return response()->json([
+            'message' => 'Truck updated',
+            'truck' => $truck->fresh(),
+        ], 200);
     }
 }

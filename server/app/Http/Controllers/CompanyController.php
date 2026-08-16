@@ -221,13 +221,72 @@ class CompanyController extends Controller
         ]);
 
         $company->update([
-            'approval_status' => 'pending',
+            'approval_status' => 'changes_required',
             'rejection_reason' => $validated['message'],
         ]);
 
         return response()->json([
-            'message' => 'Application returned to the company for completion',
+            'message' => 'Application returned to the company for changes',
             'company' => $company,
+        ], 200);
+    }
+
+    /**
+     * Company's own fix-up submission (2026-08-19), only reachable while
+     * approval_status === 'changes_required' — mirrors
+     * DriverController::updateDriverInfo().
+     */
+    public function updateCompanyInfo(Request $request)
+    {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company) {
+            return response()->json(['message' => 'Company not found'], 404);
+        }
+
+        if ($company->approval_status !== 'changes_required') {
+            return response()->json([
+                'message' => 'You can only edit your registration while an admin has requested changes',
+            ], 409);
+        }
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+        ]);
+
+        $company->update($validated);
+
+        return response()->json([
+            'message' => 'Company information updated',
+            'company' => $company->fresh(),
+        ], 200);
+    }
+
+    /**
+     * Flips 'changes_required' back to 'pending' — mirrors
+     * DriverController::resubmit().
+     */
+    public function resubmit(Request $request)
+    {
+        $company = Company::where('user_id', $request->user()->id)->first();
+
+        if (! $company) {
+            return response()->json(['message' => 'Company not found'], 404);
+        }
+
+        if ($company->approval_status !== 'changes_required') {
+            return response()->json([
+                'message' => 'Your application is not currently awaiting changes',
+            ], 409);
+        }
+
+        $company->update(['approval_status' => 'pending']);
+
+        return response()->json([
+            'message' => 'Application resubmitted for review',
+            'company' => $company->fresh(),
         ], 200);
     }
 

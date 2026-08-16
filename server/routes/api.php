@@ -110,6 +110,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/companies/{company}/approve', [CompanyController::class, 'approve']);
     Route::put('/companies/{company}/reject', [CompanyController::class, 'reject']);
     Route::put('/companies/{company}/return-for-completion', [CompanyController::class, 'returnForCompletion']);
+    // Self-service edit + resubmit while approval_status === 'changes_required'
+    Route::put('/me/company-registration', [CompanyController::class, 'updateCompanyInfo']);
+    Route::post('/me/company-registration/resubmit', [CompanyController::class, 'resubmit']);
     Route::put('/companies/{company}/suspend', [CompanyController::class, 'suspend']);
     Route::put('/companies/{company}/activate', [CompanyController::class, 'activate']);
     Route::put('/companies/{company}/credit-limit', [CompanyController::class, 'setCreditLimit'])->middleware('permission:finance');
@@ -124,6 +127,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/drivers/{driver}/approve', [DriverController::class, 'approve']);
     Route::put('/drivers/{driver}/reject', [DriverController::class, 'reject']);
     Route::put('/drivers/{driver}/return-for-completion', [DriverController::class, 'returnForCompletion']);
+    // Self-service edit + resubmit while approval_status === 'changes_required'
+    Route::put('/me/driver-registration', [DriverController::class, 'updateDriverInfo']);
+    Route::post('/me/driver-registration/resubmit', [DriverController::class, 'resubmit']);
     Route::put('/drivers/{driver}/suspend', [DriverController::class, 'suspend']);
     Route::put('/drivers/{driver}/reactivate', [DriverController::class, 'reactivate']);
     // UC-24: Super Admin rates a driver directly (no shipment attached).
@@ -153,6 +159,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/restore/trucks/{id}', [TruckController::class, 'restore']);
     Route::get('/driver/{driver_user_id}/trucks', [TruckController::class, 'myTrucks']);
     Route::post('/driver/{driver_user_id}/trucks', [TruckController::class, 'addMyTruck']);
+    Route::put('/driver/{driver_user_id}/my-truck', [TruckController::class, 'updateMyTruck']);
 
     // Shipment Offers — companies create these directly (UC-11)
     Route::get('/shipment-offers', [ShipmentOfferController::class, 'index']);

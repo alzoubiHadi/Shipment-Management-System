@@ -600,12 +600,14 @@ class _ApprovalBadge extends StatelessWidget {
   Color get _color => switch (status) {
         'approved' => AppColors.success,
         'rejected' => AppColors.error,
+        'changes_required' => AppColors.gold,
         _ => AppColors.info,
       };
 
   String get _label => switch (status) {
         'approved' => 'Approved',
         'rejected' => 'Rejected',
+        'changes_required' => 'Changes requested',
         _ => 'Pending review',
       };
 
