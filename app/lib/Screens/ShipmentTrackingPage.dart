@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
@@ -9,13 +12,21 @@ import '../models/Shipment.dart';
 import 'ShipmentTrackingMapPage.dart';
 import 'SignatureCapturePage.dart';
 
-/// Shows the 7-stage tracking timeline for a shipment:
-/// 1 heading to pickup, 2 loaded, 3 en route to border, 4 border cleared,
-/// 5 arrived at destination, 6 unloaded, 7 delivered (signed).
+/// Shows the tracking timeline for a shipment — the stage list depends on
+/// [Shipment.orderType] (agreed 2026-08-16): internal (domestic) shipments
+/// get 6 stages (going to load, loading, to destination, offloading,
+/// uploading delivery note, completed); external (cross-border) shipments
+/// get 8 (the same, plus "to border"/"crossing the border" in between).
+/// The live GPS map is embedded directly at the top of this same screen
+/// (no separate tap needed) so it's visible the instant a shipment is
+/// opened, with an expand button for a fullscreen view.
 ///
 /// When [readOnly] is false (driver assigned to the shipment), a button lets
-/// the driver push the shipment to the next stage, ending with a
-/// proof-of-delivery signature capture. Admin/company view it as [readOnly].
+/// the driver push the shipment forward one stage at a time up through
+/// "uploading delivery note" (a signature capture). The final "Completed"
+/// stage is never driver-controlled — it only happens when the company
+/// confirms receipt (ShipmentController::confirmDelivery). Admin/company
+/// view the whole thing as [readOnly].
 class ShipmentTrackingPage extends StatefulWidget {
   final Shipment shipment;
   final bool readOnly;
@@ -32,21 +43,21 @@ class ShipmentTrackingPage extends StatefulWidget {
 
 class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
   final _service = ShipmentService();
+  final _mapController = MapController();
   late Shipment _shipment;
   bool _isUpdating = false;
   Timer? _pollTimer;
+  bool _firstFix = true;
 
   @override
   void initState() {
     super.initState();
     _shipment = widget.shipment;
 
-    // Read-only viewers (admin/company) don't cause the stage changes
-    // themselves, so poll every few seconds to reflect the driver's
-    // progress live without needing to reopen this page.
-    if (widget.readOnly) {
-      _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _poll());
-    }
+    // Poll for every viewer, not just read-only ones: this is also what
+    // now keeps the embedded live map (driver's last GPS fix) up to date
+    // even on the driver's own screen, not just admin/company's.
+    _pollTimer = Timer.periodic(const Duration(seconds: 6), (_) => _poll());
   }
 
   @override
@@ -56,7 +67,8 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
   }
 
   Future<void> _poll() async {
-    if (_shipment.currentStage >= 7 || _shipment.trackingNumber.isEmpty) {
+    if (_shipment.currentStage >= _shipment.totalStages ||
+        _shipment.trackingNumber.isEmpty) {
       _pollTimer?.cancel();
       return;
     }
@@ -64,8 +76,50 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
         await _service.fetchOneByTrackingNumber(_shipment.trackingNumber);
     if (!mounted || updated == null) return;
     setState(() => _shipment = updated);
-    if (updated.currentStage >= 7) _pollTimer?.cancel();
+    if (updated.currentStage >= updated.totalStages) _pollTimer?.cancel();
+
+    if (updated.driverLastLat != null && updated.driverLastLng != null) {
+      final point = ll.LatLng(updated.driverLastLat!, updated.driverLastLng!);
+      if (_firstFix) {
+        _mapController.move(point, 12);
+        _firstFix = false;
+      } else {
+        _mapController.move(point, _mapController.camera.zoom);
+      }
+    }
   }
+
+  String _timeAgo(DateTime? dt) {
+    if (dt == null) return 'never';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  /// Per-[Shipment.orderType] stage => raw timestamp string, in display
+  /// order — mirrors Shipment::ADVANCE_COLUMNS + delivered_at +
+  /// company_confirmed_at on the backend exactly.
+  List<String?> get _stageTimestamps => _shipment.orderType == 'external'
+      ? [
+          _shipment.headingToPickupAt,
+          _shipment.loadedAt,
+          _shipment.departedToBorderAt,
+          _shipment.borderClearedAt,
+          _shipment.arrivedAtDestinationAt,
+          _shipment.unloadedAt,
+          _shipment.delivered_at,
+          _shipment.companyConfirmedAt,
+        ]
+      : [
+          _shipment.headingToPickupAt,
+          _shipment.loadedAt,
+          _shipment.arrivedAtDestinationAt,
+          _shipment.unloadedAt,
+          _shipment.delivered_at,
+          _shipment.companyConfirmedAt,
+        ];
 
   Future<void> _advance() async {
     setState(() => _isUpdating = true);
@@ -193,24 +247,9 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
   }
 
   String? _timestampFor(int stage) {
-    switch (stage) {
-      case 1:
-        return _shipment.headingToPickupAt;
-      case 2:
-        return _shipment.loadedAt;
-      case 3:
-        return _shipment.departedToBorderAt;
-      case 4:
-        return _shipment.borderClearedAt;
-      case 5:
-        return _shipment.arrivedAtDestinationAt;
-      case 6:
-        return _shipment.unloadedAt;
-      case 7:
-        return _shipment.delivered_at;
-      default:
-        return null;
-    }
+    final timestamps = _stageTimestamps;
+    if (stage < 1 || stage > timestamps.length) return null;
+    return timestamps[stage - 1];
   }
 
   @override
@@ -230,23 +269,15 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
           style: const TextStyle(color: AppColors.cream),
         ),
         actions: [
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => ShipmentTrackingMapPage(shipment: _shipment)),
-            ),
-            icon: const Icon(Icons.map_outlined, color: AppColors.cream),
-            tooltip: 'Live GPS map',
-          ),
           if (!widget.readOnly)
             IconButton(
               onPressed: _addComment,
               icon: const Icon(Icons.comment_outlined, color: AppColors.cream),
               tooltip: 'Add comment',
             ),
-          if (widget.readOnly && current < 7)
+          if (widget.readOnly && current < _shipment.totalStages)
             const Padding(
-              padding: EdgeInsets.only(left: 16),
+              padding: EdgeInsets.only(left: 16, right: 16),
               child: Center(
                 child: _LiveBadge(),
               ),
@@ -279,19 +310,27 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+
+          // Embedded live GPS map — visible immediately, no extra tap
+          // needed, per the agreed redesign. An expand button opens the
+          // same map fullscreen (ShipmentTrackingMapPage) for a closer
+          // look.
+          _buildEmbeddedMap(),
+
           const SizedBox(height: 24),
 
-          for (int stage = 1; stage <= 7; stage++)
+          for (int stage = 1; stage <= _shipment.totalStages; stage++)
             _StageRow(
               stage: stage,
-              label: Shipment.stageLabels[stage]!,
+              label: _shipment.stageLabels[stage]!,
               isDone: stage <= current,
-              isActive: stage == current + 1 && current < 7,
+              isActive: stage == current + 1 && current < _shipment.totalStages,
               timestamp: _timestampFor(stage),
-              isLast: stage == 7,
+              isLast: stage == _shipment.totalStages,
             ),
 
-          if (current == 7) ...[
+          if (current >= _shipment.driverAdvanceMax + 1) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(16),
@@ -359,43 +398,158 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
           ],
         ],
       ),
-      bottomNavigationBar: (widget.readOnly || current == 7)
-          ? null
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isUpdating
-                      ? null
-                      : (current == 6 ? _captureDelivery : _advance),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.gold,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+      // Hidden once the driver has nothing left to do: either they're
+      // read-only (admin/company), or they've already uploaded the
+      // delivery note (current stage is driverAdvanceMax+1) and it's now
+      // waiting on the company's own "Completed" confirmation.
+      bottomNavigationBar:
+          (widget.readOnly || current >= _shipment.driverAdvanceMax + 1)
+              ? null
+              : Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isUpdating
+                          ? null
+                          : (current == _shipment.driverAdvanceMax
+                              ? _captureDelivery
+                              : _advance),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.gold,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: _isUpdating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.bg,
+                              ),
+                            )
+                          : Text(
+                              current == _shipment.driverAdvanceMax
+                                  ? 'Capture proof of delivery'
+                                  : 'Mark as: ${_shipment.stageLabels[current + 1]}',
+                              style: const TextStyle(
+                                color: AppColors.bg,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
-                  child: _isUpdating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.bg,
-                          ),
-                        )
-                      : Text(
-                          current == 6
-                              ? 'Capture proof of delivery'
-                              : 'Mark as: ${Shipment.stageLabels[current + 1]}',
-                          style: const TextStyle(
-                            color: AppColors.bg,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                ),
+    );
+  }
+
+  /// Compact live-map card embedded directly in the tracking screen (per
+  /// the agreed redesign — no separate tap needed to see it). Falls back
+  /// to a placeholder message when the driver hasn't reported a GPS fix
+  /// yet. The expand button opens the same data fullscreen.
+  Widget _buildEmbeddedMap() {
+    final hasFix =
+        _shipment.driverLastLat != null && _shipment.driverLastLng != null;
+    final point = hasFix
+        ? ll.LatLng(_shipment.driverLastLat!, _shipment.driverLastLng!)
+        : const ll.LatLng(25.276987, 55.296249); // Dubai — neutral fallback
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 200,
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border, width: 0.5),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Stack(
+          children: [
+            if (hasFix)
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(initialCenter: point, initialZoom: 12),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.fms.app',
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: point,
+                        width: 40,
+                        height: 40,
+                        child: const Icon(Icons.local_shipping_rounded,
+                            color: AppColors.gold, size: 32),
+                      ),
+                    ],
+                  ),
+                  // Mandatory per OpenStreetMap's tile usage policy.
+                  RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution(
+                        'OpenStreetMap',
+                        onTap: () => launchUrl(
+                            Uri.parse('https://www.openstreetmap.org/copyright')),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            else
+              Container(
+                color: AppColors.surface,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.all(16),
+                child: const Text(
+                  'No GPS fix yet — updates automatically once the driver reports one',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: AppColors.surface.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            ShipmentTrackingMapPage(shipment: _shipment)),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.open_in_full,
+                        color: AppColors.cream, size: 16),
+                  ),
                 ),
               ),
             ),
+            if (hasFix)
+              Positioned(
+                bottom: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'Updated ${_timeAgo(_shipment.driverLastLocationAt)}',
+                    style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

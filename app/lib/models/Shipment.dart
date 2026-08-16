@@ -18,7 +18,14 @@ class Shipment {
   final String delivered_at;
   final String created_at;
 
-  // 7-stage tracking timeline
+  // 'internal' (domestic, 6 stages) or 'external' (cross-border, 8
+  // stages) — determines which of the two tracking timelines below
+  // applies (see stageLabels / driverAdvanceMax / totalStages). Mirrors
+  // Shipment::order_type on the backend, defaulted the same way.
+  final String orderType;
+
+  // Tracking timeline (stage numbering/meaning depends on orderType —
+  // see stageLabels getter below; internal has 6 stages, external has 8).
   final int currentStage;
   final String headingToPickupAt;
   final String loadedAt;
@@ -28,6 +35,9 @@ class Shipment {
   final String unloadedAt;
   final String podSignature;
   final String podRecipientName;
+  // Set only once the company confirms receipt (the final "Completed"
+  // stage) — mirrors company_confirmed_at on the backend.
+  final String companyConfirmedAt;
 
   // UC-20: not_delivered -> awaiting_confirmation -> confirmed | disputed.
   // Separate from [status] (the coarse overall lifecycle status) — this is
@@ -57,6 +67,7 @@ class Shipment {
     required this.pickup_time,
     required this.delivered_at,
     required this.created_at,
+    this.orderType = 'internal',
     this.currentStage = 0,
     this.headingToPickupAt = '',
     this.loadedAt = '',
@@ -66,6 +77,7 @@ class Shipment {
     this.unloadedAt = '',
     this.podSignature = '',
     this.podRecipientName = '',
+    this.companyConfirmedAt = '',
     this.deliveryStatus = 'not_delivered',
     this.disputeReason = '',
     this.driverName,
@@ -78,15 +90,46 @@ class Shipment {
   bool get isDeliveryConfirmed => deliveryStatus == 'confirmed';
   bool get isDeliveryDisputed => deliveryStatus == 'disputed';
 
-  static const stageLabels = <int, String>{
-    1: 'Heading to pickup',
-    2: 'Loaded',
-    3: 'En route to border',
-    4: 'Border cleared',
-    5: 'Arrived at destination',
-    6: 'Unloaded',
-    7: 'Delivered (signed)',
+  // Two tracking timelines, keyed by orderType — mirrors
+  // Shipment::STAGE_LABELS on the backend exactly (agreed 2026-08-16).
+  // Internal (domestic) shipments skip the two border stages; external
+  // (cross-border) keep them. The last two stages in both lists are
+  // never advanced by the driver directly: "Uploading delivery note" is
+  // the proof-of-delivery signature capture, "Completed" only happens
+  // when the company confirms receipt.
+  static const Map<String, Map<int, String>> _stageLabelsByType = {
+    'internal': {
+      1: 'Going to load',
+      2: 'Loading',
+      3: 'To destination',
+      4: 'Offloading',
+      5: 'Uploading delivery note',
+      6: 'Completed',
+    },
+    'external': {
+      1: 'Going to load',
+      2: 'Loading',
+      3: 'To border',
+      4: 'Crossing the border',
+      5: 'To destination',
+      6: 'Offloading',
+      7: 'Uploading delivery note',
+      8: 'Completed',
+    },
   };
+
+  /// This shipment's stage labels, in order, for its own [orderType].
+  Map<int, String> get stageLabels =>
+      _stageLabelsByType[orderType] ?? _stageLabelsByType['internal']!;
+
+  /// Total stage count for this shipment (6 for internal, 8 for external).
+  int get totalStages => stageLabels.length;
+
+  /// Last stage number the driver advances through one tap at a time —
+  /// the stage right after this is the delivery-note upload, handled by
+  /// a dedicated action (signature capture), not the plain "next stage"
+  /// button. Mirrors Shipment::driverAdvanceMaxFor() on the backend.
+  int get driverAdvanceMax => totalStages - 2;
 
   factory Shipment.fromJson(Map<String, dynamic> json) {
     final driver = json['driver'] is Map ? Map<String, dynamic>.from(json['driver']) : null;
@@ -105,6 +148,7 @@ class Shipment {
       delivered_at: json['delivered_at']?.toString() ?? '',
       created_at: json['created_at']?.toString() ?? '',
       status: json['status'] ?? 0,
+      orderType: json['order_type']?.toString() ?? 'internal',
       currentStage: json['current_stage'] is int
           ? json['current_stage']
           : int.tryParse(json['current_stage']?.toString() ?? '') ?? 0,
@@ -119,6 +163,7 @@ class Shipment {
       podRecipientName: json['pod_recipient_name']?.toString() ?? '',
       deliveryStatus: json['delivery_status']?.toString() ?? 'not_delivered',
       disputeReason: json['dispute_reason']?.toString() ?? '',
+      companyConfirmedAt: json['company_confirmed_at']?.toString() ?? '',
       driverName: driver?['name']?.toString(),
       driverLastLat: driver?['last_lat'] != null ? double.tryParse(driver!['last_lat'].toString()) : null,
       driverLastLng: driver?['last_lng'] != null ? double.tryParse(driver!['last_lng'].toString()) : null,

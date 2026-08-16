@@ -2,6 +2,7 @@ import 'package:app/Screens/AddShipmentForm.dart';
 import 'package:app/Screens/Driverspage.dart';
 import 'package:flutter/material.dart';
 
+import '../API/DriverLocationReporter.dart';
 import '../API/PushNotificationSetup.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
@@ -44,6 +45,22 @@ class _HomeScreenState extends State<HomeScreen> {
     // permission) once per authenticated session — HomeScreen is the one
     // screen every login/auto-login path always passes through.
     PushNotificationSetup.initialize();
+
+    // Drivers request location access and share it periodically while the
+    // app is open, so companies/admins can see them on the live tracking
+    // map (ShipmentTrackingPage). Foreground-only — stopped in dispose()
+    // below, never runs for company/admin accounts.
+    if (widget.user.role == 'driver') {
+      DriverLocationReporter.start();
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.user.role == 'driver') {
+      DriverLocationReporter.stop();
+    }
+    super.dispose();
   }
 
   // NAV ITEMS

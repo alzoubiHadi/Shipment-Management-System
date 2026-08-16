@@ -413,6 +413,40 @@ class DriverService {
     }
   }
 
+  /// UC-21/UC-14: reports the logged-in driver's current GPS fix to the
+  /// server (PUT /driver/{userId}/location). Called periodically by
+  /// DriverLocationReporter while the app is open and the account is a
+  /// driver — this is what feeds the company/admin-facing live tracking
+  /// map (ShipmentTrackingMapPage) and the matching proximity score.
+  static Future<Map<String, dynamic>> updateMyLocation({
+    required double lat,
+    required double lng,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final userId = prefs.getString('id');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/driver/$userId/location'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'lat': lat, 'lng': lng}),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ── Documents (UC-8) ──────────────────────────────────────────────────
 
   /// The driver's own document history (newest first, all versions —

@@ -58,28 +58,83 @@ class Shipment extends Model
     ];
 
     /**
-     * The 7-stage tracking timeline, in order. Stage 7 (delivered) is
-     * handled separately by the deliver() endpoint because it requires a
-     * proof-of-delivery signature rather than a plain timestamp.
+     * Two tracking timelines, keyed by order_type — agreed 2026-08-16.
+     * Internal (domestic) shipments never touch a border so they skip
+     * those two stages; external (cross-border) shipments keep them. Both
+     * lists end the same way with two special stages that are NOT plain
+     * driver-tapped timestamps and are handled by dedicated endpoints
+     * that already existed before this stage list did:
+     *   - "Uploading delivery note" = the proof-of-delivery signature
+     *     capture (deliver() below, writes delivered_at).
+     *   - "Completed" = the company's own confirmation of receipt
+     *     (confirmDelivery() below, writes company_confirmed_at) — the
+     *     driver never marks this themselves.
      */
     const STAGE_LABELS = [
-        1 => 'Heading to pickup',
-        2 => 'Loaded',
-        3 => 'En route to border',
-        4 => 'Border cleared',
-        5 => 'Arrived at destination',
-        6 => 'Unloaded',
-        7 => 'Delivered (signed)',
+        'internal' => [
+            1 => 'Going to load',
+            2 => 'Loading',
+            3 => 'To destination',
+            4 => 'Offloading',
+            5 => 'Uploading delivery note',
+            6 => 'Completed',
+        ],
+        'external' => [
+            1 => 'Going to load',
+            2 => 'Loading',
+            3 => 'To border',
+            4 => 'Crossing the border',
+            5 => 'To destination',
+            6 => 'Offloading',
+            7 => 'Uploading delivery note',
+            8 => 'Completed',
+        ],
     ];
 
-    const STAGE_COLUMNS = [
-        1 => 'heading_to_pickup_at',
-        2 => 'loaded_at',
-        3 => 'departed_to_border_at',
-        4 => 'border_cleared_at',
-        5 => 'arrived_at_destination_at',
-        6 => 'unloaded_at',
+    /**
+     * Stage => timestamp column, for the plain "driver taps to advance"
+     * stages only — i.e. every stage EXCEPT the last two special ones
+     * above (upload note / completed), which is why this map is shorter
+     * than STAGE_LABELS for each order_type.
+     */
+    const ADVANCE_COLUMNS = [
+        'internal' => [
+            1 => 'heading_to_pickup_at',
+            2 => 'loaded_at',
+            3 => 'arrived_at_destination_at',
+            4 => 'unloaded_at',
+        ],
+        'external' => [
+            1 => 'heading_to_pickup_at',
+            2 => 'loaded_at',
+            3 => 'departed_to_border_at',
+            4 => 'border_cleared_at',
+            5 => 'arrived_at_destination_at',
+            6 => 'unloaded_at',
+        ],
     ];
+
+    public static function stageLabelsFor(string $orderType): array
+    {
+        return self::STAGE_LABELS[$orderType] ?? self::STAGE_LABELS['internal'];
+    }
+
+    public static function advanceColumnsFor(string $orderType): array
+    {
+        return self::ADVANCE_COLUMNS[$orderType] ?? self::ADVANCE_COLUMNS['internal'];
+    }
+
+    /** Last stage number the driver can reach via advanceStage() — the next stage after this is the delivery-note upload (deliver()). */
+    public static function driverAdvanceMaxFor(string $orderType): int
+    {
+        return count(self::advanceColumnsFor($orderType));
+    }
+
+    /** Total stage count for this order_type, including the upload + completed stages. */
+    public static function totalStagesFor(string $orderType): int
+    {
+        return count(self::stageLabelsFor($orderType));
+    }
 
     public function company()
     {

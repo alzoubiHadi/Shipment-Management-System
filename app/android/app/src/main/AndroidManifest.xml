@@ -7,6 +7,15 @@
          permission for Flutter's own tooling needs, which is why this never
          showed up in `flutter run` (debug), only in the release APK. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Driver GPS location sharing (UC-21/UC-14): foreground-only, no
+         background tracking service — the app reads and reports the
+         driver's position periodically while the app is open, so
+         companies/admins can see it on the live tracking map. COARSE is
+         requested alongside FINE because Android may grant only the
+         approximate-location permission depending on the user's choice in
+         the permission dialog. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="app"
         android:name="${applicationName}"

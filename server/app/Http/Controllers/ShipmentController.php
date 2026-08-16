@@ -187,10 +187,12 @@ class ShipmentController extends Controller
         ], 200);
     }
     /**
-     * Driver app: move the shipment forward one step in the 7-stage
-     * tracking timeline (1 heading to pickup ... 6 unloaded). Stage 7
-     * (delivered) is handled by deliver() below since it requires a
-     * proof-of-delivery signature.
+     * Driver app: move the shipment forward one step in its tracking
+     * timeline (internal: 1 going to load ... 4 offloading; external: 1
+     * going to load ... 6 offloading). The stage after this range
+     * ("Uploading delivery note") is handled by deliver() below since it
+     * requires a proof-of-delivery signature; the final "Completed" stage
+     * is handled by confirmDelivery() since only the company can mark it.
      */
     public function advanceStage(Request $request, Shipment $shipment)
     {
@@ -202,9 +204,11 @@ class ShipmentController extends Controller
             ], 403);
         }
 
+        $orderType = $shipment->order_type ?? 'internal';
+        $maxAdvance = Shipment::driverAdvanceMaxFor($orderType);
         $nextStage = $shipment->current_stage + 1;
 
-        if ($nextStage > 6) {
+        if ($nextStage > $maxAdvance) {
             return response()->json([
                 'message' => 'Use the delivery endpoint to complete the final stage',
             ], 422);
@@ -212,7 +216,7 @@ class ShipmentController extends Controller
 
         $shipment->update([
             'current_stage' => $nextStage,
-            Shipment::STAGE_COLUMNS[$nextStage] => now(),
+            Shipment::advanceColumnsFor($orderType)[$nextStage] => now(),
         ]);
 
         return response()->json([
@@ -242,7 +246,10 @@ class ShipmentController extends Controller
             ], 403);
         }
 
-        if ($shipment->current_stage < 6) {
+        $orderType = $shipment->order_type ?? 'internal';
+        $maxAdvance = Shipment::driverAdvanceMaxFor($orderType);
+
+        if ($shipment->current_stage < $maxAdvance) {
             return response()->json([
                 'message' => 'Complete unloading before capturing the delivery signature',
             ], 422);
@@ -254,7 +261,7 @@ class ShipmentController extends Controller
         ]);
 
         $shipment->update([
-            'current_stage' => 7,
+            'current_stage' => $maxAdvance + 1,
             'delivered_at' => now(),
             'pod_signature' => $validated['pod_signature'],
             'pod_recipient_name' => $validated['pod_recipient_name'],
@@ -302,7 +309,12 @@ class ShipmentController extends Controller
             $shipment = Shipment::lockForUpdate()->findOrFail($shipment->id);
 
             $shipment->confirmByCompany($request->user());
-            $shipment->update(['status' => 3]); // delivered
+            // "Completed" is the final tracking stage and only the
+            // company's own confirmation may reach it — never the driver.
+            $shipment->update([
+                'status' => 3, // delivered
+                'current_stage' => Shipment::totalStagesFor($shipment->order_type ?? 'internal'),
+            ]);
 
             $driver = Driver::lockForUpdate()->find($shipment->driver_id);
             if ($driver) {
