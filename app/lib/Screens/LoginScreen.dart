@@ -10,7 +10,6 @@ import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
 import 'HomeScreen.dart';
-import 'OtpVerificationScreen.dart';
 import 'RegisterScreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -124,16 +123,16 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on ApiException catch (e) {
-      if (e.requiresOtpVerification) {
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => OtpVerificationScreen(email: email)),
-          );
-        }
-        return;
+      // OTP only ever belongs to the sign-up flow (DriverRegisterScreen/
+      // CompanyRegisterScreen already push OtpVerificationScreen right
+      // after a successful registration) — Login must never send the user
+      // into an OTP screen, even if the server reports the account isn't
+      // verified yet. Just surface it as a plain error instead.
+      if (mounted) {
+        setState(() => _errorMessage = e.requiresOtpVerification
+            ? 'This account has not completed sign-up verification yet. Please finish registering.'
+            : e.message);
       }
-      if (mounted) setState(() => _errorMessage = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
