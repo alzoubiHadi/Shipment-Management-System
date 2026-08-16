@@ -34,13 +34,39 @@ class ProfileController extends Controller
 
         $extra = [];
         if ($user->type === 'driver' && $user->driver) {
+            $driver = $user->driver;
+            $truck = \App\Models\Truck::where('default_driver_id', $driver->id)->first();
+
             $extra = [
-                'phone' => $user->driver->phone,
+                'phone' => $driver->phone,
+                'approval_status' => $driver->approval_status,
+                // Full driver profile fields — needed by the self-service
+                // "Changes Required" edit screen (updateDriverInfo()) so it
+                // can pre-fill the form instead of starting blank.
+                'nationality' => $driver->nationality,
+                'age' => $driver->age,
+                'driver_license' => $driver->driver_license,
+                'license_expiry' => optional($driver->license_expiry)->format('Y-m-d'),
+                'passport_expiry' => optional($driver->passport_expiry)->format('Y-m-d'),
+                'residency_expiry' => optional($driver->residency_expiry)->format('Y-m-d'),
+                'blood_type' => $driver->blood_type,
+                'health_conditions' => $driver->health_conditions,
+                'truck' => $truck ? [
+                    'truck_number' => $truck->truck_number,
+                    'truck_type' => $truck->truck_type,
+                    'permit_type' => $truck->permit_type,
+                    'permit_expiry' => optional($truck->permit_expiry)->format('Y-m-d'),
+                    'license_expiry' => optional($truck->license_expiry)->format('Y-m-d'),
+                    'insurance_expiry' => optional($truck->insurance_expiry)->format('Y-m-d'),
+                    'technical_inspection_expiry' => optional($truck->technical_inspection_expiry)->format('Y-m-d'),
+                ] : null,
             ];
         } elseif ($user->type === 'company' && $user->company) {
             $extra = [
                 'phone' => $user->company->phone,
+                'address' => $user->company->address,
                 'license_file_path' => $user->company->license_file_path,
+                'approval_status' => $user->company->approval_status,
             ];
         }
 

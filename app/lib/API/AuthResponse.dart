@@ -227,7 +227,7 @@ class ApiService {
         ));
       }
 
-      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final streamed = await request.send().timeout(const Duration(seconds: 90));
       final response = await http.Response.fromStream(streamed);
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -351,7 +351,10 @@ class ApiService {
         request.files.add(http.MultipartFile.fromBytes('truck_inspection_file', truckInspectionFileBytes, filename: truckInspectionFileName));
       }
 
-      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      // Up to 8 files in one request (license, passport, residency, truck
+      // license, plus the 4 optional ones) — 60s was cutting this off on a
+      // slow connection with a "stuck" submit button and no visible error.
+      final streamed = await request.send().timeout(const Duration(seconds: 180));
       final response = await http.Response.fromStream(streamed);
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;

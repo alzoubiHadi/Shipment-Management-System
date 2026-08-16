@@ -177,6 +177,8 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _errorMessage = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _errorMessage = 'Something went wrong while submitting: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

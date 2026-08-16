@@ -95,7 +95,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   final _confirmCtrl = TextEditingController();
   final _phoneNumberCtrl = TextEditingController();
   final _driverLicenseCtrl = TextEditingController();
-  final _ageCtrl = TextEditingController();
+  DateTime? _dateOfBirth;
   final _healthOtherCtrl = TextEditingController();
   final _truckNumberCtrl = TextEditingController();
   final _permitTypeCtrl = TextEditingController();
@@ -158,7 +158,6 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     _confirmCtrl.dispose();
     _phoneNumberCtrl.dispose();
     _driverLicenseCtrl.dispose();
-    _ageCtrl.dispose();
     _healthOtherCtrl.dispose();
     _truckNumberCtrl.dispose();
     _permitTypeCtrl.dispose();
@@ -256,6 +255,33 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 15)),
     );
+  }
+
+  /// Bounds the picker itself to dates of birth that land between 18 and
+  /// 65 years old today, so it's impossible to pick an out-of-range date
+  /// in the first place rather than picking then getting a validation
+  /// error.
+  Future<DateTime?> _pickDateOfBirth() {
+    final now = DateTime.now();
+    final maxDob = DateTime(now.year - 18, now.month, now.day);
+    final minDob = DateTime(now.year - 65, now.month, now.day);
+    return showDatePicker(
+      context: context,
+      initialDate: _dateOfBirth ?? DateTime(now.year - 30, now.month, now.day),
+      firstDate: minDob,
+      lastDate: maxDob,
+    );
+  }
+
+  /// Whole years between [dob] and today — the standard "has the birthday
+  /// happened yet this year" calculation.
+  int _ageFrom(DateTime dob) {
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age;
   }
 
   String _fmtDate(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -378,8 +404,9 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
           return 'Please enter a valid phone number (digits only)';
         }
         if (_nationality == null) return 'Please select your nationality';
-        final age = int.tryParse(_ageCtrl.text.trim());
-        if (age == null || age < 18 || age > 65) return 'Age must be between 18 and 65';
+        if (_dateOfBirth == null) return 'Please select your date of birth';
+        final age = _ageFrom(_dateOfBirth!);
+        if (age < 18 || age > 65) return 'Age must be between 18 and 65';
         if (_driverLicenseCtrl.text.trim().isEmpty) return 'Please enter your driving license number';
         return null;
       case 2: // Documents
@@ -457,7 +484,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         passwordConfirmation: _confirmCtrl.text,
         phone: '+${_phoneCountry.dialCode}${_phoneNumberCtrl.text.trim()}',
         driverLicense: _driverLicenseCtrl.text.trim(),
-        age: _ageCtrl.text.trim(),
+        age: _ageFrom(_dateOfBirth!).toString(),
         nationality: _nationality!.name,
         licenseFileBytes: _licenseFile!.bytes!,
         licenseFileName: _licenseFile!.name,
@@ -497,6 +524,13 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _errorMessage = e.message);
+    } catch (e) {
+      // Anything that isn't an ApiException (a null-check on a field that
+      // slipped past validation, a malformed response, etc.) used to
+      // propagate uncaught here — the button's spinner would clear via
+      // `finally` but nothing else would happen, which looked exactly like
+      // the submission was silently stuck. Always surface *something*.
+      if (mounted) setState(() => _errorMessage = 'Something went wrong while submitting: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -702,7 +736,18 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 14),
-      buildLightTextField(controller: _ageCtrl, label: 'Age (18-65)', hint: '30', keyboardType: TextInputType.number),
+      LightPickerField(
+        label: 'Date of Birth',
+        hint: '15 / 05 / 1992',
+        value: _dateOfBirth == null
+            ? null
+            : '${_dateOfBirth!.day.toString().padLeft(2, '0')} / ${_dateOfBirth!.month.toString().padLeft(2, '0')} / ${_dateOfBirth!.year}  ·  Age ${_ageFrom(_dateOfBirth!)}',
+        icon: Icons.cake_outlined,
+        onTap: () async {
+          final picked = await _pickDateOfBirth();
+          if (picked != null) setState(() => _dateOfBirth = picked);
+        },
+      ),
       const SizedBox(height: 14),
       buildLightTextField(controller: _driverLicenseCtrl, label: 'Driver License Number', hint: 'D1234567'),
     ]);
@@ -910,7 +955,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       _ReviewCard(icon: Icons.person_outline, title: 'Account Information', lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
       const SizedBox(height: 10),
       _ReviewCard(icon: Icons.badge_outlined, title: 'Driver Information', lines: [
-        '${_nationality?.name ?? '—'} · Age ${_ageCtrl.text.trim()}',
+        '${_nationality?.name ?? '—'} · Age ${_dateOfBirth == null ? '—' : _ageFrom(_dateOfBirth!)}',
         'License #${_driverLicenseCtrl.text.trim()}',
       ]),
       const SizedBox(height: 10),

@@ -1,12 +1,9 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../API/ProfileService.dart';
 import '../API/config.dart';
 import '../main.dart';
-import 'DriverDestinationsPage.dart';
-import 'DriverDocumentsPage.dart';
+import 'ChangesRequiredEditScreen.dart';
 import 'register_shared.dart';
 
 /// Shown instead of the normal HomeScreen when a driver/company account is
@@ -47,13 +44,8 @@ class DriverApprovalStatusPage extends StatefulWidget {
 }
 
 class _DriverApprovalStatusPageState extends State<DriverApprovalStatusPage> {
-  final _service = ProfileService();
-  bool _resubmitting = false;
-  bool _submittingLicense = false;
-
   bool get _isRejected => widget.approvalStatus == 'rejected';
   bool get _isChangesRequired => widget.approvalStatus == 'changes_required';
-  bool get _isCompany => widget.accountType == 'company';
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
@@ -68,51 +60,24 @@ class _DriverApprovalStatusPageState extends State<DriverApprovalStatusPage> {
     }
   }
 
-  Future<void> _resubmit() async {
-    setState(() => _resubmitting = true);
-    final result = _isCompany
-        ? await _service.resubmitCompanyApplication()
-        : await _service.resubmitDriverApplication();
-    if (!mounted) return;
-    setState(() => _resubmitting = false);
-
-    if (result['success'] == true) {
-      // The account's status just changed server-side (back to 'pending')
-      // but everything this screen was built from (prefs, the login
-      // response) is now stale — simplest correct thing is to send them
-      // back through login, which always fetches a fresh status.
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Submitted for review — please log in again to see your status')),
-        );
-      }
-      await Future.delayed(const Duration(seconds: 1));
+  Future<void> _openEditScreen() async {
+    final resubmitted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangesRequiredEditScreen(
+          accountType: widget.accountType,
+          rejectionReason: widget.rejectionReason,
+          documentIssues: widget.documentIssues,
+        ),
+      ),
+    );
+    // ChangesRequiredEditScreen pops `true` once it successfully resubmits
+    // (status flips server-side back to 'pending') — everything this page
+    // was built from (prefs, the login response) is now stale, so send
+    // them back through login, same as the old inline resubmit did.
+    if (resubmitted == true && mounted) {
       await _logout();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']?.toString() ?? 'Could not resubmit')),
-      );
     }
-  }
-
-  Future<void> _renewCompanyLicense() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty || result.files.single.bytes == null) return;
-
-    setState(() => _submittingLicense = true);
-    final r = await _service.submitCompanyLicense(
-      fileBytes: result.files.single.bytes!,
-      fileName: result.files.single.name,
-    );
-    if (!mounted) return;
-    setState(() => _submittingLicense = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(r['message']?.toString() ?? '')),
-    );
   }
 
   @override
@@ -203,37 +168,11 @@ class _DriverApprovalStatusPageState extends State<DriverApprovalStatusPage> {
 
               if (_isChangesRequired) ...[
                 const SizedBox(height: 24),
-                if (!_isCompany) ...[
-                  _ActionButton(
-                    icon: Icons.folder_open_rounded,
-                    label: 'Update documents',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DriverDocumentsPage()),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _ActionButton(
-                    icon: Icons.map_outlined,
-                    label: 'Update work destinations',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DriverDestinationsPage()),
-                    ),
-                  ),
-                ] else
-                  _ActionButton(
-                    icon: Icons.description_outlined,
-                    label: _submittingLicense ? 'Uploading…' : 'Update trade license',
-                    onPressed: _submittingLicense ? null : _renewCompanyLicense,
-                  ),
-                const SizedBox(height: 16),
                 LightPrimaryButton(
                   label: 'Update Application',
                   color: LightColors.gold,
                   textColor: LightColors.textPrimary,
-                  loading: _resubmitting,
-                  onPressed: _resubmit,
+                  onPressed: _openEditScreen,
                 ),
               ],
 
@@ -324,31 +263,6 @@ class _StatusRow extends StatelessWidget {
         const SizedBox(width: 10),
         Text(label, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
       ],
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  const _ActionButton({required this.icon, required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 18, color: LightColors.goldMuted),
-        label: Text(label, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14)),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: LightColors.border),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      ),
     );
   }
 }
