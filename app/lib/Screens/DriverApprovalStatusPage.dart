@@ -7,6 +7,7 @@ import '../API/config.dart';
 import '../main.dart';
 import 'DriverDestinationsPage.dart';
 import 'DriverDocumentsPage.dart';
+import 'register_shared.dart';
 
 /// Shown instead of the normal HomeScreen when a driver/company account is
 /// not yet approved by an admin:
@@ -18,6 +19,11 @@ import 'DriverDocumentsPage.dart';
 /// A driver/company in any of these states must not be able to reach any
 /// other screen (no bottom nav, no shipment offers) until an admin
 /// approves them.
+///
+/// Recolored 2026-08-21 to match the "Login Account States" mockup screens
+/// (Pending Review / Changes Required / Rejected) — light theme, status
+/// pill badge, icon circle, and (for pending) an application-status
+/// checklist card.
 class DriverApprovalStatusPage extends StatefulWidget {
   final String approvalStatus;
   final String? rejectionReason;
@@ -111,95 +117,92 @@ class _DriverApprovalStatusPageState extends State<DriverApprovalStatusPage> {
 
   @override
   Widget build(BuildContext context) {
-    final color = _isRejected
-        ? AppColors.error
-        : _isChangesRequired
-            ? AppColors.gold
-            : AppColors.gold;
+    final color = _isRejected ? LightColors.error : LightColors.pending;
+    final colorBg = _isRejected ? LightColors.errorBg : LightColors.pendingBg;
 
     final icon = _isRejected
-        ? Icons.block_rounded
+        ? Icons.gpp_bad_rounded
         : _isChangesRequired
             ? Icons.edit_note_rounded
             : Icons.hourglass_top_rounded;
 
+    final pillLabel = _isRejected ? 'REJECTED' : (_isChangesRequired ? 'CHANGES REQUIRED' : 'PENDING');
+
     final title = _isRejected
-        ? 'Registration rejected'
+        ? 'Registration Rejected'
         : _isChangesRequired
-            ? 'Action required'
-            : 'Awaiting approval';
+            ? 'Action Required'
+            : 'Account Under Review';
 
     final body = _isRejected
-        ? 'An admin reviewed your account and could not approve it at this time.'
+        ? 'Unfortunately, your registration has been rejected.'
         : _isChangesRequired
-            ? 'An admin reviewed your application and needs some changes before it can be approved. See the reason below, make the fix, then resubmit.'
-            : widget.accountType == 'company'
-                ? 'Your account was created successfully. A Super Admin needs to review your company before you can start requesting shipments.'
-                : 'Your account was created successfully. An admin needs to review your documents (driver license, passport, residency) before you can start receiving shipments.';
+            ? 'We need some changes in your documents or information. Please review the comments from admin and update your application.'
+            : (widget.accountType == 'company'
+                ? 'Your account is currently being reviewed by our team. You will be notified via email once your account is approved.'
+                : 'Your account is currently being reviewed by our team. You will be notified via email once your account is approved.');
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(backgroundColor: LightColors.bg, elevation: 0, automaticallyImplyLeading: false),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  shape: BoxShape.circle,
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 84,
+                  height: 84,
+                  decoration: BoxDecoration(color: colorBg, shape: BoxShape.circle),
+                  child: Icon(icon, color: color, size: 38),
                 ),
-                child: Icon(icon, color: color, size: 40),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 14),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(color: colorBg, borderRadius: BorderRadius.circular(20)),
+                  child: Text(
+                    pillLabel,
+                    style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.cream,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: const TextStyle(color: LightColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Text(
                 body,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 14,
-                  height: 1.6,
-                ),
+                style: const TextStyle(color: LightColors.textSecondary, fontSize: 14, height: 1.6),
               ),
 
               if ((_isRejected || _isChangesRequired) &&
                   widget.rejectionReason != null &&
                   widget.rejectionReason!.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                _InfoBox(
-                  color: color,
-                  icon: Icons.info_outline,
-                  title: 'Reason from admin',
-                  lines: [widget.rejectionReason!],
-                ),
+                _InfoBox(title: 'Reason from Admin', lines: [widget.rejectionReason!]),
               ],
 
               if (widget.documentIssues.isNotEmpty) ...[
-                const SizedBox(height: 20),
-                _InfoBox(
-                  color: AppColors.info,
-                  icon: Icons.description_outlined,
-                  title: 'Please update these documents',
-                  lines: widget.documentIssues,
-                ),
+                const SizedBox(height: 16),
+                _InfoBox(title: 'Please update these documents', lines: widget.documentIssues),
+              ],
+
+              if (!_isRejected && !_isChangesRequired) ...[
+                const SizedBox(height: 24),
+                const _ApplicationStatusCard(),
               ],
 
               if (_isChangesRequired) ...[
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
                 if (!_isCompany) ...[
                   _ActionButton(
                     icon: Icons.folder_open_rounded,
@@ -224,52 +227,103 @@ class _DriverApprovalStatusPageState extends State<DriverApprovalStatusPage> {
                     label: _submittingLicense ? 'Uploading…' : 'Update trade license',
                     onPressed: _submittingLicense ? null : _renewCompanyLicense,
                   ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _resubmitting ? null : _resubmit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.gold,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: _resubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg),
-                          )
-                        : const Text(
-                            'Resubmit for review',
-                            style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600, fontSize: 15),
-                          ),
+                const SizedBox(height: 16),
+                LightPrimaryButton(
+                  label: 'Update Application',
+                  color: LightColors.gold,
+                  textColor: LightColors.textPrimary,
+                  loading: _resubmitting,
+                  onPressed: _resubmit,
+                ),
+              ],
+
+              if (_isRejected) ...[
+                const SizedBox(height: 24),
+                LightPrimaryButton(
+                  label: 'Register Again',
+                  color: LightColors.error,
+                  onPressed: () => Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SplashPage()),
+                    (route) => false,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                LightOutlineButton(
+                  label: 'Contact Support',
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Contact your admin for support')),
                   ),
                 ),
               ],
 
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton(
-                  onPressed: _logout,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Log out',
-                    style: TextStyle(color: AppColors.cream, fontSize: 15),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 12),
+              LightOutlineButton(label: 'Log Out', onPressed: _logout),
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ApplicationStatusCard extends StatelessWidget {
+  const _ApplicationStatusCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LightColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: LightColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text('Application Status', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+          SizedBox(height: 12),
+          _StatusRow(label: 'Account Information', state: _RowState.done),
+          SizedBox(height: 10),
+          _StatusRow(label: 'Documents Submitted', state: _RowState.done),
+          SizedBox(height: 10),
+          _StatusRow(label: 'Under Admin Review', state: _RowState.active),
+          SizedBox(height: 10),
+          _StatusRow(label: 'Final Decision', state: _RowState.pending),
+        ],
+      ),
+    );
+  }
+}
+
+enum _RowState { done, active, pending }
+
+class _StatusRow extends StatelessWidget {
+  final String label;
+  final _RowState state;
+  const _StatusRow({required this.label, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = state == _RowState.done
+        ? Icons.check_circle_rounded
+        : state == _RowState.active
+            ? Icons.access_time_filled_rounded
+            : Icons.radio_button_unchecked_rounded;
+    final color = state == _RowState.done
+        ? LightColors.success
+        : state == _RowState.active
+            ? LightColors.pending
+            : const Color(0xFFC4C8CF);
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 10),
+        Text(label, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
+      ],
     );
   }
 }
@@ -288,10 +342,10 @@ class _ActionButton extends StatelessWidget {
       height: 48,
       child: OutlinedButton.icon(
         onPressed: onPressed,
-        icon: Icon(icon, size: 18, color: AppColors.gold),
-        label: Text(label, style: const TextStyle(color: AppColors.cream, fontSize: 14)),
+        icon: Icon(icon, size: 18, color: LightColors.goldMuted),
+        label: Text(label, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14)),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.border),
+          side: const BorderSide(color: LightColors.border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
@@ -300,17 +354,10 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _InfoBox extends StatelessWidget {
-  final Color color;
-  final IconData icon;
   final String title;
   final List<String> lines;
 
-  const _InfoBox({
-    required this.color,
-    required this.icon,
-    required this.title,
-    required this.lines,
-  });
+  const _InfoBox({required this.title, required this.lines});
 
   @override
   Widget build(BuildContext context) {
@@ -318,35 +365,19 @@ class _InfoBox extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: LightColors.bg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: LightColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+          Text(title, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           ...lines.map(
             (l) => Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                '•  $l',
-                style: const TextStyle(color: AppColors.muted, fontSize: 13),
-              ),
+              child: Text(l, style: const TextStyle(color: LightColors.textSecondary, fontSize: 13, height: 1.4)),
             ),
           ),
         ],
