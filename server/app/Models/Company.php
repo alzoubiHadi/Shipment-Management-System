@@ -17,6 +17,7 @@ class Company extends Model
         'user_id',
         'approval_status',
         'rejection_reason',
+        'license_file_path',
         'account_status',
         'suspension_reason',
         'balance',

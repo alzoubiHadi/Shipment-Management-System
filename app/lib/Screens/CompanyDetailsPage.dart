@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../API/CompanyService.dart';
 import '../API/config.dart';
 import '../models/Company.dart';
@@ -21,6 +22,105 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
 
   Color get _statusColor =>
       company.accountStatus == 'suspended' ? AppColors.error : AppColors.success;
+
+  Color get _approvalColor => switch (company.approvalStatus) {
+        'approved' => AppColors.success,
+        'rejected' => AppColors.error,
+        _ => AppColors.info,
+      };
+
+  String get _approvalLabel => switch (company.approvalStatus) {
+        'approved' => 'Approved',
+        'rejected' => 'Rejected',
+        _ => 'Pending review',
+      };
+
+  /// UC-5: Super Admin final approval of a self-registered company.
+  Future<void> _approve() async {
+    setState(() => _busy = true);
+    final result = await CompanyService.approveCompany(company.id);
+    setState(() => _busy = false);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message']?.toString() ?? '')),
+    );
+    if (result['success'] == true) {
+      setState(() {
+        company = company.copyWith(
+          approvalStatus: 'approved',
+          clearRejectionReason: true,
+        );
+      });
+    }
+  }
+
+  /// UC-5: Super Admin outright rejects a self-registered company.
+  Future<void> _reject() async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Reject Company', style: TextStyle(color: AppColors.cream)),
+        content: TextField(
+          controller: reasonCtrl,
+          style: const TextStyle(color: AppColors.cream),
+          decoration: const InputDecoration(
+            hintText: 'Reason (optional)',
+            hintStyle: TextStyle(color: AppColors.muted),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _busy = true);
+    final success = await CompanyService.rejectCompany(company.id, reason: reasonCtrl.text.trim());
+    setState(() => _busy = false);
+
+    if (!mounted) return;
+    if (success) {
+      setState(() {
+        company = company.copyWith(
+          approvalStatus: 'rejected',
+          rejectionReason: reasonCtrl.text.trim(),
+        );
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not reject company')),
+      );
+    }
+  }
+
+  /// Opens the company's uploaded trade/commercial license file in an
+  /// external viewer (browser/PDF app) — the app itself doesn't render
+  /// PDFs, so this hands off to whatever the device already has.
+  Future<void> _openLicense() async {
+    final path = company.licenseFilePath;
+    if (path == null || path.isEmpty) return;
+
+    final uri = Uri.parse(storageUrl(path));
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open license file')),
+      );
+    }
+  }
 
   /// UC-27: Super Admin temporarily suspends a company account.
   Future<void> _suspend() async {
@@ -68,15 +168,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     );
     if (result['success'] == true) {
       setState(() {
-        company = Company(
-          id: company.id,
-          name: company.name,
-          email: company.email,
-          phone: company.phone,
-          user_id: company.user_id,
-          password: company.password,
-          balance: company.balance,
-          creditLimit: company.creditLimit,
+        company = company.copyWith(
           accountStatus: 'suspended',
           suspensionReason: reasonCtrl.text.trim(),
         );
@@ -95,17 +187,9 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     );
     if (result['success'] == true) {
       setState(() {
-        company = Company(
-          id: company.id,
-          name: company.name,
-          email: company.email,
-          phone: company.phone,
-          user_id: company.user_id,
-          password: company.password,
-          balance: company.balance,
-          creditLimit: company.creditLimit,
+        company = company.copyWith(
           accountStatus: 'active',
-          suspensionReason: null,
+          clearSuspensionReason: true,
         );
       });
     }
@@ -181,16 +265,33 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
               ),
 
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  company.accountStatus == 'suspended' ? 'Suspended' : 'Active',
-                  style: TextStyle(color: _statusColor, fontSize: 12, fontWeight: FontWeight.w600),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _approvalColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _approvalLabel,
+                      style: TextStyle(color: _approvalColor, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _statusColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      company.accountStatus == 'suspended' ? 'Suspended' : 'Active',
+                      style: TextStyle(color: _statusColor, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 24),
@@ -211,27 +312,80 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                   (company.suspensionReason ?? '').isNotEmpty)
                 _buildItem("Suspension Reason", company.suspensionReason),
 
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: company.accountStatus == 'suspended'
-                    ? OutlinedButton.icon(
-                        onPressed: _busy ? null : _activate,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.success),
+              if (company.approvalStatus == 'rejected' &&
+                  (company.rejectionReason ?? '').isNotEmpty)
+                _buildItem("Rejection Reason", company.rejectionReason),
+
+              if ((company.licenseFilePath ?? '').isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _openLicense,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.gold),
+                    ),
+                    icon: const Icon(Icons.description_outlined, size: 18, color: AppColors.gold),
+                    label: const Text('View Trade License', style: TextStyle(color: AppColors.gold)),
+                  ),
+                ),
+              ] else if (company.approvalStatus == 'pending') ...[
+                const SizedBox(height: 8),
+                _buildItem("Trade License", "Not provided"),
+              ],
+
+              if (company.approvalStatus == 'pending') ...[
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _busy ? null : _approve,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.success,
                         ),
-                        icon: const Icon(Icons.refresh, size: 18, color: AppColors.success),
-                        label: const Text('Activate', style: TextStyle(color: AppColors.success)),
-                      )
-                    : OutlinedButton.icon(
-                        onPressed: _busy ? null : _suspend,
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text('Approve'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _busy ? null : _reject,
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColors.error),
                         ),
-                        icon: const Icon(Icons.block, size: 18, color: AppColors.error),
-                        label: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+                        icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.error),
+                        label: const Text('Reject', style: TextStyle(color: AppColors.error)),
                       ),
-              ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (company.approvalStatus == 'approved') ...[
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: company.accountStatus == 'suspended'
+                      ? OutlinedButton.icon(
+                          onPressed: _busy ? null : _activate,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.success),
+                          ),
+                          icon: const Icon(Icons.refresh, size: 18, color: AppColors.success),
+                          label: const Text('Activate', style: TextStyle(color: AppColors.success)),
+                        )
+                      : OutlinedButton.icon(
+                          onPressed: _busy ? null : _suspend,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.error),
+                          ),
+                          icon: const Icon(Icons.block, size: 18, color: AppColors.error),
+                          label: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+                        ),
+                ),
+              ],
             ],
           ),
         ),

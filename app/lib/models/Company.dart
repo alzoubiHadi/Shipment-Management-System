@@ -11,6 +11,16 @@ class Company {
   // suspended, mirrors Driver.complianceStatus/admin_note.
   final String accountStatus;
   final String? suspensionReason;
+  // UC-5: 'pending' | 'approved' | 'rejected' — self-registered companies
+  // start 'pending' and need Super Admin approval, mirrors
+  // Driver.approvalStatus/rejectionReason exactly.
+  final String approvalStatus;
+  final String? rejectionReason;
+  // Trade/commercial license file uploaded at registration — the relative
+  // storage path returned by the backend (e.g. "company_licenses/xyz.pdf"),
+  // not yet a full URL. See CompanyDetailsPage for how it's turned into a
+  // viewable link.
+  final String? licenseFilePath;
 
   Company({
     required this.id,
@@ -23,6 +33,9 @@ class Company {
     this.creditLimit = 0,
     this.accountStatus = 'active',
     this.suspensionReason,
+    this.approvalStatus = 'approved',
+    this.rejectionReason,
+    this.licenseFilePath,
   });
 
   factory Company.fromMap(Map<String, dynamic> map) {
@@ -37,6 +50,37 @@ class Company {
       creditLimit: double.tryParse(map['credit_limit']?.toString() ?? '') ?? 0,
       accountStatus: map['account_status']?.toString() ?? 'active',
       suspensionReason: map['suspension_reason']?.toString(),
+      approvalStatus: map['approval_status']?.toString() ?? 'approved',
+      rejectionReason: map['rejection_reason']?.toString(),
+      licenseFilePath: map['license_file_path']?.toString(),
+    );
+  }
+
+  Company copyWith({
+    String? accountStatus,
+    String? suspensionReason,
+    bool clearSuspensionReason = false,
+    String? approvalStatus,
+    String? rejectionReason,
+    bool clearRejectionReason = false,
+    String? licenseFilePath,
+  }) {
+    return Company(
+      id: id,
+      name: name,
+      email: email,
+      phone: phone,
+      user_id: user_id,
+      password: password,
+      balance: balance,
+      creditLimit: creditLimit,
+      accountStatus: accountStatus ?? this.accountStatus,
+      suspensionReason:
+          clearSuspensionReason ? null : (suspensionReason ?? this.suspensionReason),
+      approvalStatus: approvalStatus ?? this.approvalStatus,
+      rejectionReason:
+          clearRejectionReason ? null : (rejectionReason ?? this.rejectionReason),
+      licenseFilePath: licenseFilePath ?? this.licenseFilePath,
     );
   }
 
@@ -52,6 +96,9 @@ class Company {
       'credit_limit': creditLimit,
       'account_status': accountStatus,
       'suspension_reason': suspensionReason,
+      'approval_status': approvalStatus,
+      'rejection_reason': rejectionReason,
+      'license_file_path': licenseFilePath,
     };
   }
 }

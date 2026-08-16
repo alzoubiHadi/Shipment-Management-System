@@ -306,6 +306,33 @@ class CompanyItem extends StatelessWidget {
                   style: const TextStyle(fontSize: 11, color: AppColors.muted),
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (company.approvalStatus == 'pending') ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Pending review',
+                      style: TextStyle(fontSize: 9, color: AppColors.info, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ] else if (company.approvalStatus == 'rejected') ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Rejected',
+                      style: TextStyle(fontSize: 9, color: AppColors.error, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

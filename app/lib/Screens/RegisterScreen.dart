@@ -1,4 +1,5 @@
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 
@@ -49,6 +50,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // sign-up is which kind of account this is.
   String _accountType = 'driver'; // 'driver' or 'company'
   String? _errorMessage;
+
+  // Company trade/commercial license file (required for company sign-up).
+  PlatformFile? _licenseFile;
+
+  Future<void> _pickLicenseFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true, // required for Flutter Web — no filesystem path there
+    );
+
+    if (result != null && result.files.isNotEmpty) {
+      setState(() => _licenseFile = result.files.single);
+    }
+  }
 
   PasswordStrength _strength = PasswordStrength.none;
   bool _passwordsMatch = true;
@@ -104,6 +120,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    if (_accountType == 'company' &&
+        (_licenseFile == null || _licenseFile!.bytes == null)) {
+      setState(() => _errorMessage = 'Please attach the company trade license');
+      return;
+    }
+
     if (password != confirm) {
       setState(() => _errorMessage = 'Passwords do not match');
       return;
@@ -124,6 +146,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         phone: phone,
         driverLicense: _accountType == 'driver' ? driverLicense : null,
         address: _accountType == 'company' ? address : null,
+        licenseFileBytes: _accountType == 'company' ? _licenseFile?.bytes : null,
+        licenseFileName: _accountType == 'company' ? _licenseFile?.name : null,
       );
 
       if (mounted) {
@@ -300,6 +324,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _buildTextField(
                   controller: _addressCtrl,
                   label: 'Company address',
+                ),
+                const SizedBox(height: 14),
+                InkWell(
+                  onTap: _pickLicenseFile,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111113),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: _licenseFile == null
+                            ? const Color(0xFF2A2520)
+                            : const Color(0xFFD4AF37),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _licenseFile == null
+                              ? Icons.upload_file_outlined
+                              : Icons.check_circle_outline,
+                          color: _licenseFile == null
+                              ? const Color(0xFF6B6660)
+                              : const Color(0xFFD4AF37),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _licenseFile?.name ?? 'Attach trade license (PDF/JPG/PNG)',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _licenseFile == null
+                                  ? const Color(0xFF6B6660)
+                                  : const Color(0xFFF5F0E8),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
 

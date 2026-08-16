@@ -60,6 +60,82 @@ class CompanyService {
     }
   }
 
+  /// UC-5: Super Admin final approval of a self-registered company.
+  static Future<Map<String, dynamic>> approveCompany(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/companies/$id/approve'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// UC-5: Super Admin outright rejects a self-registered company.
+  static Future<bool> rejectCompany(String id, {String? reason}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/companies/$id/reject'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'reason': reason}),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// UC-5 alt flow: return the application to the company for completion
+  /// instead of an outright rejection — approval_status stays 'pending'.
+  static Future<Map<String, dynamic>> returnCompanyForCompletion(
+    String id,
+    String message,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/companies/$id/return-for-completion'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'message': message}),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   /// UC-27: Super Admin temporarily suspends a company account.
   static Future<Map<String, dynamic>> suspendCompany({
     required String companyId,

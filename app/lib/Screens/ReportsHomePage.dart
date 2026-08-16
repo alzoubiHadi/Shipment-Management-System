@@ -9,6 +9,7 @@ import 'AdminFinancePage.dart';
 import 'CompanyReportsPage.dart';
 import 'DriverReportsPage.dart';
 import 'PriceListAdminPage.dart';
+import 'SubAdminsPage.dart';
 
 /// Admin landing page for the Reports tab: overall commission summary at
 /// the top, with links into the per-driver and per-company breakdowns.
@@ -164,6 +165,16 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ActivityLogPage()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ReportLinkCard(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'Sub-Admins',
+              subtitle: 'Create verification/finance/CRM admins and manage their permissions (UC-6)',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SubAdminsPage()),
               ),
             ),
           ],

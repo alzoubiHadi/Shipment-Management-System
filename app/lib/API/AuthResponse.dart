@@ -1,6 +1,7 @@
 // ─── api_service.dart ─────────────────────────────────────────────────────────
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -180,8 +181,14 @@ class ApiService {
   // ── Register ───────────────────────────────────────────────────────────────
 
   /// type must be 'driver' or 'company'. driverLicense is required when
-  /// type == 'driver'; address is optional and only used when
-  /// type == 'company'. Does NOT log the user in — see verifyOtp().
+  /// type == 'driver'; address is optional and licenseFileBytes/Name are
+  /// required when type == 'company' (trade/commercial license upload).
+  /// Does NOT log the user in — see verifyOtp().
+  ///
+  /// Always sent as multipart/form-data (not JSON) so the company license
+  /// file can ride along in the same request — mirrors TruckService.addMyTruck,
+  /// and works identically for driver registrations (Laravel validates
+  /// multipart fields the same way as JSON ones).
   static Future<RegisterResult> register({
     required String name,
     required String email,
@@ -191,24 +198,36 @@ class ApiService {
     String? phone,
     String? driverLicense,
     String? address,
+    Uint8List? licenseFileBytes,
+    String? licenseFileName,
   }) async {
     final uri = Uri.parse('$baseUrl/register');
 
-    final body = jsonEncode({
-      'name': name.trim(),
-      'email': email.trim(),
-      'password': password,
-      'password_confirmation': passwordConfirmation,
-      'phone': phone,
-      'type': type,
-      if (type == 'driver') 'driver_license': driverLicense,
-      if (type == 'company') 'address': address,
-    });
-
     try {
-      final response = await http
-          .post(uri, headers: _headers, body: body)
-          .timeout(const Duration(seconds: 60));
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Accept'] = 'application/json';
+      request.fields['name'] = name.trim();
+      request.fields['email'] = email.trim();
+      request.fields['password'] = password;
+      request.fields['password_confirmation'] = passwordConfirmation;
+      request.fields['type'] = type;
+      if (phone != null) request.fields['phone'] = phone;
+      if (type == 'driver' && driverLicense != null) {
+        request.fields['driver_license'] = driverLicense;
+      }
+      if (type == 'company') {
+        if (address != null) request.fields['address'] = address;
+        if (licenseFileBytes != null && licenseFileName != null) {
+          request.files.add(http.MultipartFile.fromBytes(
+            'license_file',
+            licenseFileBytes,
+            filename: licenseFileName,
+          ));
+        }
+      }
+
+      final streamed = await request.send().timeout(const Duration(seconds: 60));
+      final response = await http.Response.fromStream(streamed);
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 

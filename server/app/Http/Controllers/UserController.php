@@ -56,6 +56,12 @@ class UserController extends Controller
 
         if ($type === 'company') {
             $rules['address'] = ['nullable', 'string', 'max:255'];
+            // Trade/commercial license file, required at self-registration
+            // time — mirrors the truck license upload pattern (single file,
+            // stored directly on the record) rather than the versioned
+            // driver_documents table, since a company only ever has one
+            // current license on file.
+            $rules['license_file'] = ['required', 'file', 'max:10240'];
         }
 
         try {
@@ -68,9 +74,14 @@ class UserController extends Controller
             ], 401);
         }
 
+        $licenseFilePath = null;
+        if ($type === 'company' && $request->hasFile('license_file')) {
+            $licenseFilePath = $request->file('license_file')->store('company_licenses', 'public');
+        }
+
         $otp = $this->generateOtp();
 
-        [$user, $driver, $company] = DB::transaction(function () use ($validated, $type, $otp) {
+        [$user, $driver, $company] = DB::transaction(function () use ($validated, $type, $otp, $licenseFilePath) {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -107,6 +118,7 @@ class UserController extends Controller
                     'phone' => $validated['phone'] ?? null,
                     'address' => $validated['address'] ?? null,
                     'approval_status' => 'pending',
+                    'license_file_path' => $licenseFilePath,
                     'user_id' => $user->id,
                 ]);
             }
