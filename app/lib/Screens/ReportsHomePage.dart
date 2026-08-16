@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ReportService.dart';
 import '../API/config.dart';
+import 'ActivityLogPage.dart';
 import 'AdminCompliancePage.dart';
 import 'AdminFinancePage.dart';
 import 'CompanyReportsPage.dart';
@@ -151,6 +152,16 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const AdminCompliancePage()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _ReportLinkCard(
+              icon: Icons.history,
+              title: 'Activity Log',
+              subtitle: 'Audit trail of every sensitive action (Super Admin only)',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ActivityLogPage()),
               ),
             ),
           ],

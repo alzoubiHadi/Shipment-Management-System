@@ -60,6 +60,59 @@ class CompanyService {
     }
   }
 
+  /// UC-27: Super Admin temporarily suspends a company account.
+  static Future<Map<String, dynamic>> suspendCompany({
+    required String companyId,
+    required String reason,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/companies/$companyId/suspend'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'reason': reason}),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// UC-27: Super Admin re-activates a previously suspended company.
+  static Future<Map<String, dynamic>> activateCompany(String companyId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/companies/$companyId/activate'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<List<Company>> fetchCompaines() async {
     final prefs = await SharedPreferences.getInstance();
     //

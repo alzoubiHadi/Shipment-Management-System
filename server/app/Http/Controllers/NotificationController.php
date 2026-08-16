@@ -49,8 +49,8 @@ class NotificationController extends Controller
 
     /**
      * Registers/updates this device's FCM token, called by the Flutter app
-     * right after login once firebase_messaging is wired in (not yet done
-     * on the Flutter side — see project notes).
+     * right after login (see PushNotificationSetup.initialize(), wired in
+     * HomeScreen.initState()).
      */
     public function updateFcmToken(Request $request)
     {

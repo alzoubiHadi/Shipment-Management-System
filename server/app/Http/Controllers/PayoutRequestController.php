@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Driver;
 use App\Models\PayoutRequest;
 use App\Models\User;
@@ -132,6 +133,12 @@ class PayoutRequestController extends Controller
             'paid_at' => now(),
             'status' => 'paid',
         ]);
+        ActivityLog::record(
+            'payout.marked_paid',
+            $payout,
+            "Recorded transfer of {$payout->amount} AED for driver '{$payout->driver->name}'",
+            ['amount' => $payout->amount]
+        );
 
         $payout->driver->user?->notify(new AppPushNotification(
             'payout_paid',
@@ -163,6 +170,12 @@ class PayoutRequestController extends Controller
             'status' => 'rejected',
             'rejection_reason' => $validated['rejection_reason'],
         ]);
+        ActivityLog::record(
+            'payout.rejected',
+            $payout,
+            "Rejected payout of {$payout->amount} AED for driver '{$payout->driver->name}'",
+            ['reason' => $validated['rejection_reason']]
+        );
 
         $payout->driver->user?->notify(new AppPushNotification(
             'payout_rejected',
@@ -275,6 +288,12 @@ class PayoutRequestController extends Controller
                 $payout->update(['status' => 'pending']);
             }
         });
+        ActivityLog::record(
+            'payout.dispute_resolved',
+            $payout,
+            "Resolved payout dispute for driver '{$payout->driver->name}' as '{$validated['resolution']}'",
+            ['resolution' => $validated['resolution']]
+        );
 
         $payout->driver->user?->notify(new AppPushNotification(
             'payout_dispute_resolved',

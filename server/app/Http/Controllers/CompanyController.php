@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -100,6 +101,7 @@ class CompanyController extends Controller
     }
     public function destroy(Company $company)
     {
+        ActivityLog::record('company.deleted', $company, "Deleted company '{$company->name}'");
         $company->delete();
         $company->user()->delete(); // Also delete the associated user
         return response()->json([
@@ -147,7 +149,14 @@ class CompanyController extends Controller
             'credit_limit' => ['required', 'numeric', 'min:0'],
         ]);
 
+        $oldLimit = $company->credit_limit;
         $company->update(['credit_limit' => $validated['credit_limit']]);
+        ActivityLog::record(
+            'company.credit_limit_changed',
+            $company,
+            "Changed credit limit for '{$company->name}' from {$oldLimit} to {$validated['credit_limit']}",
+            ['old' => $oldLimit, 'new' => $validated['credit_limit']]
+        );
 
         return response()->json([
             'message' => 'Credit limit updated successfully',
@@ -165,6 +174,7 @@ class CompanyController extends Controller
             'approval_status' => 'approved',
             'rejection_reason' => null,
         ]);
+        ActivityLog::record('company.approved', $company, "Approved company '{$company->name}'");
 
         return response()->json([
             'message' => 'Company approved successfully',
@@ -185,6 +195,12 @@ class CompanyController extends Controller
             'approval_status' => 'rejected',
             'rejection_reason' => $validated['reason'] ?? null,
         ]);
+        ActivityLog::record(
+            'company.rejected',
+            $company,
+            "Rejected company '{$company->name}'",
+            ['reason' => $validated['reason'] ?? null]
+        );
 
         return response()->json([
             'message' => 'Company rejected',
@@ -230,6 +246,12 @@ class CompanyController extends Controller
             'account_status' => 'suspended',
             'suspension_reason' => $validated['reason'],
         ]);
+        ActivityLog::record(
+            'company.suspended',
+            $company,
+            "Suspended company '{$company->name}'",
+            ['reason' => $validated['reason']]
+        );
 
         return response()->json([
             'message' => 'Company account suspended',
@@ -243,6 +265,7 @@ class CompanyController extends Controller
             'account_status' => 'active',
             'suspension_reason' => null,
         ]);
+        ActivityLog::record('company.activated', $company, "Re-activated company '{$company->name}'");
 
         return response()->json([
             'message' => 'Company account re-activated',

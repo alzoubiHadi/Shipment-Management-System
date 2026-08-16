@@ -7,6 +7,10 @@ class Company {
   final String password;
   final double balance;
   final double creditLimit;
+  // UC-27: 'active' | 'suspended'. suspensionReason is set only while
+  // suspended, mirrors Driver.complianceStatus/admin_note.
+  final String accountStatus;
+  final String? suspensionReason;
 
   Company({
     required this.id,
@@ -17,6 +21,8 @@ class Company {
     required this.password,
     this.balance = 0,
     this.creditLimit = 0,
+    this.accountStatus = 'active',
+    this.suspensionReason,
   });
 
   factory Company.fromMap(Map<String, dynamic> map) {
@@ -29,6 +35,8 @@ class Company {
       password: map['password']?.toString() ?? '',
       balance: double.tryParse(map['balance']?.toString() ?? '') ?? 0,
       creditLimit: double.tryParse(map['credit_limit']?.toString() ?? '') ?? 0,
+      accountStatus: map['account_status']?.toString() ?? 'active',
+      suspensionReason: map['suspension_reason']?.toString(),
     );
   }
 
@@ -42,6 +50,8 @@ class Company {
       'password': password,
       'balance': balance,
       'credit_limit': creditLimit,
+      'account_status': accountStatus,
+      'suspension_reason': suspensionReason,
     };
   }
 }

@@ -52,11 +52,13 @@ class TruckController extends Controller
                 'permit_expiry' => ['nullable', 'date'],
                 'insurance_expiry' => ['nullable', 'date'],
                 'license_expiry' => ['nullable', 'date'],
-                // TODO: the spec requires this to be a mandatory upload —
-                // left nullable here so the existing AddTruckPage.dart form
-                // (which doesn't have a file picker yet) doesn't break.
-                // Make required once that Flutter screen is updated.
-                'license_file' => ['nullable', 'file', 'max:10240'],
+                // Required per spec. The only "add truck" screen in the
+                // Flutter app is AddTruckPage.dart, which always sends this
+                // (it calls addMyTruck() below, not this admin endpoint —
+                // this create() method has no current Flutter caller, but
+                // is kept consistent with addMyTruck's validation in case
+                // an admin-side truck management screen is added later).
+                'license_file' => ['required', 'file', 'max:10240'],
                 'default_driver_id' => ['nullable', 'exists:drivers,id'],
             ]);
         } catch (ValidationException $e) {

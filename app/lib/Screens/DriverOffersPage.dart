@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../API/DriverService.dart';
 import '../API/ShipmentOfferService.dart';
 import '../API/TruckService.dart';
 import '../API/config.dart';
@@ -18,19 +20,64 @@ class DriverOffersPage extends StatefulWidget {
 class _DriverOffersPageState extends State<DriverOffersPage> {
   final _offerService = ShipmentOfferService();
   final _truckService = TruckService();
+  final _driverService = DriverService();
   late Future<List<ShipmentOffer>> _offersFuture;
   bool _isAccepting = false;
+
+  // UC-10: driver's own "available for work" toggle. null while loading.
+  bool? _isAvailable;
+  bool _isUpdatingAvailability = false;
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _loadMyStatus();
   }
 
   void _refresh() {
     setState(() {
       _offersFuture = _offerService.fetchAvailableOffers();
     });
+  }
+
+  Future<void> _loadMyStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('id');
+      final drivers = await _driverService.fetchDriver();
+      final me = drivers.where((d) => d.user_id == userId).toList();
+      if (!mounted || me.isEmpty) return;
+      setState(() => _isAvailable = me.first.status == 'available');
+    } catch (_) {
+      // Leave _isAvailable null (toggle just won't show) rather than
+      // blocking the offers list over a status-fetch failure.
+    }
+  }
+
+  Future<void> _toggleAvailability(bool value) async {
+    setState(() {
+      _isUpdatingAvailability = true;
+      _isAvailable = value;
+    });
+
+    final result = await DriverService.updateMyStatus(
+      value ? 'available' : 'unavailable',
+    );
+
+    if (!mounted) return;
+    setState(() => _isUpdatingAvailability = false);
+
+    if (result['success'] != true) {
+      // Revert on failure and let the driver know.
+      setState(() => _isAvailable = !value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']?.toString() ?? 'Could not update status'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _acceptOffer(ShipmentOffer offer) async {
@@ -119,6 +166,29 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
         elevation: 0,
         title: const Text('Available Offers', style: TextStyle(color: AppColors.cream)),
         iconTheme: const IconThemeData(color: AppColors.cream),
+        actions: [
+          if (_isAvailable != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Row(
+                children: [
+                  Text(
+                    _isAvailable! ? 'Available' : 'Unavailable',
+                    style: TextStyle(
+                      color: _isAvailable! ? AppColors.success : AppColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Switch(
+                    value: _isAvailable!,
+                    activeColor: AppColors.gold,
+                    onChanged: _isUpdatingAvailability ? null : _toggleAvailability,
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
       body: Stack(
         children: [

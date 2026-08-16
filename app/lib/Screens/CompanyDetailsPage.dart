@@ -1,14 +1,115 @@
 import 'package:flutter/material.dart';
+import '../API/CompanyService.dart';
 import '../API/config.dart';
 import '../models/Company.dart';
 
-class CompanyDetailsPage extends StatelessWidget {
+class CompanyDetailsPage extends StatefulWidget {
   final Company company;
 
   const CompanyDetailsPage({
     super.key,
     required this.company,
   });
+
+  @override
+  State<CompanyDetailsPage> createState() => _CompanyDetailsPageState();
+}
+
+class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
+  late Company company = widget.company;
+  bool _busy = false;
+
+  Color get _statusColor =>
+      company.accountStatus == 'suspended' ? AppColors.error : AppColors.success;
+
+  /// UC-27: Super Admin temporarily suspends a company account.
+  Future<void> _suspend() async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Suspend Company', style: TextStyle(color: AppColors.cream)),
+        content: TextField(
+          controller: reasonCtrl,
+          style: const TextStyle(color: AppColors.cream),
+          decoration: const InputDecoration(
+            hintText: 'Reason (required)',
+            hintStyle: TextStyle(color: AppColors.muted),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: reasonCtrl.text.trim().isEmpty
+                ? null
+                : () => Navigator.pop(ctx, true),
+            child: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || reasonCtrl.text.trim().isEmpty) return;
+
+    setState(() => _busy = true);
+    final result = await CompanyService.suspendCompany(
+      companyId: company.id,
+      reason: reasonCtrl.text.trim(),
+    );
+    setState(() => _busy = false);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message']?.toString() ?? '')),
+    );
+    if (result['success'] == true) {
+      setState(() {
+        company = Company(
+          id: company.id,
+          name: company.name,
+          email: company.email,
+          phone: company.phone,
+          user_id: company.user_id,
+          password: company.password,
+          balance: company.balance,
+          creditLimit: company.creditLimit,
+          accountStatus: 'suspended',
+          suspensionReason: reasonCtrl.text.trim(),
+        );
+      });
+    }
+  }
+
+  Future<void> _activate() async {
+    setState(() => _busy = true);
+    final result = await CompanyService.activateCompany(company.id);
+    setState(() => _busy = false);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message']?.toString() ?? '')),
+    );
+    if (result['success'] == true) {
+      setState(() {
+        company = Company(
+          id: company.id,
+          name: company.name,
+          email: company.email,
+          phone: company.phone,
+          user_id: company.user_id,
+          password: company.password,
+          balance: company.balance,
+          creditLimit: company.creditLimit,
+          accountStatus: 'active',
+          suspensionReason: null,
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +180,19 @@ class CompanyDetailsPage extends StatelessWidget {
                 ),
               ),
 
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  company.accountStatus == 'suspended' ? 'Suspended' : 'Active',
+                  style: TextStyle(color: _statusColor, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+
               const SizedBox(height: 24),
               const Divider(
                 color: AppColors.border,
@@ -92,6 +206,32 @@ class CompanyDetailsPage extends StatelessWidget {
 
               if (company.password.isNotEmpty)
                 _buildItem("Password", "********"),
+
+              if (company.accountStatus == 'suspended' &&
+                  (company.suspensionReason ?? '').isNotEmpty)
+                _buildItem("Suspension Reason", company.suspensionReason),
+
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: company.accountStatus == 'suspended'
+                    ? OutlinedButton.icon(
+                        onPressed: _busy ? null : _activate,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.success),
+                        ),
+                        icon: const Icon(Icons.refresh, size: 18, color: AppColors.success),
+                        label: const Text('Activate', style: TextStyle(color: AppColors.success)),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: _busy ? null : _suspend,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.error),
+                        ),
+                        icon: const Icon(Icons.block, size: 18, color: AppColors.error),
+                        label: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+                      ),
+              ),
             ],
           ),
         ),

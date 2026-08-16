@@ -383,6 +383,34 @@ class DriverService {
     }
   }
 
+  /// UC-10: driver toggles their own "available for work" status.
+  /// [status] must be one of 'available' | 'busy' | 'unavailable'.
+  static Future<Map<String, dynamic>> updateMyStatus(String status) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final userId = prefs.getString('id');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/driver/$userId/status'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'status': status}),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   /// Full rating history for a driver — admin driver-detail view.
   static Future<List<DriverRating>> fetchDriverRatings(String driverId) async {
     final prefs = await SharedPreferences.getInstance();

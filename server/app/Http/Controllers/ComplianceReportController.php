@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\ComplianceReport;
 use App\Models\Driver;
 use App\Models\User;
@@ -167,6 +168,14 @@ class ComplianceReportController extends Controller
                 ));
             }
         }
+
+        ActivityLog::record(
+            'compliance_report.resolved',
+            $report,
+            "Resolved compliance report #{$report->id} against driver '" . ($driver->name ?? 'unknown') . "' as '{$validated['decision']}'" .
+                (($validated['resulting_action'] ?? null) ? " ({$validated['resulting_action']})" : ''),
+            ['decision' => $validated['decision'], 'resulting_action' => $validated['resulting_action'] ?? null]
+        );
 
         return response()->json([
             'message' => 'Report resolved',

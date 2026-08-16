@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\PaymentOrder;
 use App\Notifications\AppPushNotification;
@@ -92,6 +93,12 @@ class PaymentOrderController extends Controller
 
         $company = $order->company;
         $company->increment('balance', (float) $order->amount);
+        ActivityLog::record(
+            'payment_order.approved',
+            $order,
+            "Approved top-up of {$order->amount} AED for company '{$company->name}'",
+            ['amount' => $order->amount, 'company_id' => $company->id]
+        );
 
         $company->user?->notify(new AppPushNotification(
             'payment_order_approved',
@@ -125,6 +132,12 @@ class PaymentOrderController extends Controller
             'reviewed_at' => now(),
             'rejection_reason' => $validated['rejection_reason'],
         ]);
+        ActivityLog::record(
+            'payment_order.rejected',
+            $order,
+            "Rejected top-up of {$order->amount} AED for company '{$order->company->name}'",
+            ['reason' => $validated['rejection_reason']]
+        );
 
         $order->company->user?->notify(new AppPushNotification(
             'payment_order_rejected',

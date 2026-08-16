@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ComplianceReportController;
 use App\Http\Controllers\CompanyController;
@@ -55,6 +56,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // frontend hides this from sub-admins, and each individual endpoint
     // below is further gated by the relevant 'permission:<key>' middleware
     // once each admin area is wired up in later phases).
+    // NFR (Security): audit log — Super Admin only (gated inside the controller).
+    Route::get('/activity-logs', [ActivityLogController::class, 'index']);
+
     Route::get('/admin/permissions', [AdminController::class, 'permissions']);
     Route::get('/admin/sub-admins', [AdminController::class, 'index']);
     Route::post('/admin/sub-admins', [AdminController::class, 'store']);
@@ -157,6 +161,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shipments/{shipment}/rate-driver', [DriverRatingController::class, 'rateByCompany']);
     // UC-21/UC-14: driver's near-live foreground location.
     Route::put('/driver/{driver_user_id}/location', [DriverController::class, 'updateLocation']);
+    // UC-10: driver toggles their own "available for work" status.
+    Route::put('/driver/{driver_user_id}/status', [DriverController::class, 'updateMyStatus']);
 
     // Payment orders — company top-ups (UC-28/UC-29). Finance Admin-only
     // actions gated by permission:finance; company's own submit/list are

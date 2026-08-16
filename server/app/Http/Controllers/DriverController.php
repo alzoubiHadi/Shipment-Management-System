@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Driver;
 use App\Models\DriverDestination;
 use App\Models\DriverDocument;
@@ -84,6 +85,7 @@ class DriverController extends Controller
     }
     public function destroy(Driver $driver)
     {
+        ActivityLog::record('driver.deleted', $driver, "Deleted driver '{$driver->name}'");
         $driver->delete();
         $driver->user()->delete(); // Also delete the associated user
         return response()->json([
@@ -189,6 +191,7 @@ public function restore( $id)
             'approval_status' => 'approved',
             'rejection_reason' => null,
         ]);
+        ActivityLog::record('driver.approved', $driver, "Approved driver '{$driver->name}'");
 
         return response()->json([
             'message' => 'Driver approved successfully',
@@ -210,6 +213,12 @@ public function restore( $id)
             'approval_status' => 'rejected',
             'rejection_reason' => $validated['reason'] ?? null,
         ]);
+        ActivityLog::record(
+            'driver.rejected',
+            $driver,
+            "Rejected driver '{$driver->name}'",
+            ['reason' => $validated['reason'] ?? null]
+        );
 
         return response()->json([
             'message' => 'Driver rejected',
@@ -258,6 +267,12 @@ public function restore( $id)
             'compliance_status' => 'suspended',
             'admin_note' => $validated['reason'],
         ]);
+        ActivityLog::record(
+            'driver.suspended',
+            $driver,
+            "Suspended driver '{$driver->name}'",
+            ['reason' => $validated['reason']]
+        );
 
         return response()->json([
             'message' => 'Driver suspended',
@@ -270,6 +285,7 @@ public function restore( $id)
         $driver->update([
             'compliance_status' => 'active',
         ]);
+        ActivityLog::record('driver.reactivated', $driver, "Reactivated driver '{$driver->name}'");
 
         return response()->json([
             'message' => 'Driver reactivated',
@@ -450,5 +466,34 @@ public function restore( $id)
         ]);
 
         return response()->json(['message' => 'Location updated successfully'], 200);
+    }
+
+    /**
+     * UC-10: driver toggles their own "available for work" status. Same
+     * user_id-resolution pattern as updateLocation() above — the app only
+     * knows the logged-in user's id, not the internal drivers.id.
+     */
+    public function updateMyStatus(Request $request, $driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        if ($driver->user_id != $request->user()->id) {
+            return response()->json(['message' => 'You can only update your own status'], 403);
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', 'in:available,busy,unavailable'],
+        ]);
+
+        $driver->update(['status' => $validated['status']]);
+
+        return response()->json([
+            'message' => 'Status updated successfully',
+            'driver' => $driver,
+        ], 200);
     }
 }

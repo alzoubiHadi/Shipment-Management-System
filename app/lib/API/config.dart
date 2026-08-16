@@ -2,11 +2,12 @@ library config;
 
 import 'dart:ui';
 
-// Must be the computer's LAN IP (from `ipconfig`), not 127.0.0.1 — a real
-// phone treats 127.0.0.1 as itself, not the computer running the server.
-// Both devices must be on the same Wi-Fi network, and the server must run
-// with `php artisan serve --host=0.0.0.0 --port=8000`.
-String baseUrl = "http://172.20.160.1:8000/api";
+// Deployed backend (Render) — works from any device, any network, no need
+// to be on the same Wi-Fi or run a local server. If you ever go back to
+// running the server locally instead, swap this for
+// "http://<LAN-IP>:8000/api" and make sure `php artisan serve
+// --host=0.0.0.0 --port=8000` is running.
+String baseUrl = "https://shipment-management-system.onrender.com/api";
 
 /// Turns a relative path returned by the backend (e.g. from
 /// Storage::disk('public')->store(...), like "payment_receipts/xyz.png")

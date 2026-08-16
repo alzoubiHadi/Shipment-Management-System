@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -71,6 +72,12 @@ class AdminController extends Controller
 
         $permissionIds = Permission::whereIn('key', $validated['permissions'])->pluck('id');
         $user->permissions()->sync($permissionIds);
+        ActivityLog::record(
+            'admin.sub_admin_created',
+            $user,
+            "Created sub-admin '{$user->name}' with permissions: " . implode(', ', $validated['permissions']),
+            ['permissions' => $validated['permissions']]
+        );
 
         return response()->json([
             'message' => 'Sub-admin created successfully. Share this temporary password with them now — it will not be shown again.',
@@ -96,6 +103,12 @@ class AdminController extends Controller
 
         $permissionIds = Permission::whereIn('key', $validated['permissions'])->pluck('id');
         $admin->permissions()->sync($permissionIds);
+        ActivityLog::record(
+            'admin.permissions_updated',
+            $admin,
+            "Updated permissions for sub-admin '{$admin->name}' to: " . implode(', ', $validated['permissions']),
+            ['permissions' => $validated['permissions']]
+        );
 
         return response()->json([
             'message' => 'Permissions updated successfully',
@@ -120,6 +133,7 @@ class AdminController extends Controller
             'password' => Hash::make($temporaryPassword),
             'must_change_password' => true,
         ]);
+        ActivityLog::record('admin.password_reset', $admin, "Issued a new temporary password for sub-admin '{$admin->name}'");
 
         return response()->json([
             'message' => 'Temporary password issued. Share it with the sub-admin now — it will not be shown again.',
@@ -133,6 +147,7 @@ class AdminController extends Controller
             return response()->json(['message' => 'This user is not a sub-admin account.'], 422);
         }
 
+        ActivityLog::record('admin.sub_admin_deleted', $admin, "Deleted sub-admin account '{$admin->name}'");
         $admin->delete();
 
         return response()->json(['message' => 'Sub-admin account deleted successfully'], 200);
