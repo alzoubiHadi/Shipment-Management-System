@@ -355,22 +355,18 @@ class UserController extends Controller
             ], 403);
         }
 
-        // Self-registered accounts (driver/company) must verify their email
-        // via OTP before they can log in at all. Admin-created accounts
-        // (sub-admins) have email_verified_at set at creation time, so this
-        // never blocks them.
-        if (! $user->email_verified_at) {
-            $otp = $this->generateOtp();
-            $user->update(['otp_code' => $otp, 'otp_expires_at' => now()->addMinutes(10)]);
-            $user->notify(new OtpCodeNotification($otp));
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Please verify your email first. A new verification code has been sent.',
-                'requires_otp_verification' => true,
-            ], 403);
-        }
-
+        // OTP only ever belongs to the sign-up flow — it is generated and
+        // emailed exactly once, right after registration (see register()
+        // above). Login must NOT block on this, and must NOT generate or
+        // send another OTP either — it only reports the status. An
+        // unverified account still logs in normally (token issued below
+        // like anyone else); the app gets told via 'email_verified' =>
+        // false and shows the same OTP-entry screen used at sign-up
+        // instead of the normal home screen, the same way an unapproved
+        // driver/company gets DriverApprovalStatusPage instead of
+        // HomeScreen. If their original code already expired, the
+        // existing "Resend code" action on that screen (resendOtp())
+        // is how they get a new one — not every login attempt.
         $token = $user->createToken('api-token')->plainTextToken;
 
         // Drivers/companies carry an admin-approval status; the app needs
@@ -395,6 +391,7 @@ class UserController extends Controller
                     'email' => $user->email,
                     'type' => $user->type,
                     'must_change_password' => (bool) $user->must_change_password,
+                    'email_verified' => (bool) $user->email_verified_at,
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer',

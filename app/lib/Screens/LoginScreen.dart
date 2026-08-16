@@ -10,6 +10,7 @@ import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
 import 'HomeScreen.dart';
+import 'OtpVerificationScreen.dart';
 import 'RegisterScreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -105,7 +106,16 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => isUnapprovedDriver
+            // Unverified accounts (the OTP code from sign-up was never
+            // entered) are still allowed to log in — the server issues a
+            // fresh token and queues a new OTP either way (see
+            // UserController::login). They just land on the same
+            // verification screen used right after sign-up instead of
+            // Home, exactly like an unapproved driver/company lands on
+            // DriverApprovalStatusPage instead of Home.
+            builder: (_) => !response.emailVerified
+                ? OtpVerificationScreen(email: response.email)
+                : isUnapprovedDriver
                 ? DriverApprovalStatusPage(
                     approvalStatus: response.driverApprovalStatus,
                     rejectionReason: response.driverRejectionReason,
@@ -123,15 +133,11 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on ApiException catch (e) {
-      // OTP only ever belongs to the sign-up flow (DriverRegisterScreen/
-      // CompanyRegisterScreen already push OtpVerificationScreen right
-      // after a successful registration) — Login must never send the user
-      // into an OTP screen, even if the server reports the account isn't
-      // verified yet. Just surface it as a plain error instead.
+      // The server no longer blocks login on an unverified email (see
+      // UserController::login) — any ApiException here is a real error
+      // (wrong password, suspended account, etc.), so just show it as-is.
       if (mounted) {
-        setState(() => _errorMessage = e.requiresOtpVerification
-            ? 'This account has not completed sign-up verification yet. Please finish registering.'
-            : e.message);
+        setState(() => _errorMessage = e.message);
       }
     } finally {
       if (mounted) setState(() => _loading = false);

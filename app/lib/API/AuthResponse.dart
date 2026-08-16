@@ -28,6 +28,14 @@ class AuthResponse {
   final String name;
   final String role;
 
+  // False only when this account was never verified via the sign-up OTP
+  // screen. Login no longer blocks on this (see UserController::login) —
+  // the app lets them in, then routes to OtpVerificationScreen instead of
+  // HomeScreen so they can finish verifying with the fresh OTP the server
+  // just queued. Defaults to true so any older/unexpected response shape
+  // never accidentally locks a normal user out of their own home screen.
+  final bool emailVerified;
+
   // True right after a sub-admin's very first login on a one-time temporary
   // password — the app must force a password-change screen before anything
   // else, and this can never be true for a driver/company account.
@@ -52,6 +60,7 @@ class AuthResponse {
     required this.email,
     required this.name,
     required this.role,
+    this.emailVerified = true,
     this.mustChangePassword = false,
     this.driverApprovalStatus = 'approved',
     this.driverRejectionReason,
@@ -78,6 +87,9 @@ class AuthResponse {
       email: user['email'] ?? '',
       name: user['name'] ?? '',
       role: user['type'] ?? '',
+      // Only trust an explicit `false` from the server as "not verified" —
+      // any other shape (missing key, older backend) defaults to true.
+      emailVerified: user['email_verified'] != false,
       mustChangePassword: user['must_change_password'] == true,
       driverApprovalStatus: driver == null
           ? 'approved'
