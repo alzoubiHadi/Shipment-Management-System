@@ -8,10 +8,14 @@ import '../utils/logout_helper.dart';
 import 'AddTruckPage.dart';
 import 'CompanyBalancePage.dart';
 import 'DriverBalancePage.dart';
+import 'DriverBankDetailsPage.dart';
+import 'DriverChangePasswordScreen.dart';
 import 'DriverComplianceReportsPage.dart';
 import 'DriverDestinationsPage.dart';
 import 'DriverDocumentsPage.dart';
 import 'DriverMyTruckPage.dart';
+import 'DriverPersonalInfoPage.dart';
+import 'SupportCenterPage.dart';
 
 class Profile extends StatefulWidget {
   final AppUser user;
@@ -76,6 +80,51 @@ class _ProfileState extends State<Profile> {
               label: 'Email',
               value: widget.user.email ?? '—',
             ),
+
+            if (_isDriver) ...[
+              const SizedBox(height: 24),
+              _SectionTitle('Account'),
+              const SizedBox(height: 12),
+              _NavTile(
+                icon: Icons.person_outline,
+                label: 'Personal Information',
+                subtitle: 'Name, phone & email',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => DriverPersonalInfoPage(user: widget.user)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NavTile(
+                icon: Icons.account_balance_outlined,
+                label: 'Bank Details',
+                subtitle: 'Where your payouts are sent',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverBankDetailsPage()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NavTile(
+                icon: Icons.lock_outline,
+                label: 'Change Password',
+                subtitle: 'Update your login password',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverChangePasswordScreen()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NavTile(
+                icon: Icons.support_agent_outlined,
+                label: 'Help & Support',
+                subtitle: 'Call, WhatsApp, email & FAQs',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SupportCenterPage()),
+                ),
+              ),
+            ],
 
             if (role == 'driver' || role == 'company') ...[
               const SizedBox(height: 24),

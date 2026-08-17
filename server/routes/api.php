@@ -83,6 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/profile/avatar', [ProfileController::class, 'uploadAvatar']);
     Route::get('/me/profile/edit-requests', [ProfileController::class, 'myEditRequests']);
     Route::post('/me/company/license', [ProfileController::class, 'submitCompanyLicense']);
+    Route::put('/me/driver/bank-details', [ProfileController::class, 'updateBankDetails']);
     Route::get('/admin/profile-edit-requests', [ProfileController::class, 'adminIndex'])->middleware('permission:finance');
     Route::put('/admin/profile-edit-requests/{profileEditRequest}/approve', [ProfileController::class, 'approve']);
     Route::put('/admin/profile-edit-requests/{profileEditRequest}/reject', [ProfileController::class, 'reject']);

@@ -51,6 +51,12 @@ class ProfileController extends Controller
                 'residency_expiry' => optional($driver->residency_expiry)->format('Y-m-d'),
                 'blood_type' => $driver->blood_type,
                 'health_conditions' => $driver->health_conditions,
+                // Bank Details section (Profile screen, driver Phase 5) —
+                // finance-team reference for manual payouts only, nothing
+                // automated reads these yet.
+                'bank_name' => $driver->bank_name,
+                'bank_account_holder' => $driver->bank_account_holder,
+                'bank_iban' => $driver->bank_iban,
                 'truck' => $truck ? [
                     'truck_number' => $truck->truck_number,
                     'truck_type' => $truck->truck_type,
@@ -126,6 +132,35 @@ class ProfileController extends Controller
         return response()->json([
             'message' => 'Profile updated',
             'user' => $user->fresh(),
+        ], 200);
+    }
+
+    /**
+     * Driver's payout bank details — same "applies immediately" treatment
+     * as updateBasic(): not material to matching/approval eligibility, so
+     * no admin review needed.
+     */
+    public function updateBankDetails(Request $request)
+    {
+        $user = $request->user();
+        if ($user->type !== 'driver' || ! $user->driver) {
+            return response()->json(['message' => 'Only a driver account has bank details'], 403);
+        }
+
+        try {
+            $validated = $request->validate([
+                'bank_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'bank_account_holder' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'bank_iban' => ['sometimes', 'nullable', 'string', 'max:64'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        }
+
+        $user->driver->update($validated);
+
+        return response()->json([
+            'message' => 'Bank details updated',
         ], 200);
     }
 

@@ -67,6 +67,42 @@ class ProfileService {
     }
   }
 
+  /// Driver payout bank details (Profile → Bank Details) — applies
+  /// immediately, same as [updateBasic]. See ProfileController::
+  /// updateBankDetails() on the backend.
+  Future<Map<String, dynamic>> updateBankDetails({
+    String? bankName,
+    String? bankAccountHolder,
+    String? bankIban,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'bank_name': bankName,
+        'bank_account_holder': bankAccountHolder,
+        'bank_iban': bankIban,
+      };
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/me/driver/bank-details'),
+        headers: await _authHeaders(json: true),
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message']};
+      }
+      String message = data['message'] ?? 'Could not update bank details';
+      if (data['errors'] != null) {
+        (data['errors'] as Map).forEach((key, value) {
+          message += '\n${(value as List).first}';
+        });
+      }
+      return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> uploadAvatar({
     required Uint8List fileBytes,
     required String fileName,
