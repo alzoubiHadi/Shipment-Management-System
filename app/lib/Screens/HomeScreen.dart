@@ -18,6 +18,9 @@ import 'CompanyBottomNav.dart';
 import 'CompanyDashboardScreen.dart';
 import 'CompanyProfileScreen.dart';
 import 'CompnayShipments.dart';
+import 'DriverBalancePage.dart';
+import 'DriverBottomNav.dart';
+import 'DriverDashboardScreen.dart';
 import 'DriverOffersPage.dart';
 import 'PlaceholderPage.dart';
 import 'Profile.dart';
@@ -55,6 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
       widget.user.role == 'admin' || widget.user.role == 'super_admin' || widget.user.role == 'sub_admin';
 
   bool get _isCompany => widget.user.role == 'company';
+
+  bool get _isDriver => widget.user.role == 'driver';
 
   void _goToRequests({String type = 'all', String status = 'all'}) {
     setState(() {
@@ -184,11 +189,20 @@ class _HomeScreenState extends State<HomeScreen> {
   // PAGES
   List<Widget> get _pages {
     switch (widget.user.role) {
+      // Driver redesign Phase 1 (2026-08-17 mockup): Home/Shipments/Wallet/
+      // Profile — Wallet promoted to a top-level tab instead of being
+      // buried two taps deep under Profile. "Shipments" keeps pointing at
+      // DriverOffersPage (browse/accept available offers, same screen the
+      // old "Offers" tab used) — Phase 2 restyles it with search/filters/
+      // tabs per the mockup, not a new screen. Profile is unchanged until
+      // Phase 5.
       case "driver":
         return [
-          UserHomePage(user: widget.user),
+          DriverDashboardScreen(user: widget.user, onOpenWallet: () => setState(() => _selectedIndex = 2)),
 
           const DriverOffersPage(),
+
+          const DriverBalancePage(),
 
           Profile(user: widget.user),
         ];
@@ -326,6 +340,39 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             MaterialPageRoute(builder: (_) => const AddShipmentOfferPage()),
           ),
+        ),
+      );
+    }
+
+    // Driver redesign Phase 1 (2026-08-17 mockup): dedicated 4-tab bottom
+    // nav (Home/Shipments/Wallet/Profile), replacing the old 3-tab
+    // CelebrateBottomNav (Home/Offers/Profile). Stays on the dark AppColors
+    // theme — the mockup itself is dark, and the user asked to improve the
+    // existing workflow, not re-theme it like admin/company were.
+    if (_isDriver) {
+      return Scaffold(
+        backgroundColor: AppColors.bg,
+        body: IndexedStack(
+          index: safeIndex,
+          children: pages,
+        ),
+        bottomNavigationBar: DriverBottomNav(
+          selectedTab: switch (safeIndex) {
+            1 => DriverNavTab.shipments,
+            2 => DriverNavTab.wallet,
+            3 => DriverNavTab.profile,
+            _ => DriverNavTab.home,
+          },
+          onSelectTab: (tab) {
+            setState(() {
+              _selectedIndex = switch (tab) {
+                DriverNavTab.home => 0,
+                DriverNavTab.shipments => 1,
+                DriverNavTab.wallet => 2,
+                DriverNavTab.profile => 3,
+              };
+            });
+          },
         ),
       );
     }

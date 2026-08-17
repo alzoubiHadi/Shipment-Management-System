@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Driver;
+use App\Models\FinancialTransaction;
 use App\Models\Shipment;
 
 class ReportController extends Controller
@@ -72,6 +73,26 @@ class ReportController extends Controller
             // balance page to show the driver's current withdrawable amount.
             'balance' => $driver->balance,
             'has_pending_payout' => $driver->hasPendingPayout(),
+            // Driver Wallet redesign (2026-08-17): "Total Earnings" is this
+            // calendar month's realized earnings — summed straight from the
+            // ledger (the single source of truth for balance-affecting
+            // events), not derived from `balance` which is a running total
+            // net of payouts. "Pending Amount" is money already earned from
+            // a delivered shipment that hasn't been credited to `balance`
+            // yet because the company hasn't confirmed delivery
+            // (delivery_status stays 'awaiting_confirmation' until then —
+            // see Shipment::confirmByCompany()). Deliberately NOT the same
+            // number as `balance`, which is the current withdrawable amount.
+            'total_earnings_this_month' => (float) FinancialTransaction::where('account_type', FinancialTransaction::ACCOUNT_DRIVER)
+                ->where('account_id', $driver->id)
+                ->where('transaction_type', 'DRIVER_EARNING')
+                ->where('status', FinancialTransaction::STATUS_POSTED)
+                ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                ->sum('amount'),
+            'pending_amount' => (float) Shipment::where('driver_id', $driver->id)
+                ->where('status', 3)
+                ->where('delivery_status', 'awaiting_confirmation')
+                ->sum('price_to_driver'),
             // UC-23/24/25/26: surfaced here too, for the same reason as
             // balance above — the Profile screen already calls this.
             'rating' => $driver->rating,
