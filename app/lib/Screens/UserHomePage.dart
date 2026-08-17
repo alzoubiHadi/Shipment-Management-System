@@ -1,30 +1,31 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
-import 'AppBarWidget.dart';
 import 'ShipmentTrackingPage.dart';
 
-
-
-
-// ── Page ─────────────────────────────────────────────────────────────────────
-
+/// Driver "My Shipments" — driver redesign Phase 3 (2026-08-17 mockup):
+/// same screen as before (a plain shipment list), now with the mockup's
+/// All/Active/Completed/Cancelled tabs. Class name/constructor kept
+/// unchanged since DriverDashboardScreen's "View All" already pushes this
+/// screen directly.
 class UserHomePage extends StatefulWidget {
   final AppUser user;
-  UserHomePage({required this.user});
+  const UserHomePage({super.key, required this.user});
 
   @override
   State<UserHomePage> createState() => _UserHomePageState();
 }
 
+enum _ShipmentTab { all, active, completed, cancelled }
+
 class _UserHomePageState extends State<UserHomePage> {
   final _service = ShipmentService();
 
   late Future<List<Shipment>> _shipmentsFuture;
+  _ShipmentTab _tab = _ShipmentTab.all;
 
   @override
   void initState() {
@@ -33,59 +34,143 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   void _refresh() => setState(() {
-    _shipmentsFuture = _service.fetchShipments();
-  });
+        _shipmentsFuture = _service.fetchShipments();
+      });
+
+  List<Shipment> _filter(List<Shipment> all, _ShipmentTab tab) {
+    switch (tab) {
+      case _ShipmentTab.all:
+        return all;
+      case _ShipmentTab.active:
+        return all.where((s) => s.status == 0 || s.status == 1 || s.status == 2 || s.status == 5).toList();
+      case _ShipmentTab.completed:
+        return all.where((s) => s.status == 3).toList();
+      case _ShipmentTab.cancelled:
+        return all.where((s) => s.status == 4).toList();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return  RefreshIndicator(
-      onRefresh: () async => _refresh(),
-      child: CustomScrollView(
-        slivers: [
-          AppBarWidget(
-            user: widget.user,
-            subtitle: 'Latest Shipments',
-          ),
-
-          SliverToBoxAdapter(
-            child: FutureBuilder<List<Shipment>>(
-              future: _shipmentsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const _LoadingState();
-                }
-
-                if (snapshot.hasError) {
-                  return _ErrorState(
-                    message: snapshot.error.toString(),
-                    onRetry: _refresh,
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: AppColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('My Shipments', style: TextStyle(color: AppColors.cream)),
+      ),
+      body: RefreshIndicator(
+        color: AppColors.gold,
+        onRefresh: () async => _refresh(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: FutureBuilder<List<Shipment>>(
+                future: _shipmentsFuture,
+                builder: (context, snapshot) {
+                  final all = snapshot.data ?? [];
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _TabChip(
+                            label: 'All (${all.length})',
+                            active: _tab == _ShipmentTab.all,
+                            onTap: () => setState(() => _tab = _ShipmentTab.all),
+                          ),
+                          const SizedBox(width: 8),
+                          _TabChip(
+                            label: 'Active (${_filter(all, _ShipmentTab.active).length})',
+                            active: _tab == _ShipmentTab.active,
+                            onTap: () => setState(() => _tab = _ShipmentTab.active),
+                          ),
+                          const SizedBox(width: 8),
+                          _TabChip(
+                            label: 'Completed (${_filter(all, _ShipmentTab.completed).length})',
+                            active: _tab == _ShipmentTab.completed,
+                            onTap: () => setState(() => _tab = _ShipmentTab.completed),
+                          ),
+                          const SizedBox(width: 8),
+                          _TabChip(
+                            label: 'Cancelled (${_filter(all, _ShipmentTab.cancelled).length})',
+                            active: _tab == _ShipmentTab.cancelled,
+                            onTap: () => setState(() => _tab = _ShipmentTab.cancelled),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
-                }
-
-                final shipments = snapshot.data ?? [];
-
-                if (shipments.isEmpty) {
-                  return const _EmptyState();
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
-                  ),
-                  child: Column(
-                    children: [
-                      for (int i = 0; i < shipments.length; i++) ...[
-                        if (i > 0) const SizedBox(height: 10),
-                        ShipmentItem(shipment: shipments[i]),
-                      ],
-                    ],
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+            SliverToBoxAdapter(
+              child: FutureBuilder<List<Shipment>>(
+                future: _shipmentsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const _LoadingState();
+                  }
+
+                  if (snapshot.hasError) {
+                    return _ErrorState(
+                      message: snapshot.error.toString(),
+                      onRetry: _refresh,
+                    );
+                  }
+
+                  final shipments = _filter(snapshot.data ?? [], _tab);
+
+                  if (shipments.isEmpty) {
+                    return const _EmptyState();
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    child: Column(
+                      children: [
+                        for (int i = 0; i < shipments.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 10),
+                          ShipmentItem(shipment: shipments[i]),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+
+class _TabChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _TabChip({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? AppColors.gold : AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: active ? AppColors.gold : AppColors.border),
+        ),
+        child: Text(label,
+            style: TextStyle(fontSize: 12.5, color: active ? AppColors.bg : AppColors.muted, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
       ),
     );
   }
@@ -172,7 +257,7 @@ class _EmptyState extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'No shipments yet',
+            'No shipments here',
             style: TextStyle(
               color: AppColors.cream,
               fontSize: 16,
@@ -181,7 +266,7 @@ class _EmptyState extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Your shipments will appear here once created.',
+            'Shipments matching this filter will appear here.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.muted, fontSize: 12),
           ),
@@ -196,11 +281,21 @@ class _EmptyState extends StatelessWidget {
 class ShipmentItem extends StatelessWidget {
   final Shipment shipment;
 
-  const ShipmentItem({required this.shipment});
+  const ShipmentItem({super.key, required this.shipment});
+
+  Color get _color => switch (shipment.status) {
+        0 => AppColors.gold,
+        1 => AppColors.info,
+        2 => AppColors.success,
+        3 => AppColors.success,
+        4 => AppColors.error,
+        5 => AppColors.error,
+        _ => AppColors.muted,
+      };
 
   @override
   Widget build(BuildContext context) {
-    final color = shipment.statusColor;
+    final color = _color;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -229,7 +324,7 @@ class ShipmentItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  shipment.id.toString(),
+                  'SH-${shipment.id}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,

@@ -169,6 +169,16 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     }
   }
 
+  Color get _statusColor => switch (_shipment.status) {
+        0 => AppColors.gold,
+        1 => AppColors.info,
+        2 => AppColors.success,
+        3 => AppColors.success,
+        4 => AppColors.error,
+        5 => AppColors.error,
+        _ => AppColors.muted,
+      };
+
   Color _deliveryStatusColor(String status) {
     switch (status) {
       case 'awaiting_confirmation':
@@ -305,6 +315,21 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                       color: AppColors.cream,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                ),
+                // 2026-08-17 driver-redesign polish: the overall status
+                // ("In Transit", "Delivered"...) used to only be visible by
+                // scrolling down to find the active stage in the timeline
+                // below — now shown at a glance right next to the route.
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    statusLabel(_shipment.status),
+                    style: TextStyle(color: _statusColor, fontSize: 11, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
