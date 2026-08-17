@@ -3,6 +3,8 @@ class ShipmentOffer {
   final int companyId;
   final String companyName;
   final String origin;
+  final double? originLat;
+  final double? originLng;
   final String destination;
   final String weight;
   final String description;
@@ -24,6 +26,8 @@ class ShipmentOffer {
     required this.companyId,
     required this.companyName,
     required this.origin,
+    this.originLat,
+    this.originLng,
     required this.destination,
     required this.weight,
     required this.description,
@@ -52,6 +56,8 @@ class ShipmentOffer {
       companyId: json['company_id'] ?? 0,
       companyName: json['company']?['name']?.toString() ?? '',
       origin: json['origin']?.toString() ?? '',
+      originLat: json['origin_lat'] != null ? double.tryParse(json['origin_lat'].toString()) : null,
+      originLng: json['origin_lng'] != null ? double.tryParse(json['origin_lng'].toString()) : null,
       destination: json['destination']?.toString() ?? '',
       weight: json['weight']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
