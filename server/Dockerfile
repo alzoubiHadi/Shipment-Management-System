@@ -42,4 +42,17 @@ EXPOSE 8080
 # committed) — so on Render every request to a file URL under /storage/...
 # 404'd unconditionally, for every uploaded document/license/receipt across
 # the whole app. --force makes it safe to run on every boot.
-CMD php artisan config:clear && php artisan storage:link --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080} --no-reload
+#
+# `migrate --force` runs on every boot too (2026-08-24 fix): this container
+# never ran migrations automatically before — every schema change had to be
+# applied to the live Neon DB by hand, and any deploy where that step was
+# missed left the code and the DB out of sync (e.g. querying a table/column
+# a migration added but never actually ran on production causes a hard
+# SQL error -> HTTP 500, which is what broke the Admin Dashboard stats
+# endpoint and the driver Home screen after the compliance/documents schema
+# work). Laravel migrations are idempotent (already-applied ones are
+# skipped via the migrations table), so running this on every boot is safe
+# and keeps the DB self-healing on every future deploy. --force is required
+# because artisan normally refuses to run migrations when APP_ENV=production
+# without it.
+CMD php artisan config:clear && php artisan migrate --force && php artisan storage:link --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080} --no-reload
