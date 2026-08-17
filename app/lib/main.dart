@@ -247,42 +247,13 @@ class _SplashPageState extends State<SplashPage>
                       position: _slideUp,
                       child: Column(
                         children: [
-                          Container(
-                            width: 96,
-                            height: 96,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD4AF37),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: const Icon(
-                              Icons.local_shipping_rounded,
-                              color: Color(0xFF0A0A0C),
-                              size: 48,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'SHIPMENT',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 3,
-                            ),
-                          ),
-                          RichText(
-                            textAlign: TextAlign.center,
-                            text: const TextSpan(
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 2,
-                              ),
-                              children: [
-                                TextSpan(text: 'MANAGEMENT ', style: TextStyle(color: Colors.white70)),
-                                TextSpan(text: 'SYSTEM', style: TextStyle(color: Color(0xFFD4AF37))),
-                              ],
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Image.asset(
+                              'assets/images/fms_logo.png',
+                              width: 140,
+                              height: 140,
+                              fit: BoxFit.cover,
                             ),
                           ),
                         ],
