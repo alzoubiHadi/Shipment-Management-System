@@ -501,6 +501,35 @@ class DriverService {
     }
   }
 
+  /// Lightweight poll: does the logged-in driver currently have an active
+  /// trip (Shipment.status 1/2/5 — assigned/in transit/delayed)? Backs
+  /// DriverLocationReporter's background-tracking gate and the
+  /// Logout-disabled-during-a-trip rule (logout_helper.dart). Much
+  /// cheaper than fetchShipments() since the server only ever returns at
+  /// most one row (GET /driver/{userId}/current-trip).
+  static Future<Map<String, dynamic>> fetchCurrentTrip() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final userId = prefs.getString('id');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/driver/$userId/current-trip'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return {
+        'has_active_trip': data['has_active_trip'] == true,
+        'shipment': data['shipment'],
+      };
+    }
+    throw Exception(data['message']?.toString() ?? 'Failed to check current trip (${response.statusCode})');
+  }
+
   // ── Documents (UC-8) ──────────────────────────────────────────────────
 
   /// The driver's own document history (newest first, all versions —

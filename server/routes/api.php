@@ -206,6 +206,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/shipments/{id}/restore', [ShipmentController::class, 'restore']);
     Route::get('/shipments/{tracking_number}/track', [ShipmentController::class, 'trackmyshipment']);
     Route::get('/driver/{driver_id}/shipments', [ShipmentController::class, 'drivergetShipments']);
+    // Background-tracking gate + "can't Logout mid-trip" rule (Flutter:
+    // DriverLocationReporter.dart / logout_helper.dart) — lightweight poll,
+    // much cheaper than fetching the driver's full shipment list.
+    Route::get('/driver/{driver_id}/current-trip', [ShipmentController::class, 'currentActiveTrip']);
     Route::get('/company/{company_id}/shipments', [ShipmentController::class, 'companygetShipments']);
     Route::post('/shipments/status/change', [ShipmentController::class, 'updateshipmentstatus']);
     Route::post('/shipments/refuse', [ShipmentController::class, 'refuse']);

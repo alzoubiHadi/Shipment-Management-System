@@ -7,15 +7,25 @@
          permission for Flutter's own tooling needs, which is why this never
          showed up in `flutter run` (debug), only in the release APK. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Driver GPS location sharing (UC-21/UC-14): foreground-only, no
-         background tracking service — the app reads and reports the
-         driver's position periodically while the app is open, so
-         companies/admins can see it on the live tracking map. COARSE is
-         requested alongside FINE because Android may grant only the
+    <!-- Driver GPS location sharing (UC-21/UC-14). COARSE is requested
+         alongside FINE because Android may grant only the
          approximate-location permission depending on the user's choice in
          the permission dialog. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Background trip tracking (2026-08-24, DriverLocationReporter.dart):
+         only requested/used while a driver has an active trip (Shipment
+         status 1/2/5) — see the reporter's docblock. ACCESS_BACKGROUND_LOCATION
+         is what lets Android grant location access once the app is no
+         longer in the foreground (Android 10+ requirement); the
+         FOREGROUND_SERVICE* permissions are what let geolocator run its
+         persistent-notification foreground service that keeps the app
+         process (and thus location reporting) alive with the screen off
+         or another app in front (Android 14+ requires the *_LOCATION
+         variant specifically for a location-type foreground service). -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <application
         android:label="FMS"
         android:name="${applicationName}"

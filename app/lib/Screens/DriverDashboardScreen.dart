@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../API/DriverLocationReporter.dart';
 import '../API/NotificationService.dart';
 import '../API/ReportService.dart';
 import '../API/ShipmentServices.dart';
@@ -136,6 +137,37 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                       ),
                     ],
                   ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: DriverLocationReporter.hasActiveTrip,
+                  builder: (context, active, _) {
+                    if (!active) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: LightColors.infoBg,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: LightColors.info.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.local_shipping_rounded, color: LightColors.info, size: 18),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Active Trip — location sharing is on. Logout is unavailable until it ends.',
+                                style: TextStyle(color: LightColors.info, fontSize: 12.5, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               SliverToBoxAdapter(

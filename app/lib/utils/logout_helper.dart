@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../API/DriverLocationReporter.dart';
 import '../API/config.dart';
 import '../main.dart';
 
@@ -15,7 +16,24 @@ import '../main.dart';
 /// jarring dark popup dropped into an otherwise light screen. Defaults to
 /// false so the still-dark screens (Profile.dart, AppBarWidget, etc.) keep
 /// their original look until they're redesigned too.
+///
+/// Background-tracking rule (2026-08-24): a driver with an active trip
+/// (Shipment.status 1/2/5) must not be able to log out until it ends —
+/// otherwise background GPS tracking would stop reporting the driver's
+/// location to the company/admin mid-trip. DriverLocationReporter.hasActiveTrip
+/// is only ever set for driver sessions (HomeScreen only starts the
+/// reporter for role == 'driver'), so this check is a no-op — always
+/// false — for company/admin, no role parameter needed here.
 Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async {
+  if (DriverLocationReporter.hasActiveTrip.value) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("You can't log out while a trip is in progress. Finish or hand off the trip first."),
+      ),
+    );
+    return;
+  }
+
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -58,9 +76,15 @@ Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async 
 /// already migrated to the light redesign so both the icon and the
 /// confirmation dialog match. Defaults to false for any still-dark screens.
 Widget logoutAction(BuildContext context, {bool light = false}) {
-  return IconButton(
-    icon: Icon(Icons.logout, color: light ? LightColors.textPrimary : AppColors.cream),
-    tooltip: 'Log out',
-    onPressed: () => confirmAndLogout(context, light: light),
+  return ValueListenableBuilder<bool>(
+    valueListenable: DriverLocationReporter.hasActiveTrip,
+    builder: (context, blocked, _) {
+      final color = light ? LightColors.textPrimary : AppColors.cream;
+      return IconButton(
+        icon: Icon(Icons.logout, color: blocked ? color.withOpacity(0.35) : color),
+        tooltip: blocked ? "Log out (unavailable during an active trip)" : 'Log out',
+        onPressed: () => confirmAndLogout(context, light: light),
+      );
+    },
   );
 }

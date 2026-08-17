@@ -26,6 +26,29 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Driver GPS location sharing (UC-21/UC-14) + background trip
+	     tracking (2026-08-24, DriverLocationReporter.dart). iOS shows
+	     these exact strings in its permission prompts and crashes the app
+	     if a location request is made without the matching key present —
+	     this app had NO location keys at all before, so foreground
+	     reporting itself would already have been broken on iOS. "Always"
+	     is what background tracking during an active trip needs;
+	     WhenInUse covers everything else. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FMS uses your location to show you on the live tracking map and to match you with nearby shipments.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>FMS shares your location with the company and admin while you have an active trip, even when the app is in the background, so they can track the delivery in progress.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>FMS shares your location with the company and admin while you have an active trip, even when the app is in the background, so they can track the delivery in progress.</string>
+	<!-- Lets iOS keep delivering location updates (and keep the app process
+	     alive) once the app is backgrounded — paired with
+	     AppleSettings.allowBackgroundLocationUpdates in
+	     DriverLocationReporter.dart. Only actually kept "live" while a
+	     position stream is running, i.e. only during an active trip. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

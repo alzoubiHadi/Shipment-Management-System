@@ -164,6 +164,45 @@ class ShipmentController extends Controller
             'shipments' => $shipments,
         ], 200);
     }
+
+    /**
+     * Lightweight poll backing the Driver app's background-tracking gate
+     * and the "Logout disabled during an active trip" rule (Flutter:
+     * DriverLocationReporter.dart / logout_helper.dart). Much cheaper than
+     * drivergetShipments() above since it only ever returns at most one
+     * row. "Active" mirrors the exact same predicate used everywhere else
+     * in the app (DriverDashboardScreen, CompanyDashboardScreen,
+     * CompnayShipments, UserHomePage): status 1 (assigned), 2 (in
+     * transit / out for delivery), or 5 (delayed) — NOT 0 (pending, not
+     * yet under way) and NOT 3/4 (delivered/cancelled, trip is over).
+     */
+    public function currentActiveTrip(Request $request, $driver_id)
+    {
+        $driver = Driver::where('user_id', $driver_id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        // This drives a security/privacy-adjacent decision (background
+        // tracking + Logout gating), so — unlike drivergetShipments()
+        // above — it self-enforces that a driver can only poll their own
+        // trip status, matching DriverController::updateLocation's check
+        // for the same driver-tracking feature.
+        if ($driver->user_id != $request->user()->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $shipment = Shipment::where('driver_id', $driver->id)
+            ->whereIn('status', [1, 2, 5])
+            ->first(['id', 'tracking_number', 'status']);
+
+        return response()->json([
+            'has_active_trip' => (bool) $shipment,
+            'shipment' => $shipment,
+        ], 200);
+    }
+
     public function companygetShipments($company_id)
     {
         $company = Company::where('user_id', $company_id)->first();

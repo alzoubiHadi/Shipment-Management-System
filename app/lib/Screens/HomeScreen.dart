@@ -78,10 +78,13 @@ class _HomeScreenState extends State<HomeScreen> {
     // screen every login/auto-login path always passes through.
     PushNotificationSetup.initialize();
 
-    // Drivers request location access and share it periodically while the
-    // app is open, so companies/admins can see them on the live tracking
-    // map (ShipmentTrackingPage). Foreground-only — stopped in dispose()
-    // below, never runs for company/admin accounts.
+    // Drivers: starts a lightweight poll for an active trip (Shipment
+    // status 1/2/5). While one exists, DriverLocationReporter streams GPS
+    // fixes to the server in the background (screen off/app backgrounded
+    // included) so companies/admins can see them on the live tracking map,
+    // and Logout is blocked (see logout_helper.dart) until the trip ends.
+    // With no active trip, nothing runs — never for company/admin
+    // accounts. Stopped in dispose() below.
     if (widget.user.role == 'driver') {
       DriverLocationReporter.start();
     }
