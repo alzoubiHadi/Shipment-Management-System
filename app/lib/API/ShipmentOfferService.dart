@@ -287,10 +287,12 @@ class ShipmentOfferService {
     }
   }
 
-  // ── Driver: accept an offer with a chosen truck ────────────────────────
+  // ── Driver: accept an offer ─────────────────────────────────────────────
+  // No truckId anymore — the backend resolves the driver's own linked truck
+  // automatically (Driver 1<->1 Truck) instead of trusting a client-chosen
+  // one. See ShipmentOfferController::accept() on the server.
   static Future<Map<String, dynamic>> acceptOffer({
     required int offerId,
-    required int truckId,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -307,7 +309,6 @@ class ShipmentOfferService {
         body: jsonEncode({
           'offer_id': offerId,
           'driver_user_id': userId,
-          'truck_id': truckId,
         }),
       );
 

@@ -1,54 +1,45 @@
 import 'package:flutter/material.dart';
 
 import '../API/ShipmentOfferService.dart';
-import '../API/TruckService.dart';
 import '../API/config.dart';
 import '../models/ShipmentOffer.dart';
-import '../models/Truck.dart';
 
-/// Shared "pick a truck, then accept" flow — used by both the Available
+/// Shared "confirm, then accept" flow — used by both the Available
 /// Shipments list (Accept button) and the Shipment Details page (Accept
-/// Shipment button), so the truck-picker sheet and result handling only
+/// Shipment button), so the confirmation dialog and result handling only
 /// live in one place. Returns true if the offer was accepted.
+///
+/// No more truck picker here (2026-08-21): under the Driver 1<->1 Truck
+/// rule a driver only ever has one registered truck, so there was never a
+/// real choice to make — the backend now resolves and validates the
+/// driver's own linked truck automatically on accept.
 Future<bool> acceptOfferFlow(BuildContext context, ShipmentOffer offer) async {
-  final trucks = await TruckService().fetchMyTrucks();
-
-  if (!context.mounted) return false;
-
-  if (trucks.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add a truck in your profile before accepting a job')),
-    );
-    return false;
-  }
-
-  final truck = await showModalBottomSheet<Truck>(
+  final confirmed = await showDialog<bool>(
     context: context,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Choose the truck for this job', style: TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600)),
-          ),
-          ...trucks.map((t) => ListTile(
-                leading: Icon(t.hasRefrigeration ? Icons.ac_unit : Icons.local_shipping_outlined, color: AppColors.gold),
-                title: Text(t.truckNumber, style: const TextStyle(color: AppColors.cream)),
-                subtitle: Text(t.truckType, style: const TextStyle(color: AppColors.muted)),
-                onTap: () => Navigator.pop(ctx, t),
-              )),
-          const SizedBox(height: 8),
-        ],
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: const Text('Accept this job?', style: TextStyle(color: AppColors.cream)),
+      content: Text(
+        '${offer.origin} -> ${offer.destination}',
+        style: const TextStyle(color: AppColors.muted),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Accept', style: TextStyle(color: AppColors.gold, fontWeight: FontWeight.w600)),
+        ),
+      ],
     ),
   );
 
-  if (truck == null) return false;
+  if (confirmed != true) return false;
+  if (!context.mounted) return false;
 
-  final result = await ShipmentOfferService.acceptOffer(offerId: offer.id, truckId: int.parse(truck.id));
+  final result = await ShipmentOfferService.acceptOffer(offerId: offer.id);
 
   if (!context.mounted) return result['success'] == true;
 

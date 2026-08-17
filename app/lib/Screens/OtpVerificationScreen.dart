@@ -13,6 +13,9 @@ import 'HomeScreen.dart';
 /// UC-4: shown right after register() to collect the 6-digit email OTP
 /// code. Verification is what actually issues the API token — registration
 /// itself no longer does.
+///
+/// Admin Phase 6 (2026-08-20) redesign to LightColors — part of the
+/// pre-auth registration flow, reachable by Company & Driver.
 class OtpVerificationScreen extends StatefulWidget {
   final String email;
 
@@ -140,7 +143,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
@@ -153,10 +156,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   height: 72,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
-                    color: const Color(0xFFD4AF37).withOpacity(0.12),
+                    color: LightColors.gold.withOpacity(0.12),
                   ),
                   child: const Icon(Icons.mark_email_read_outlined,
-                      color: Color(0xFFD4AF37), size: 32),
+                      color: LightColors.goldMuted, size: 32),
                 ),
               ),
               const SizedBox(height: 32),
@@ -165,7 +168,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w300,
-                  color: AppColors.cream,
+                  color: LightColors.textPrimary,
                   height: 1.1,
                   letterSpacing: -1,
                 ),
@@ -173,7 +176,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 10),
               Text(
                 'We sent a 6-digit code to ${widget.email}',
-                style: const TextStyle(fontSize: 14, color: AppColors.muted),
+                style: const TextStyle(fontSize: 14, color: LightColors.textSecondary),
               ),
               const SizedBox(height: 36),
               TextField(
@@ -183,25 +186,25 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 textAlign: TextAlign.center,
                 maxLength: 6,
                 style: const TextStyle(
-                  color: AppColors.cream,
+                  color: LightColors.textPrimary,
                   fontSize: 24,
                   letterSpacing: 8,
                 ),
                 decoration: InputDecoration(
                   counterText: '',
                   filled: true,
-                  fillColor: const Color(0xFF111113),
+                  fillColor: LightColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF2A2520)),
+                    borderSide: const BorderSide(color: LightColors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF2A2520)),
+                    borderSide: const BorderSide(color: LightColors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFD4AF37)),
+                    borderSide: const BorderSide(color: LightColors.gold),
                   ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 18),
                 ),
@@ -209,12 +212,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               if (_errorMessage != null) ...[
                 const SizedBox(height: 14),
                 Text(_errorMessage!,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFFE57373))),
+                    style: const TextStyle(fontSize: 13, color: LightColors.error)),
               ],
               if (_infoMessage != null) ...[
                 const SizedBox(height: 14),
                 Text(_infoMessage!,
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF81C784))),
+                    style: const TextStyle(fontSize: 13, color: LightColors.success)),
               ],
               const SizedBox(height: 28),
               SizedBox(
@@ -223,7 +226,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 child: ElevatedButton(
                   onPressed: _loading ? null : _handleVerify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4AF37),
+                    backgroundColor: LightColors.gold,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -233,12 +236,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Color(0xFF0A0A0C)))
+                              strokeWidth: 2, color: LightColors.textPrimary))
                       : const Text('Verify',
                           style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF0A0A0C))),
+                              color: LightColors.textPrimary)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -249,7 +252,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     _resendCooldown > 0
                         ? 'Resend code in ${_resendCooldown}s'
                         : 'Resend code',
-                    style: const TextStyle(color: Color(0xFFD4AF37)),
+                    style: const TextStyle(color: LightColors.goldMuted),
                   ),
                 ),
               ),

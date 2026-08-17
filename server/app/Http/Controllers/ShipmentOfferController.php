@@ -255,7 +255,7 @@ class ShipmentOfferController extends Controller
             $driver = Driver::findOrFail($validated['driver_id']);
             $truck = Truck::findOrFail($validated['truck_id']);
 
-            $truckIssue = $this->checkTruckSuitability($offer, $truck);
+            $truckIssue = $truck->suitabilityIssue($offer);
             if ($truckIssue) {
                 return response()->json(['message' => $truckIssue], 422);
             }
@@ -334,7 +334,17 @@ class ShipmentOfferController extends Controller
      * qualifies for, so the app can show "available jobs" to that driver.
      * Broader than "only the top-5 matched this round" on purpose — any
      * eligible driver can still pick up a pending offer, matching just
-     * decides who gets pushed a notification first.
+     * decides who gets pushed a notification first. NOT broader than full
+     * eligibility, though: this used to show almost every pending internal
+     * offer regardless of the driver's truck/route, only checking the
+     * cross-border residency rule for external ones. It now reuses
+     * MatchingService::eligibleDriversQuery() — the exact same Step 1 hard
+     * filter matching runs — so a driver whose truck can't do the job, or
+     * who doesn't cover the route, never sees it here at all. One query
+     * per pending offer is a deliberate simplicity-over-cleverness choice:
+     * pending-offer volume is small enough that this is not a concern, and
+     * it guarantees this list can never drift out of sync with what
+     * matching itself considers eligible.
      */
     public function availableForDriver($driver_id)
     {
@@ -344,23 +354,15 @@ class ShipmentOfferController extends Controller
             return response()->json(['message' => 'Driver not found'], 404);
         }
 
-        if (! $driver->isEligibleForNewJob()) {
-            return response()->json([
-                'message' => 'Driver is not currently eligible for new jobs',
-                'offers' => [],
-            ], 200);
-        }
+        $matchingService = app(MatchingService::class);
 
         $offers = ShipmentOffer::where('status', 'pending')
-            ->where(function ($q) use ($driver) {
-                $q->where('order_type', 'internal');
-
-                if ($driver->meetsCrossBorderResidencyRule()) {
-                    $q->orWhere('order_type', 'external');
-                }
-            })
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->filter(fn (ShipmentOffer $offer) => $matchingService->eligibleDriversQuery($offer)
+                ->whereKey($driver->id)
+                ->exists())
+            ->values();
 
         return response()->json([
             'message' => 'Available offers retrieved successfully',
@@ -369,9 +371,17 @@ class ShipmentOfferController extends Controller
     }
 
     /**
-     * Driver app: accept an offer with a chosen truck. Turns the offer into
-     * a real Shipment, locks the offer so nobody else can take it, and marks
-     * the driver as busy.
+     * Driver app: accept an offer. Turns the offer into a real Shipment,
+     * locks the offer so nobody else can take it, and marks the driver as
+     * busy.
+     *
+     * The driver no longer chooses a truck_id — under the Driver 1<->1
+     * Truck rule (TruckController::addMyTruck refuses a second truck) there
+     * is never a real choice to make, and letting the client send an
+     * arbitrary truck_id meant a driver could technically accept using a
+     * truck that wasn't even theirs. The flow is now strictly: get the
+     * authenticated driver -> get THEIR linked truck -> validate it ->
+     * accept.
      */
     public function accept(Request $request)
     {
@@ -381,7 +391,6 @@ class ShipmentOfferController extends Controller
             // drivers.id, so we resolve the driver from that (same pattern
             // as the trucks endpoints)
             'driver_user_id' => ['required', 'exists:users,id'],
-            'truck_id' => ['required', 'exists:trucks,id'],
         ]);
 
         return DB::transaction(function () use ($validated) {
@@ -399,11 +408,9 @@ class ShipmentOfferController extends Controller
                 return response()->json(['message' => 'Driver not found'], 404);
             }
 
-            $truck = Truck::findOrFail($validated['truck_id']);
-
             if (! $driver->isEligibleForNewJob()) {
                 return response()->json([
-                    'message' => 'Driver is not eligible for this job (unavailable or expired documents)',
+                    'message' => 'Driver is not eligible for this job (unavailable, non-compliant, a payout is pending, or a required document is missing/expired)',
                 ], 422);
             }
 
@@ -413,7 +420,25 @@ class ShipmentOfferController extends Controller
                 ], 422);
             }
 
-            $truckIssue = $this->checkTruckSuitability($offer, $truck);
+            // Defense in depth: the app's own Available Shipments list
+            // already only shows offers whose route this driver covers
+            // (see availableForDriver()), but accept() must not simply
+            // trust that — re-check here too.
+            foreach (app(MatchingService::class)->requiredCountriesFor($offer) as $country) {
+                if (! $driver->coversCountry($country)) {
+                    return response()->json([
+                        'message' => 'Driver does not cover this route',
+                    ], 422);
+                }
+            }
+
+            $truck = $driver->truck;
+
+            if (! $truck) {
+                return response()->json(['message' => 'You do not have a registered truck yet'], 422);
+            }
+
+            $truckIssue = $truck->suitabilityIssue($offer);
             if ($truckIssue) {
                 return response()->json(['message' => $truckIssue], 422);
             }
@@ -458,31 +483,6 @@ class ShipmentOfferController extends Controller
             'message' => 'Offer cancelled successfully',
             'offer' => $offer,
         ], 200);
-    }
-
-    /**
-     * Shared by accept() (self-service) and assignDriver() (Super Admin
-     * override): truck must be roadworthy, of the right type, and
-     * refrigerated when the offer requires a Reefer Trailer.
-     */
-    private function checkTruckSuitability(ShipmentOffer $offer, Truck $truck): ?string
-    {
-        if (! $truck->isRoadworthy()) {
-            return 'Truck is not roadworthy (inactive, expired insurance or license)';
-        }
-
-        if ($offer->required_truck_type && $truck->truck_type !== $offer->required_truck_type) {
-            return 'Truck type does not match what this offer requires';
-        }
-
-        // Refrigeration is implied by required_truck_type = "Reefer Trailer"
-        // (there is no separate cargo_type flag for it anymore) — this is
-        // a defensive double-check in case a truck was mislabeled.
-        if ($offer->required_truck_type === 'Reefer Trailer' && ! $truck->has_refrigeration) {
-            return 'This cargo requires a refrigerated truck';
-        }
-
-        return null;
     }
 
     /**

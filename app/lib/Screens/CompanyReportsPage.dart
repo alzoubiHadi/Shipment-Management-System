@@ -5,6 +5,8 @@ import '../API/config.dart';
 
 /// Admin: for every company, shipment counts by status plus their most
 /// frequently requested destinations.
+///
+/// Admin Phase 6 (2026-08-20) redesign to LightColors.
 class CompanyReportsPage extends StatefulWidget {
   const CompanyReportsPage({super.key});
 
@@ -27,25 +29,25 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Company Reports', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Company Reports', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return const Center(
-                child: Text('Could not load report', style: TextStyle(color: AppColors.error)),
+                child: Text('Could not load report', style: TextStyle(color: LightColors.error)),
               );
             }
 
@@ -56,7 +58,7 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                   Padding(
                     padding: EdgeInsets.only(top: 80),
                     child: Center(
-                      child: Text('No companies yet', style: TextStyle(color: AppColors.muted)),
+                      child: Text('No companies yet', style: TextStyle(color: LightColors.textSecondary)),
                     ),
                   ),
                 ],
@@ -76,9 +78,9 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,7 +92,7 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                             child: Text(
                               c['name']?.toString() ?? '—',
                               style: const TextStyle(
-                                color: AppColors.cream,
+                                color: LightColors.textPrimary,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
                               ),
@@ -98,7 +100,7 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                           ),
                           Text(
                             '${c['total_shipments'] ?? 0} shipments',
-                            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                            style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
                           ),
                         ],
                       ),
@@ -112,13 +114,13 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppColors.bg,
+                                color: LightColors.bg,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.border, width: 0.5),
+                                border: Border.all(color: LightColors.border, width: 0.5),
                               ),
                               child: Text(
                                 '${e.key}: ${e.value}',
-                                style: const TextStyle(color: AppColors.cream, fontSize: 11),
+                                style: const TextStyle(color: LightColors.textPrimary, fontSize: 11),
                               ),
                             );
                           }).toList(),
@@ -129,7 +131,7 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                         const Text(
                           'Top destinations',
                           style: TextStyle(
-                            color: AppColors.muted,
+                            color: LightColors.textSecondary,
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -143,12 +145,12 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                                   Text(
                                     e.key,
                                     style: const TextStyle(
-                                        color: AppColors.cream, fontSize: 13),
+                                        color: LightColors.textPrimary, fontSize: 13),
                                   ),
                                   Text(
                                     '${e.value}',
                                     style: const TextStyle(
-                                        color: AppColors.gold, fontSize: 13),
+                                        color: LightColors.goldMuted, fontSize: 13),
                                   ),
                                 ],
                               ),

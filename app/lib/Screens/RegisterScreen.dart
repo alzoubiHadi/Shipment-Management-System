@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../API/config.dart';
 import 'CompanyRegisterScreen.dart';
 import 'DriverRegisterScreen.dart';
 
@@ -8,13 +9,17 @@ import 'DriverRegisterScreen.dart';
 /// collect very different data (a company just needs its basic info + trade
 /// license; a driver's form covers driver info AND their truck in two
 /// sections), so a single shared form no longer makes sense.
+///
+/// Admin Phase 6 (2026-08-20) redesign to LightColors — part of the
+/// pre-auth flow reachable by Company & Driver; was still on hardcoded
+/// dark hex values rather than a shared color symbol.
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0C),
+      backgroundColor: LightColors.bg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
@@ -25,13 +30,13 @@ class RegisterScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: LightColors.navy,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
                     'FMS',
                     style: TextStyle(
-                      color: Colors.black,
+                      color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 2,
@@ -45,7 +50,7 @@ class RegisterScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.w300,
-                  color: Color(0xFFF5F0E8),
+                  color: LightColors.textPrimary,
                   height: 1.1,
                   letterSpacing: -1,
                 ),
@@ -53,7 +58,7 @@ class RegisterScreen extends StatelessWidget {
               const SizedBox(height: 8),
               const Text(
                 'Choose the kind of account you need',
-                style: TextStyle(fontSize: 14, color: Color(0xFF6B6660)),
+                style: TextStyle(fontSize: 14, color: LightColors.textSecondary),
               ),
               const SizedBox(height: 40),
               Expanded(
@@ -91,7 +96,7 @@ class RegisterScreen extends StatelessWidget {
                   onPressed: () => Navigator.pop(context),
                   child: const Text(
                     'Already have an account? Sign in',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF6B6660)),
+                    style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
                   ),
                 ),
               ),
@@ -125,13 +130,9 @@ class _RoleCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF15130F), Color(0xFF0F0E0C)],
-          ),
+          color: LightColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF2A2520)),
+          border: Border.all(color: LightColors.border),
         ),
         child: Row(
           children: [
@@ -139,10 +140,10 @@ class _RoleCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: const Color(0xFFD4AF37).withOpacity(0.12),
+                color: LightColors.gold.withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: const Color(0xFFD4AF37), size: 30),
+              child: Icon(icon, color: LightColors.goldMuted, size: 30),
             ),
             const SizedBox(width: 18),
             Expanded(
@@ -152,7 +153,7 @@ class _RoleCard extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Color(0xFFF5F0E8),
+                      color: LightColors.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
@@ -160,12 +161,12 @@ class _RoleCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: Color(0xFF6B6660), fontSize: 12, height: 1.4),
+                    style: const TextStyle(color: LightColors.textSecondary, fontSize: 12, height: 1.4),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFF6B6660)),
+            const Icon(Icons.chevron_right, color: LightColors.textSecondary),
           ],
         ),
       ),

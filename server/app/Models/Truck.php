@@ -61,14 +61,14 @@ class Truck extends Model
 
     /**
      * has_refrigeration must never be set independently of truck_type — it
-     * IS "truck_type === 'Reefer Trailer'" (see the comment on that check
-     * in ShipmentOfferController::eligibilityError()). Before this hook,
-     * every creation path that didn't explicitly pass has_refrigeration
-     * (registration's Truck::create() being the main one) left it at the
-     * column default (false), so a driver whose truck really was a Reefer
-     * Trailer would still fail the "requires a refrigerated truck" check
-     * on offer acceptance. Deriving it here, on every save, closes that
-     * gap for good instead of just patching the one call site.
+     * IS "truck_type === 'Reefer Trailer'" (see the refrigeration check in
+     * suitabilityIssue() below). Before this hook, every creation path that
+     * didn't explicitly pass has_refrigeration (registration's
+     * Truck::create() being the main one) left it at the column default
+     * (false), so a driver whose truck really was a Reefer Trailer would
+     * still fail the "requires a refrigerated truck" check on offer
+     * acceptance. Deriving it here, on every save, closes that gap for good
+     * instead of just patching the one call site.
      */
     protected static function booted(): void
     {
@@ -101,7 +101,11 @@ class Truck extends Model
 
     /**
      * A truck is currently eligible for a new job if it is active and all of
-     * its permits / insurance / registration are still valid.
+     * its permits / insurance / registration are still valid. Unlike driver
+     * documents, a missing (null) expiry here is NOT a block — insurance and
+     * technical inspection are optional at registration (see
+     * UserController::register / TruckController::updateMyTruck) and can be
+     * added later, so only an actually-expired date disqualifies the truck.
      */
     public function isRoadworthy(): bool
     {
@@ -124,5 +128,43 @@ class Truck extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Single source of truth for "can this truck actually carry this
+     * shipment offer" — roadworthy, correct type, refrigerated if the cargo
+     * needs it, and enough payload capacity (max_load). Returns a
+     * human-readable reason on failure, or null when the truck is fully
+     * suitable. Used both as a hard filter in MatchingService (so an
+     * unsuitable truck's driver never even sees/gets offered the job) and
+     * as a final re-check at accept-time in ShipmentOfferController.
+     */
+    public function suitabilityIssue(ShipmentOffer $offer): ?string
+    {
+        if (! $this->isRoadworthy()) {
+            return 'Truck is not roadworthy (inactive, expired insurance, license, or technical inspection)';
+        }
+
+        if ($offer->required_truck_type && $this->truck_type !== $offer->required_truck_type) {
+            return 'Truck type does not match what this offer requires';
+        }
+
+        // Refrigeration is implied by required_truck_type = "Reefer Trailer"
+        // (there is no separate cargo_type flag for it anymore) — this is
+        // a defensive double-check in case a truck was mislabeled.
+        if ($offer->required_truck_type === 'Reefer Trailer' && ! $this->has_refrigeration) {
+            return 'This cargo requires a refrigerated truck';
+        }
+
+        if ($offer->weight !== null && $this->max_load !== null && (float) $offer->weight > (float) $this->max_load) {
+            return 'This truck\'s payload capacity is not enough for this shipment';
+        }
+
+        return null;
+    }
+
+    public function isSuitableFor(ShipmentOffer $offer): bool
+    {
+        return $this->suitabilityIssue($offer) === null;
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\Driver;
+use App\Models\DriverDestination;
 use App\Models\Shipment;
 use App\Models\ShipmentOffer;
 use App\Models\Truck;
@@ -43,7 +44,13 @@ class ShipmentBusinessRulesTest extends TestCase
         ]);
     }
 
-    private function makeDriver(array $overrides = []): array
+    /**
+     * $destinations defaults to just ['internal_uae'] — enough to cover
+     * the default (internal) makeOffer() route. Cross-border tests should
+     * pass the extra country explicitly (e.g. ['internal_uae',
+     * 'saudi_arabia']), matching MatchingService::requiredCountriesFor().
+     */
+    private function makeDriver(array $overrides = [], array $destinations = ['internal_uae']): array
     {
         $user = User::create([
             'name' => 'Test Driver',
@@ -59,8 +66,19 @@ class ShipmentBusinessRulesTest extends TestCase
             'status' => 'available',
             'approval_status' => 'approved',
             'compliance_status' => 'active',
+            // All three now hard-required for job eligibility (see
+            // Driver::documentIssues()) — default to comfortably valid so
+            // tests that aren't specifically about document rules don't
+            // trip over them; override per-test as needed.
+            'license_expiry' => now()->addYear(),
+            'passport_expiry' => now()->addYear(),
+            'residency_expiry' => now()->addYear(),
             'user_id' => $user->id,
         ], $overrides));
+
+        foreach ($destinations as $country) {
+            DriverDestination::create(['driver_id' => $driver->id, 'destination' => $country]);
+        }
 
         return [$user, $driver];
     }
@@ -96,10 +114,11 @@ class ShipmentBusinessRulesTest extends TestCase
 
     public function test_driver_with_insufficient_residency_is_rejected_for_cross_border_offer(): void
     {
-        [$user, $driver] = $this->makeDriver([
-            'residency_expiry' => now()->addDays(30), // less than the required 3 months
-        ]);
-        $truck = $this->makeTruck($driver);
+        [$user, $driver] = $this->makeDriver(
+            ['residency_expiry' => now()->addDays(30)], // less than the required 3 months
+            ['internal_uae', 'saudi_arabia'],
+        );
+        $this->makeTruck($driver);
         $company = $this->makeCompany();
         $offer = $this->makeOffer($company, ['order_type' => 'external']);
 
@@ -108,7 +127,6 @@ class ShipmentBusinessRulesTest extends TestCase
         $response = $this->postJson('/api/shipment-offers/accept', [
             'offer_id' => $offer->id,
             'driver_user_id' => $user->id,
-            'truck_id' => $truck->id,
         ]);
 
         $response->assertStatus(422);
@@ -118,10 +136,11 @@ class ShipmentBusinessRulesTest extends TestCase
 
     public function test_driver_with_sufficient_residency_can_accept_cross_border_offer(): void
     {
-        [$user, $driver] = $this->makeDriver([
-            'residency_expiry' => now()->addMonths(4),
-        ]);
-        $truck = $this->makeTruck($driver);
+        [$user, $driver] = $this->makeDriver(
+            ['residency_expiry' => now()->addMonths(4)],
+            ['internal_uae', 'saudi_arabia'],
+        );
+        $this->makeTruck($driver);
         $company = $this->makeCompany();
         $offer = $this->makeOffer($company, ['order_type' => 'external']);
 
@@ -130,7 +149,6 @@ class ShipmentBusinessRulesTest extends TestCase
         $response = $this->postJson('/api/shipment-offers/accept', [
             'offer_id' => $offer->id,
             'driver_user_id' => $user->id,
-            'truck_id' => $truck->id,
         ]);
 
         $response->assertStatus(201);
@@ -144,7 +162,7 @@ class ShipmentBusinessRulesTest extends TestCase
     public function test_truck_type_mismatch_rejects_offer_acceptance(): void
     {
         [$user, $driver] = $this->makeDriver();
-        $truck = $this->makeTruck($driver, ['truck_type' => 'Pickup']);
+        $this->makeTruck($driver, ['truck_type' => 'Pickup']);
         $company = $this->makeCompany();
         $offer = $this->makeOffer($company, ['required_truck_type' => 'Reefer']);
 
@@ -153,7 +171,6 @@ class ShipmentBusinessRulesTest extends TestCase
         $response = $this->postJson('/api/shipment-offers/accept', [
             'offer_id' => $offer->id,
             'driver_user_id' => $user->id,
-            'truck_id' => $truck->id,
         ]);
 
         $response->assertStatus(422);
@@ -162,9 +179,24 @@ class ShipmentBusinessRulesTest extends TestCase
     public function test_refrigerated_cargo_requires_refrigerated_truck(): void
     {
         [$user, $driver] = $this->makeDriver();
-        // Refrigeration is now implied by required_truck_type = "Reefer
-        // Trailer" rather than a separate cargo_type flag.
-        $truck = $this->makeTruck($driver, ['truck_type' => 'Reefer Trailer', 'has_refrigeration' => false]);
+        // Refrigeration is implied by truck_type === 'Reefer Trailer' via a
+        // model hook (Truck::booted()), so a "Reefer Trailer" truck can
+        // never actually be created with has_refrigeration = false through
+        // normal Eloquent saves — saveQuietly() bypasses that hook here to
+        // simulate the one way this could still happen (a mislabeled row,
+        // e.g. from a raw DB write), which is exactly the defensive case
+        // Truck::suitabilityIssue()'s refrigeration check exists for.
+        $truck = new Truck([
+            'truck_number' => uniqid('TRK'),
+            'truck_type' => 'Reefer Trailer',
+            'has_refrigeration' => false,
+            'is_active' => true,
+            'insurance_expiry' => now()->addYear(),
+            'license_expiry' => now()->addYear(),
+            'default_driver_id' => $driver->id,
+        ]);
+        $truck->saveQuietly();
+
         $company = $this->makeCompany();
         $offer = $this->makeOffer($company, ['required_truck_type' => 'Reefer Trailer']);
 
@@ -173,7 +205,6 @@ class ShipmentBusinessRulesTest extends TestCase
         $response = $this->postJson('/api/shipment-offers/accept', [
             'offer_id' => $offer->id,
             'driver_user_id' => $user->id,
-            'truck_id' => $truck->id,
         ]);
 
         $response->assertStatus(422);

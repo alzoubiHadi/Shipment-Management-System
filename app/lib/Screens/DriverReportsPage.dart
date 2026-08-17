@@ -5,6 +5,8 @@ import '../API/config.dart';
 
 /// Admin: shows every driver with how many shipments they've completed
 /// versus cancelled, to spot reliable drivers vs problem ones at a glance.
+///
+/// Admin Phase 6 (2026-08-20) redesign to LightColors.
 class DriverReportsPage extends StatefulWidget {
   const DriverReportsPage({super.key});
 
@@ -27,26 +29,26 @@ class _DriverReportsPageState extends State<DriverReportsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Driver Reports', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Driver Reports', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return Center(
                 child: Text('Could not load report',
-                    style: const TextStyle(color: AppColors.error)),
+                    style: const TextStyle(color: LightColors.error)),
               );
             }
 
@@ -58,7 +60,7 @@ class _DriverReportsPageState extends State<DriverReportsPage> {
                     padding: EdgeInsets.only(top: 80),
                     child: Center(
                       child: Text('No drivers yet',
-                          style: TextStyle(color: AppColors.muted)),
+                          style: TextStyle(color: LightColors.textSecondary)),
                     ),
                   ),
                 ],
@@ -78,9 +80,9 @@ class _DriverReportsPageState extends State<DriverReportsPage> {
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Row(
                     children: [
@@ -88,10 +90,10 @@ class _DriverReportsPageState extends State<DriverReportsPage> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.gold.withOpacity(0.1),
+                          color: LightColors.gold.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.person_outline, color: AppColors.gold),
+                        child: const Icon(Icons.person_outline, color: LightColors.goldMuted),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -101,7 +103,7 @@ class _DriverReportsPageState extends State<DriverReportsPage> {
                             Text(
                               d['name']?.toString() ?? '—',
                               style: const TextStyle(
-                                color: AppColors.cream,
+                                color: LightColors.textPrimary,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
@@ -110,7 +112,7 @@ class _DriverReportsPageState extends State<DriverReportsPage> {
                               const SizedBox(height: 2),
                               Text(
                                 employmentType,
-                                style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                                style: const TextStyle(color: LightColors.textSecondary, fontSize: 11),
                               ),
                             ],
                           ],
@@ -119,13 +121,13 @@ class _DriverReportsPageState extends State<DriverReportsPage> {
                       _CountBadge(
                         label: 'Completed',
                         value: completed,
-                        color: AppColors.success,
+                        color: LightColors.success,
                       ),
                       const SizedBox(width: 8),
                       _CountBadge(
                         label: 'Cancelled',
                         value: cancelled,
-                        color: AppColors.error,
+                        color: LightColors.error,
                       ),
                     ],
                   ),
@@ -156,7 +158,7 @@ class _CountBadge extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 9),
+          style: const TextStyle(color: LightColors.textSecondary, fontSize: 9),
         ),
       ],
     );

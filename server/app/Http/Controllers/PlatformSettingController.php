@@ -23,6 +23,8 @@ class PlatformSettingController extends Controller
         'matching_weight_proximity',
         'matching_weight_rating',
         'matching_weight_acceptance',
+        'matching_weight_fairness',
+        'matching_weight_route_experience',
         'matching_batch_size',
     ];
 

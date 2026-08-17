@@ -8,6 +8,8 @@ import '../models/ActivityLogEntry.dart';
 /// every sensitive admin/finance action (approvals, rejections,
 /// suspensions, financial approvals, permission changes, ...).
 /// Super Admin only; the backend also enforces this (403 for anyone else).
+///
+/// Admin Phase 6 (2026-08-20) redesign to LightColors.
 class ActivityLogPage extends StatefulWidget {
   const ActivityLogPage({super.key});
 
@@ -43,21 +45,21 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Activity Log', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Activity Log', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<ActivityLogEntry>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return Center(
@@ -68,7 +70,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                         ? 'Only the Super Admin can view the audit log.'
                         : 'Could not load the activity log.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.error),
+                    style: const TextStyle(color: LightColors.error),
                   ),
                 ),
               );
@@ -81,7 +83,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                   Padding(
                     padding: EdgeInsets.only(top: 80),
                     child: Center(
-                      child: Text('No activity recorded yet', style: TextStyle(color: AppColors.muted)),
+                      child: Text('No activity recorded yet', style: TextStyle(color: LightColors.textSecondary)),
                     ),
                   ),
                 ],
@@ -97,9 +99,9 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,10 +109,10 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.gold.withOpacity(0.1),
+                          color: LightColors.gold.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(_iconFor(log.action), color: AppColors.gold, size: 18),
+                        child: Icon(_iconFor(log.action), color: LightColors.goldMuted, size: 18),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -120,7 +122,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                             Text(
                               log.description,
                               style: const TextStyle(
-                                color: AppColors.cream,
+                                color: LightColors.textPrimary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -128,7 +130,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                             const SizedBox(height: 4),
                             Text(
                               '${log.userName ?? 'System'} · ${log.action} · ${log.createdAt}',
-                              style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                              style: const TextStyle(color: LightColors.textSecondary, fontSize: 11),
                             ),
                           ],
                         ),

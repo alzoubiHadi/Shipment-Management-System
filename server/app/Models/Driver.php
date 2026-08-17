@@ -79,6 +79,18 @@ class Driver extends Model
         return $this->hasMany(Truck::class, 'default_driver_id');
     }
 
+    /**
+     * Business rule: Driver 1 <-> 1 Truck (enforced at truck-registration
+     * time — see TruckController::addMyTruck, which refuses a second
+     * truck). This is the "assigned truck" a driver's own accept-offer
+     * flow now resolves automatically instead of trusting a client-supplied
+     * truck_id — see ShipmentOfferController::accept().
+     */
+    public function truck()
+    {
+        return $this->hasOne(Truck::class, 'default_driver_id');
+    }
+
     public function shipments()
     {
         return $this->hasMany(Shipment::class);
@@ -104,6 +116,17 @@ class Driver extends Model
     public function destinations()
     {
         return $this->hasMany(DriverDestination::class);
+    }
+
+    /**
+     * Whether this driver has opted into the given DriverDestination
+     * country key (e.g. 'internal_uae', 'saudi_arabia'). See
+     * MatchingService::requiredCountriesFor() for how a route's required
+     * countries are derived from a shipment offer.
+     */
+    public function coversCountry(string $countryKey): bool
+    {
+        return $this->destinations()->where('destination', $countryKey)->exists();
     }
 
     public function complianceReports()
@@ -136,12 +159,17 @@ class Driver extends Model
 
     /**
      * A driver is eligible to be offered a new job if they are currently
-     * marked available, have been approved by an admin, and none of their
-     * required documents have actually expired. A document that was never
-     * recorded (null) does NOT block job-matching here — that's a separate,
-     * stricter check (see documentIssues()) used specifically to gate
-     * *admin approval*, not day-to-day job eligibility, so this keeps the
-     * original behaviour for every driver that already passed approval.
+     * marked available, approved, in good compliance standing, free of any
+     * blocking payout, and every required document is present and valid
+     * (see documentIssues() — missing now counts the same as expired). This
+     * used to be lenient about a missing (null) expiry date, on the theory
+     * that self-registration might not have collected it yet; that's no
+     * longer true — UserController::register requires license/passport/
+     * residency expiry dates up front for every driver, and
+     * DriverController::approve() already refuses to approve a driver with
+     * open documentIssues(), so by the time a driver can reach 'approved'
+     * these fields are guaranteed to be filled in. Simpler rule, same
+     * guarantee: missing/expired critical document = not eligible.
      */
     public function isEligibleForNewJob(): bool
     {
@@ -164,15 +192,7 @@ class Driver extends Model
             return false;
         }
 
-        if ($this->license_expiry && $this->license_expiry->isPast()) {
-            return false;
-        }
-
-        if ($this->passport_expiry && $this->passport_expiry->isPast()) {
-            return false;
-        }
-
-        if ($this->residency_expiry && $this->residency_expiry->isPast()) {
+        if (! empty($this->documentIssues())) {
             return false;
         }
 
@@ -232,13 +252,14 @@ class Driver extends Model
 
     /**
      * List of human-readable problems with this driver's documents — used
-     * to decide whether an admin can approve a self-registered driver, and
-     * to show warnings in the admin's drivers list. Stricter than
-     * isEligibleForNewJob(): a missing license expiry blocks *approval*
-     * (the admin must fill it in while reviewing), since self-registration
-     * never collects it. Passport/residency are only flagged if expired,
-     * not simply missing, since not every driver needs them (e.g. citizens
-     * don't need a residency permit).
+     * both to decide whether an admin can approve a self-registered driver
+     * (DriverController::approve()) and, since it is now the single source
+     * of truth, to gate day-to-day job eligibility (isEligibleForNewJob()).
+     *
+     * All three documents (license, passport, residency) are mandatory and
+     * collected up front at registration (UserController::register), so
+     * there is no longer a legitimate "never collected" case to be lenient
+     * about — a missing expiry date is treated exactly like an expired one.
      */
     public function documentIssues(): array
     {
@@ -250,11 +271,15 @@ class Driver extends Model
             $issues[] = 'Driver license expired';
         }
 
-        if ($this->passport_expiry && $this->passport_expiry->isPast()) {
+        if (! $this->passport_expiry) {
+            $issues[] = 'Passport expiry date missing';
+        } elseif ($this->passport_expiry->isPast()) {
             $issues[] = 'Passport expired';
         }
 
-        if ($this->residency_expiry && $this->residency_expiry->isPast()) {
+        if (! $this->residency_expiry) {
+            $issues[] = 'Residency expiry date missing';
+        } elseif ($this->residency_expiry->isPast()) {
             $issues[] = 'Residency expired';
         }
 

@@ -13,6 +13,8 @@ import 'DriverDocumentsPage.dart';
 /// documents/destinations/license renewal, all of which are material to
 /// eligibility and therefore go through admin approval before they apply
 /// — see the "My requests" section below for the review status.
+///
+/// Admin Phase 6 (2026-08-20) redesign to LightColors.
 class UserProfilePage extends StatefulWidget {
   final AppUser user;
   const UserProfilePage({super.key, required this.user});
@@ -129,36 +131,36 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Color _statusColor(String status) {
     switch (status) {
       case 'approved':
-        return AppColors.success;
+        return LightColors.success;
       case 'rejected':
-        return AppColors.error;
+        return LightColors.error;
       default:
-        return AppColors.gold;
+        return LightColors.goldMuted;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('My Profile', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('My Profile', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<Map<String, dynamic>>(
           future: _profileFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return Center(
-                child: Text('Could not load profile', style: const TextStyle(color: AppColors.error)),
+                child: Text('Could not load profile', style: const TextStyle(color: LightColors.error)),
               );
             }
 
@@ -176,14 +178,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           height: 88,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.surfaceHigh,
-                            border: Border.all(color: AppColors.gold.withOpacity(0.4), width: 1.5),
+                            color: LightColors.surface,
+                            border: Border.all(color: LightColors.gold.withOpacity(0.4), width: 1.5),
                             image: _avatarPath != null
                                 ? DecorationImage(image: NetworkImage(storageUrl(_avatarPath!)), fit: BoxFit.cover)
                                 : null,
                           ),
                           child: _avatarPath == null
-                              ? const Icon(Icons.person_outline, color: AppColors.muted, size: 40)
+                              ? const Icon(Icons.person_outline, color: LightColors.textSecondary, size: 40)
                               : null,
                         ),
                         Positioned(
@@ -192,13 +194,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           child: Container(
                             width: 28,
                             height: 28,
-                            decoration: const BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
+                            decoration: const BoxDecoration(color: LightColors.gold, shape: BoxShape.circle),
                             child: _uploadingAvatar
                                 ? const Padding(
                                     padding: EdgeInsets.all(6),
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg),
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.textPrimary),
                                   )
-                                : const Icon(Icons.camera_alt_outlined, size: 15, color: AppColors.bg),
+                                : const Icon(Icons.camera_alt_outlined, size: 15, color: LightColors.textPrimary),
                           ),
                         ),
                       ],
@@ -215,14 +217,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 SizedBox(
                   height: 46,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold),
+                    style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold),
                     onPressed: _savingBasic ? null : _saveBasic,
                     child: _savingBasic
                         ? const SizedBox(
                             width: 18, height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.textPrimary),
                           )
-                        : const Text('Save', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                        : const Text('Save', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
                   ),
                 ),
 
@@ -247,7 +249,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     padding: EdgeInsets.only(top: 10),
                     child: Text(
                       'Changes to your documents or destinations need admin review before they apply.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                      style: TextStyle(color: LightColors.textSecondary, fontSize: 11),
                     ),
                   ),
                 ],
@@ -259,9 +261,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: LightColors.surface,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border, width: 0.5),
+                      border: Border.all(color: LightColors.border, width: 0.5),
                     ),
                     child: Row(
                       children: [
@@ -269,17 +271,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Trade License', style: TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600, fontSize: 14)),
+                              Text('Trade License', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
                               SizedBox(height: 3),
-                              Text('Submit a renewed copy — applies once approved', style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                              Text('Submit a renewed copy — applies once approved', style: TextStyle(color: LightColors.textSecondary, fontSize: 11)),
                             ],
                           ),
                         ),
                         TextButton(
                           onPressed: _submittingLicense ? null : _renewLicense,
                           child: _submittingLicense
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold))
-                              : const Text('Renew', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.gold))
+                              : const Text('Renew', style: TextStyle(color: LightColors.goldMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ],
                     ),
@@ -296,12 +298,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       if (snap.connectionState == ConnectionState.waiting) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+                          child: Center(child: CircularProgressIndicator(color: LightColors.gold)),
                         );
                       }
                       final items = snap.data ?? [];
                       if (items.isEmpty) {
-                        return const Text('No submitted changes yet', style: TextStyle(color: AppColors.muted, fontSize: 12));
+                        return const Text('No submitted changes yet', style: TextStyle(color: LightColors.textSecondary, fontSize: 12));
                       }
                       return Column(
                         children: items.map((r) {
@@ -310,14 +312,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.surface,
+                              color: LightColors.surface,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.border, width: 0.5),
+                              border: Border.all(color: LightColors.border, width: 0.5),
                             ),
                             child: Row(
                               children: [
                                 Expanded(
-                                  child: Text(r.categoryLabel, style: const TextStyle(color: AppColors.cream, fontSize: 13)),
+                                  child: Text(r.categoryLabel, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -344,15 +346,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
     return TextField(
       controller: ctrl,
       keyboardType: keyboardType,
-      style: const TextStyle(color: AppColors.cream),
+      style: const TextStyle(color: LightColors.textPrimary),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: AppColors.muted),
+        labelStyle: const TextStyle(color: LightColors.textSecondary),
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: LightColors.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: LightColors.border, width: 0.5),
         ),
       ),
     );
@@ -367,7 +369,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+      style: const TextStyle(color: LightColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
     );
   }
 }
@@ -388,25 +390,25 @@ class _NavTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: LightColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(color: LightColors.border, width: 0.5),
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.gold, size: 20),
+            Icon(icon, color: LightColors.goldMuted, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(title, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                  Text(subtitle, style: const TextStyle(color: LightColors.textSecondary, fontSize: 11)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.muted),
+            const Icon(Icons.chevron_right, color: LightColors.textSecondary),
           ],
         ),
       ),

@@ -8,6 +8,11 @@ import 'AdminSettingsPage.dart';
 import 'NotificationsPage.dart';
 import 'UserProfilePage.dart';
 
+/// DEAD CODE (as of Admin Phase 6, 2026-08-20): this dark shared app bar's
+/// last caller was ReportsHomePage.dart, which now uses its own native
+/// light AppBar. No screen references AppBarWidget anymore. Left in place
+/// rather than deleted (file deletion isn't available in this environment)
+/// — safe to remove by hand.
 class AppBarWidget extends StatelessWidget {
   final AppUser user;
   final String? subtitle;

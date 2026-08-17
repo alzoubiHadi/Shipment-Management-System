@@ -57,7 +57,7 @@ class PasswordStrengthBar extends StatelessWidget {
               margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
-                color: i < _filled ? _color : const Color(0xFF2A2520),
+                color: i < _filled ? _color : LightColors.border,
               ),
             ),
           ),
@@ -70,6 +70,9 @@ class PasswordStrengthBar extends StatelessWidget {
 }
 
 // ─── Shared text field style ──────────────────────────────────────────────────
+// DEAD CODE (as of Admin Phase 6 audit, 2026-08-20): unused now that
+// CompanyRegisterScreen/DriverRegisterScreen use buildLightTextField below.
+// Left in place — file deletion isn't available in this environment.
 
 Widget buildAuthTextField({
   required TextEditingController controller,
@@ -363,9 +366,10 @@ class LightErrorBanner extends StatelessWidget {
   }
 }
 
-/// A tappable field-styled container that opens a picker (file/date/dropdown
-/// sheet) instead of a keyboard — used throughout the driver registration
-/// form for file uploads and selection fields.
+/// DEAD CODE (as of Admin Phase 6 audit, 2026-08-20): superseded by
+/// [LightPickerField] above, which is what DriverRegisterScreen and
+/// CompanyRegisterScreen actually use now. Left in place — file deletion
+/// isn't available in this environment.
 class PickerField extends StatelessWidget {
   final String label;
   final String? value;

@@ -5,7 +5,6 @@ import '../API/config.dart';
 import '../models/Appuser.dart';
 import 'ActivityLogPage.dart';
 import 'AdminCompliancePage.dart';
-import 'AppBarWidget.dart';
 import 'CompanyReportsPage.dart';
 import 'DriverReportsPage.dart';
 
@@ -13,8 +12,11 @@ import 'DriverReportsPage.dart';
 /// the top, with links into the per-driver and per-company breakdowns.
 /// Finance/Price List/Settings used to live here too — they've moved into
 /// the account-menu Settings page (tap the avatar) so this tab is reports
-/// only, and the app bar is now the same avatar+bell one every other admin
-/// tab uses instead of a bare Settings/Logout pair.
+/// only.
+///
+/// Admin Phase 6 (2026-08-20) redesign to LightColors — also dropped the
+/// shared dark AppBarWidget for a plain light AppBar matching every other
+/// admin screen (AppBarWidget is now unreferenced anywhere in the app).
 class ReportsHomePage extends StatefulWidget {
   final AppUser user;
   const ReportsHomePage({super.key, required this.user});
@@ -38,18 +40,26 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(
+        backgroundColor: LightColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Reports', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.textSecondary),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
-        child: CustomScrollView(
+        child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            AppBarWidget(user: widget.user, subtitle: 'Reports'),
-            SliverPadding(
-              padding: const EdgeInsets.all(20),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
+          padding: const EdgeInsets.all(20),
+          children: [
             FutureBuilder<Map<String, dynamic>>(
               future: _summaryFuture,
               builder: (context, snapshot) {
@@ -57,14 +67,14 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(
-                      child: CircularProgressIndicator(color: AppColors.gold),
+                      child: CircularProgressIndicator(color: LightColors.gold),
                     ),
                   );
                 }
                 if (snapshot.hasError) {
                   return const Text(
                     'Could not load summary',
-                    style: TextStyle(color: AppColors.error),
+                    style: TextStyle(color: LightColors.error),
                   );
                 }
 
@@ -76,22 +86,22 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Total commission earned',
-                        style: TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: TextStyle(color: LightColors.textSecondary, fontSize: 12),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         totalCommission.toString(),
                         style: const TextStyle(
-                          color: AppColors.gold,
+                          color: LightColors.goldMuted,
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
                         ),
@@ -99,7 +109,7 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
                       const SizedBox(height: 6),
                       Text(
                         'from $deliveredCount delivered shipment(s)',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
                       ),
                     ],
                   ),
@@ -148,9 +158,6 @@ class _ReportsHomePageState extends State<ReportsHomePage> {
                 MaterialPageRoute(builder: (_) => const ActivityLogPage()),
               ),
             ),
-                ]),
-              ),
-            ),
           ],
         ),
       ),
@@ -179,9 +186,9 @@ class _ReportLinkCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: LightColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(color: LightColors.border, width: 0.5),
         ),
         child: Row(
           children: [
@@ -189,10 +196,10 @@ class _ReportLinkCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.gold.withOpacity(0.1),
+                color: LightColors.gold.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: AppColors.gold),
+              child: Icon(icon, color: LightColors.goldMuted),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -202,7 +209,7 @@ class _ReportLinkCard extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: AppColors.cream,
+                      color: LightColors.textPrimary,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -210,12 +217,12 @@ class _ReportLinkCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                    style: const TextStyle(color: LightColors.textSecondary, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.muted),
+            const Icon(Icons.chevron_right, color: LightColors.textSecondary),
           ],
         ),
       ),
