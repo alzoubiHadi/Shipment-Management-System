@@ -35,4 +35,11 @@ RUN composer dump-autoload --optimize \
 # causes requests to queue up or get dropped ("connection abort" / generic
 # 500s), since only one request can be handled at a time.
 EXPOSE 8080
-CMD php artisan config:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-8080} --no-reload
+# `storage:link` creates public/storage -> storage/app/public. It was never
+# run anywhere for the deployed container (only exists locally because dev
+# machines ran `php artisan storage:link` by hand), and public/storage is
+# git-ignored on purpose (Laravel convention: generated at deploy time, not
+# committed) — so on Render every request to a file URL under /storage/...
+# 404'd unconditionally, for every uploaded document/license/receipt across
+# the whole app. --force makes it safe to run on every boot.
+CMD php artisan config:clear && php artisan storage:link --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080} --no-reload

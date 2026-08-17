@@ -22,8 +22,15 @@ class CompanyBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The nav's own SafeArea below only *pads* content away from the
+    // system gesture bar / 3-button nav — it doesn't grow the container.
+    // With a fixed height:74, that padding used to eat into the icon
+    // row's own space, so on phones with a tall bottom inset the icons
+    // got squeezed down under/behind the system bar and couldn't be
+    // tapped. Growing the total height by the actual inset fixes it.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return SizedBox(
-      height: 74,
+      height: 74 + bottomInset,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.topCenter,

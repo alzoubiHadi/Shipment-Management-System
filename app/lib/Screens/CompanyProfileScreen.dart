@@ -227,7 +227,7 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompanyChangePasswordScreen())),
                   ),
                   const SizedBox(height: 24),
-                  LightOutlineButton(label: 'Log Out', color: LightColors.error, onPressed: () => confirmAndLogout(context)),
+                  LightOutlineButton(label: 'Log Out', color: LightColors.error, onPressed: () => confirmAndLogout(context, light: true)),
                 ],
               );
             },

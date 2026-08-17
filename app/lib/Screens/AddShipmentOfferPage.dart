@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
+import '../utils/countries.dart';
+import '../utils/ksa_locations.dart';
 import 'register_shared.dart';
 
 /// Company self-service screen (UC-11), redesigned as a light-themed
@@ -28,12 +30,25 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
   int _step = 0;
   static const int _totalSteps = 4;
 
-  final _originController = TextEditingController();
-  final _destinationController = TextEditingController();
+  // Pickup (2026-08-17 feedback: Country + City dropdowns instead of free
+  // text). The company isn't tied to one home country, so Country offers
+  // the full list; City is a real dropdown only for countries we have a
+  // curated list for (see ksa_locations.dart), else a free-text fallback.
+  String? _originCountry;
+  String? _originCity;
+  final _originCityFreeTextController = TextEditingController();
+
+  // Drop-off for order_type == 'internal' (same Country + City pattern).
+  // order_type == 'external' keeps its existing fixed-list dropdown below
+  // (those exact strings must match the backend price matrix).
+  String? _destCountry;
+  String? _destCity;
+  final _destCityFreeTextController = TextEditingController();
+
   final _weightController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  String _orderType = 'internal'; // 'internal' or 'external'
+  String _orderType = 'internal'; // 'internal' (domestic) or 'external' (cross-border)
   String? _selectedExternalDestination;
   String? _selectedTruckType;
 
@@ -68,20 +83,32 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
   @override
   void dispose() {
     _pageController.dispose();
-    _originController.dispose();
-    _destinationController.dispose();
+    _originCityFreeTextController.dispose();
+    _destCityFreeTextController.dispose();
     _weightController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
-  String get _destination =>
-      _orderType == 'external' ? (_selectedExternalDestination ?? '') : _destinationController.text.trim();
+  String get _origin {
+    if (_originCountry == null) return '';
+    final city = citiesFor(_originCountry) != null ? (_originCity ?? '') : _originCityFreeTextController.text.trim();
+    if (city.isEmpty) return '';
+    return '$city, $_originCountry';
+  }
+
+  String get _destination {
+    if (_orderType == 'external') return _selectedExternalDestination ?? '';
+    if (_destCountry == null) return '';
+    final city = citiesFor(_destCountry) != null ? (_destCity ?? '') : _destCityFreeTextController.text.trim();
+    if (city.isEmpty) return '';
+    return '$city, $_destCountry';
+  }
 
   String? _validateStep(int step) {
     switch (step) {
       case 0:
-        if (_originController.text.trim().isEmpty) return 'Please enter the origin';
+        if (_origin.isEmpty) return 'Please select the pickup country and city';
         if (_destination.isEmpty) return 'Please select or enter a destination';
         return null;
       case 1:
@@ -128,7 +155,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
     try {
       final result = await ShipmentOfferService.createOffer(
-        origin: _originController.text.trim(),
+        origin: _origin,
         destination: _destination,
         weight: _weightController.text.trim().isEmpty ? null : _weightController.text.trim(),
         description: _descriptionController.text.trim(),
@@ -247,14 +274,30 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
           decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: LightColors.border)),
           child: Row(
             children: [
-              Expanded(child: _orderTypeTab('internal', 'Internal (KSA)')),
+              Expanded(child: _orderTypeTab('internal', 'Domestic')),
               Expanded(child: _orderTypeTab('external', 'Cross-border')),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        buildLightTextField(controller: _originController, label: 'Origin', hint: 'e.g. Dammam, Saudi Arabia'),
-        const SizedBox(height: 16),
+        const Text('Pickup', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        _countryCityPicker(
+          countryLabel: 'Pickup Country',
+          cityLabel: 'Pickup City',
+          country: _originCountry,
+          city: _originCity,
+          freeTextController: _originCityFreeTextController,
+          onCountrySelected: (v) => setState(() {
+            _originCountry = v;
+            _originCity = null;
+            _originCityFreeTextController.clear();
+          }),
+          onCitySelected: (v) => setState(() => _originCity = v),
+        ),
+        const SizedBox(height: 20),
+        const Text('Drop-off', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
         if (_orderType == 'external')
           FutureBuilder<List<String>>(
             future: _destinationsFuture,
@@ -281,7 +324,72 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
             },
           )
         else
-          buildLightTextField(controller: _destinationController, label: 'Destination', hint: 'e.g. Dubai – Hassyan Site, UAE'),
+          _countryCityPicker(
+            countryLabel: 'Drop-off Country',
+            cityLabel: 'Drop-off City',
+            country: _destCountry,
+            city: _destCity,
+            freeTextController: _destCityFreeTextController,
+            onCountrySelected: (v) => setState(() {
+              _destCountry = v;
+              _destCity = null;
+              _destCityFreeTextController.clear();
+            }),
+            onCitySelected: (v) => setState(() => _destCity = v),
+          ),
+      ],
+    );
+  }
+
+  // Shared Country dropdown (full kCountries list) + City field — a real
+  // dropdown when we have a curated city list for the chosen country,
+  // otherwise a free-text fallback (see ksa_locations.dart).
+  Widget _countryCityPicker({
+    required String countryLabel,
+    required String cityLabel,
+    required String? country,
+    required String? city,
+    required TextEditingController freeTextController,
+    required ValueChanged<String> onCountrySelected,
+    required ValueChanged<String> onCitySelected,
+  }) {
+    final curatedCities = citiesFor(country);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LightPickerField(
+          label: countryLabel,
+          value: country,
+          hint: 'Select a country',
+          icon: Icons.public_outlined,
+          onTap: () => _pickFromList(
+            title: countryLabel,
+            options: kCountries.map((c) => c.name).toList(),
+            selected: country,
+            onSelected: onCountrySelected,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (curatedCities != null)
+          LightPickerField(
+            label: cityLabel,
+            value: city,
+            hint: 'Select a city',
+            icon: Icons.location_city_outlined,
+            onTap: () => _pickFromList(
+              title: cityLabel,
+              options: curatedCities,
+              selected: city,
+              onSelected: onCitySelected,
+            ),
+          )
+        else
+          buildLightTextField(
+            controller: freeTextController,
+            label: cityLabel,
+            hint: country == null ? 'Select a country first' : 'Enter the city',
+            enabled: country != null,
+          ),
       ],
     );
   }
@@ -380,8 +488,8 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _reviewRow('Type', _orderType == 'internal' ? 'Internal (KSA)' : 'Cross-border'),
-          _reviewRow('Origin', _originController.text.trim()),
+          _reviewRow('Type', _orderType == 'internal' ? 'Domestic' : 'Cross-border'),
+          _reviewRow('Origin', _origin),
           _reviewRow('Destination', _destination),
           _reviewRow('Weight', _weightController.text.trim().isEmpty ? '—' : '${_weightController.text.trim()} kg'),
           _reviewRow('Description', _descriptionController.text.trim().isEmpty ? '—' : _descriptionController.text.trim()),

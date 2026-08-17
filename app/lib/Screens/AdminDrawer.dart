@@ -184,7 +184,7 @@ class AdminDrawer extends StatelessWidget {
               textColor: LightColors.error,
               onTap: () {
                 Navigator.pop(context);
-                confirmAndLogout(context);
+                confirmAndLogout(context, light: true);
               },
             ),
             const SizedBox(height: 8),

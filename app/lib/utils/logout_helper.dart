@@ -9,24 +9,30 @@ import '../main.dart';
 /// tab). Confirms first, then clears the stored session (token/id/etc, the
 /// same SharedPreferences keys every *Service class reads) and sends the
 /// user back to SplashPage, exactly like DriverApprovalStatusPage._logout().
-Future<void> confirmAndLogout(BuildContext context) async {
+///
+/// [light]: pass true from screens already migrated to the light redesign
+/// (CompanyProfileScreen, AdminDrawer) so the confirmation dialog isn't a
+/// jarring dark popup dropped into an otherwise light screen. Defaults to
+/// false so the still-dark screens (Profile.dart, AppBarWidget, etc.) keep
+/// their original look until they're redesigned too.
+Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text('Log out', style: TextStyle(color: AppColors.cream)),
-      content: const Text(
+      backgroundColor: light ? LightColors.surface : AppColors.surface,
+      title: Text('Log out', style: TextStyle(color: light ? LightColors.textPrimary : AppColors.cream)),
+      content: Text(
         'Are you sure you want to log out?',
-        style: TextStyle(color: AppColors.muted),
+        style: TextStyle(color: light ? LightColors.textSecondary : AppColors.muted),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          child: Text('Cancel', style: TextStyle(color: light ? LightColors.textSecondary : AppColors.muted)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Log out', style: TextStyle(color: AppColors.error)),
+          child: Text('Log out', style: TextStyle(color: light ? LightColors.error : AppColors.error)),
         ),
       ],
     ),

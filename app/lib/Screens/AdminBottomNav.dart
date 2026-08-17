@@ -29,8 +29,14 @@ class AdminBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Same fix as CompanyBottomNav: grow the total height by the device's
+    // bottom safe-area inset instead of letting the internal SafeArea
+    // padding squeeze the icon row into a fixed 74px box — otherwise the
+    // icons end up under/behind the phone's system nav bar and can't be
+    // tapped.
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return SizedBox(
-      height: 74,
+      height: 74 + bottomInset,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.topCenter,
