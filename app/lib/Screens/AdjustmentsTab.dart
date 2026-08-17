@@ -11,6 +11,9 @@ import '../models/Driver.dart';
 /// approves or rejects it (enforced on the backend — this tab shows the
 /// same actions to everyone with access to Finance, and lets the server's
 /// 403 explain itself if someone without Super Admin tries to approve).
+///
+/// Admin Phase 4 (2026-08-20) redesign to LightColors, embedded inside
+/// AdminFinancePage's TabBarView.
 class AdjustmentsTab extends StatefulWidget {
   const AdjustmentsTab({super.key});
 
@@ -37,16 +40,16 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
       if (!mounted) return null;
       return showModalBottomSheet<Company>(
         context: context,
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (ctx) => SafeArea(
           child: ListView(
             shrinkWrap: true,
             children: companies
                 .map((c) => ListTile(
-                      title: Text(c.name, style: const TextStyle(color: AppColors.cream)),
+                      title: Text(c.name, style: const TextStyle(color: LightColors.textPrimary)),
                       subtitle: Text('Balance: ${c.balance.toStringAsFixed(2)} AED',
-                          style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                          style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                       onTap: () => Navigator.pop(ctx, c),
                     ))
                 .toList(),
@@ -58,14 +61,14 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
       if (!mounted) return null;
       return showModalBottomSheet<Driver>(
         context: context,
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (ctx) => SafeArea(
           child: ListView(
             shrinkWrap: true,
             children: drivers
                 .map((d) => ListTile(
-                      title: Text(d.name, style: const TextStyle(color: AppColors.cream)),
+                      title: Text(d.name, style: const TextStyle(color: LightColors.textPrimary)),
                       onTap: () => Navigator.pop(ctx, d),
                     ))
                 .toList(),
@@ -84,7 +87,7 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: LightColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setSheetState) {
@@ -102,7 +105,7 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Propose Adjustment',
-                    style: TextStyle(color: AppColors.cream, fontSize: 18, fontWeight: FontWeight.w700)),
+                    style: TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -110,6 +113,7 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                       child: ChoiceChip(
                         label: const Text('Company'),
                         selected: accountType == 'company',
+                        selectedColor: LightColors.gold.withOpacity(0.16),
                         onSelected: (_) => setSheetState(() {
                           accountType = 'company';
                           selectedAccount = null;
@@ -121,6 +125,7 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                       child: ChoiceChip(
                         label: const Text('Driver'),
                         selected: accountType == 'driver',
+                        selectedColor: LightColors.gold.withOpacity(0.16),
                         onSelected: (_) => setSheetState(() {
                           accountType = 'driver';
                           selectedAccount = null;
@@ -139,14 +144,14 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
                     decoration: BoxDecoration(
-                      color: AppColors.bg,
+                      color: LightColors.bg,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: LightColors.border),
                     ),
                     child: Text(
                       selectedAccount == null ? 'Choose $accountType' : selectedAccount.name,
                       style: TextStyle(
-                        color: selectedAccount == null ? AppColors.muted : AppColors.cream,
+                        color: selectedAccount == null ? LightColors.textSecondary : LightColors.textPrimary,
                         fontSize: 13,
                       ),
                     ),
@@ -156,27 +161,27 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                 TextField(
                   controller: amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Amount (AED) — negative to deduct',
-                    labelStyle: TextStyle(color: AppColors.muted),
+                    labelStyle: TextStyle(color: LightColors.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: reasonCtrl,
                   maxLines: 3,
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Reason (required)',
-                    labelStyle: TextStyle(color: AppColors.muted),
+                    labelStyle: TextStyle(color: LightColors.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
                   height: 48,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold),
+                    style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold),
                     onPressed: () async {
                       final amount = double.tryParse(amountCtrl.text.trim());
                       if (selectedAccount == null || amount == null || amount == 0 || reasonCtrl.text.trim().isEmpty) {
@@ -196,7 +201,7 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                       );
                     },
                     child: const Text('Submit for approval',
-                        style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                        style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -221,11 +226,11 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
   Color _statusColor(String status) {
     switch (status) {
       case 'posted':
-        return AppColors.success;
+        return LightColors.success;
       case 'rejected':
-        return AppColors.error;
+        return LightColors.error;
       default:
-        return AppColors.gold;
+        return LightColors.goldMuted;
     }
   }
 
@@ -235,21 +240,21 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openProposeSheet,
-        backgroundColor: AppColors.gold,
-        icon: const Icon(Icons.add, color: AppColors.bg),
-        label: const Text('Propose', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+        backgroundColor: LightColors.gold,
+        icon: const Icon(Icons.add, color: LightColors.textPrimary),
+        label: const Text('Propose', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<Map<String, dynamic>>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
-              return const Center(child: Text('Could not load adjustments', style: TextStyle(color: AppColors.error)));
+              return const Center(child: Text('Could not load adjustments', style: TextStyle(color: LightColors.error)));
             }
 
             final items = snapshot.data ?? [];
@@ -258,7 +263,7 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                 children: const [
                   Padding(
                     padding: EdgeInsets.only(top: 80),
-                    child: Center(child: Text('No adjustments proposed yet', style: TextStyle(color: AppColors.muted))),
+                    child: Center(child: Text('No adjustments proposed yet', style: TextStyle(color: LightColors.textSecondary))),
                   ),
                 ],
               );
@@ -277,9 +282,9 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,7 +294,7 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                           Expanded(
                             child: Text(
                               '${a['account_name'] ?? '#${a['account_id']}'} (${a['account_type']})',
-                              style: const TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600, fontSize: 13),
+                              style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13),
                             ),
                           ),
                           Container(
@@ -307,18 +312,18 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                       Text(
                         '${amount >= 0 ? '+' : ''}${amount.toStringAsFixed(2)} AED',
                         style: TextStyle(
-                          color: amount >= 0 ? AppColors.success : AppColors.error,
+                          color: amount >= 0 ? LightColors.success : LightColors.error,
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       if ((a['description'] ?? '').toString().isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(a['description'].toString(), style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                        Text(a['description'].toString(), style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                       ],
                       const SizedBox(height: 4),
                       Text('Proposed by ${a['created_by'] ?? '—'}',
-                          style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                          style: const TextStyle(color: LightColors.textSecondary, fontSize: 11)),
                       if (status == 'pending') ...[
                         const SizedBox(height: 10),
                         Row(
@@ -326,11 +331,11 @@ class _AdjustmentsTabState extends State<AdjustmentsTab> {
                           children: [
                             TextButton(
                               onPressed: _busy ? null : () => _decide(a['id'].toString(), false),
-                              child: const Text('Reject', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                              child: const Text('Reject', style: TextStyle(color: LightColors.error, fontSize: 12)),
                             ),
                             TextButton(
                               onPressed: _busy ? null : () => _decide(a['id'].toString(), true),
-                              child: const Text('Approve', style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                              child: const Text('Approve', style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                             ),
                           ],
                         ),

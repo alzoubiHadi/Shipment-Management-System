@@ -14,6 +14,10 @@ import 'AdjustmentsTab.dart';
 /// payout requests (UC-31), plus sets each company's credit limit (the
 /// one-time setup every company needs before it can create any priced
 /// offer at all — see Company::canAffordOffer()).
+///
+/// Admin Phase 4 (2026-08-20) redesign to LightColors — also now reachable
+/// as a first-class admin bottom-nav tab (see AdminBottomNav.dart), not
+/// just via the drawer/Settings.
 class AdminFinancePage extends StatefulWidget {
   /// Lets a notification tap land directly on the relevant tab (0=Top-ups,
   /// 1=Payouts, 2=Credit limits, 3=Adjustments) instead of always opening
@@ -48,17 +52,17 @@ class _AdminFinancePageState extends State<AdminFinancePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Finance', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Finance', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.gold,
-          labelColor: AppColors.gold,
-          unselectedLabelColor: AppColors.muted,
+          indicatorColor: LightColors.gold,
+          labelColor: LightColors.goldMuted,
+          unselectedLabelColor: LightColors.textSecondary,
           isScrollable: true,
           tabs: const [
             Tab(text: 'Top-ups'),
@@ -108,7 +112,7 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -119,24 +123,24 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Reject top-up', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Reject top-up', style: TextStyle(color: LightColors.textPrimary)),
         content: TextField(
           controller: controller,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Reason',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Back', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -155,17 +159,17 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppColors.gold,
+      color: LightColors.gold,
       onRefresh: () async => _refresh(),
       child: FutureBuilder<List<PaymentOrder>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+            return const Center(child: CircularProgressIndicator(color: LightColors.gold));
           }
           if (snapshot.hasError) {
             return const Center(
-                child: Text('Could not load', style: TextStyle(color: AppColors.error)));
+                child: Text('Could not load', style: TextStyle(color: LightColors.error)));
           }
 
           final orders = snapshot.data ?? [];
@@ -174,7 +178,7 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
               Padding(
                 padding: EdgeInsets.only(top: 60),
                 child: Center(
-                    child: Text('No top-up requests', style: TextStyle(color: AppColors.muted))),
+                    child: Text('No top-up requests', style: TextStyle(color: LightColors.textSecondary))),
               ),
             ]);
           }
@@ -188,9 +192,9 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: LightColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: LightColors.border, width: 0.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,28 +205,28 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
                           child: Text(
                             o.companyName.isEmpty ? 'Company #${o.companyId}' : o.companyName,
                             style: const TextStyle(
-                                color: AppColors.cream, fontWeight: FontWeight.w600),
+                                color: LightColors.textPrimary, fontWeight: FontWeight.w600),
                           ),
                         ),
                         Text('${o.amount.toStringAsFixed(2)} AED',
                             style: const TextStyle(
-                                color: AppColors.gold, fontWeight: FontWeight.w600)),
+                                color: LightColors.goldMuted, fontWeight: FontWeight.w600)),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(o.status, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                    Text(o.status, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                     if (o.receiptFilePath.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       InkWell(
                         onTap: () => showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            backgroundColor: AppColors.surface,
+                            backgroundColor: LightColors.surface,
                             content: Image.network(storageUrl(o.receiptFilePath)),
                           ),
                         ),
                         child: const Text('View receipt',
-                            style: TextStyle(color: AppColors.info, fontSize: 12)),
+                            style: TextStyle(color: LightColors.navy, fontSize: 12)),
                       ),
                     ],
                     if (o.isPending) ...[
@@ -233,12 +237,12 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
                           TextButton(
                             onPressed: () => _reject(o),
                             child: const Text('Reject',
-                                style: TextStyle(color: AppColors.error, fontSize: 12)),
+                                style: TextStyle(color: LightColors.error, fontSize: 12)),
                           ),
                           TextButton(
                             onPressed: () => _approve(o),
                             child: const Text('Approve',
-                                style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                                style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                           ),
                         ],
                       ),
@@ -292,7 +296,7 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -303,24 +307,24 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Reject payout', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Reject payout', style: TextStyle(color: LightColors.textPrimary)),
         content: TextField(
           controller: controller,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Reason',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Back', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -348,17 +352,17 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppColors.gold,
+      color: LightColors.gold,
       onRefresh: () async => _refresh(),
       child: FutureBuilder<List<PayoutRequest>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+            return const Center(child: CircularProgressIndicator(color: LightColors.gold));
           }
           if (snapshot.hasError) {
             return const Center(
-                child: Text('Could not load', style: TextStyle(color: AppColors.error)));
+                child: Text('Could not load', style: TextStyle(color: LightColors.error)));
           }
 
           final payouts = snapshot.data ?? [];
@@ -367,7 +371,7 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
               Padding(
                 padding: EdgeInsets.only(top: 60),
                 child: Center(
-                    child: Text('No payout requests', style: TextStyle(color: AppColors.muted))),
+                    child: Text('No payout requests', style: TextStyle(color: LightColors.textSecondary))),
               ),
             ]);
           }
@@ -381,9 +385,9 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: LightColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: LightColors.border, width: 0.5),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,20 +398,20 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
                           child: Text(
                             p.driverName.isEmpty ? 'Driver #${p.driverId}' : p.driverName,
                             style: const TextStyle(
-                                color: AppColors.cream, fontWeight: FontWeight.w600),
+                                color: LightColors.textPrimary, fontWeight: FontWeight.w600),
                           ),
                         ),
                         Text('${p.amount.toStringAsFixed(2)} AED',
                             style: const TextStyle(
-                                color: AppColors.gold, fontWeight: FontWeight.w600)),
+                                color: LightColors.goldMuted, fontWeight: FontWeight.w600)),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(p.status, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                    Text(p.status, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                     if (p.disputeReason != null) ...[
                       const SizedBox(height: 4),
                       Text(p.disputeReason!,
-                          style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                          style: const TextStyle(color: LightColors.error, fontSize: 12)),
                     ],
                     if (p.isPending) ...[
                       const SizedBox(height: 10),
@@ -417,12 +421,12 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
                           TextButton(
                             onPressed: () => _reject(p),
                             child: const Text('Reject',
-                                style: TextStyle(color: AppColors.error, fontSize: 12)),
+                                style: TextStyle(color: LightColors.error, fontSize: 12)),
                           ),
                           TextButton(
                             onPressed: () => _markPaid(p),
                             child: const Text('Mark paid (upload receipt)',
-                                style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                                style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                           ),
                         ],
                       ),
@@ -435,12 +439,12 @@ class _PayoutRequestsTabState extends State<_PayoutRequestsTab> {
                           TextButton(
                             onPressed: () => _resolveDispute(p, 'retry'),
                             child: const Text('Retry transfer',
-                                style: TextStyle(color: AppColors.info, fontSize: 12)),
+                                style: TextStyle(color: LightColors.navy, fontSize: 12)),
                           ),
                           TextButton(
                             onPressed: () => _resolveDispute(p, 'confirm'),
                             child: const Text('Confirm it arrived',
-                                style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                                style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                           ),
                         ],
                       ),
@@ -483,26 +487,26 @@ class _CreditLimitsTabState extends State<_CreditLimitsTab> {
     final newLimit = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         title: Text('Credit limit — ${company.name}',
-            style: const TextStyle(color: AppColors.cream)),
+            style: const TextStyle(color: LightColors.textPrimary)),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.textPrimary),
           decoration: const InputDecoration(
             labelText: 'Credit limit (AED)',
-            labelStyle: TextStyle(color: AppColors.muted),
+            labelStyle: TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, double.tryParse(controller.text.trim())),
-            child: const Text('Save', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Save', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -518,7 +522,7 @@ class _CreditLimitsTabState extends State<_CreditLimitsTab> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -527,17 +531,17 @@ class _CreditLimitsTabState extends State<_CreditLimitsTab> {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppColors.gold,
+      color: LightColors.gold,
       onRefresh: () async => _refresh(),
       child: FutureBuilder<List<Company>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+            return const Center(child: CircularProgressIndicator(color: LightColors.gold));
           }
           if (snapshot.hasError) {
             return const Center(
-                child: Text('Could not load', style: TextStyle(color: AppColors.error)));
+                child: Text('Could not load', style: TextStyle(color: LightColors.error)));
           }
 
           final companies = snapshot.data ?? [];
@@ -551,9 +555,9 @@ class _CreditLimitsTabState extends State<_CreditLimitsTab> {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: LightColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border, width: 0.5),
+                  border: Border.all(color: LightColors.border, width: 0.5),
                 ),
                 child: Row(
                   children: [
@@ -563,18 +567,18 @@ class _CreditLimitsTabState extends State<_CreditLimitsTab> {
                         children: [
                           Text(c.name,
                               style: const TextStyle(
-                                  color: AppColors.cream, fontWeight: FontWeight.w600)),
+                                  color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
                           Text(
                             'Balance: ${c.balance.toStringAsFixed(2)} · Limit: ${c.creditLimit.toStringAsFixed(2)} AED',
-                            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                            style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
                       onPressed: () => _edit(c),
-                      icon: const Icon(Icons.edit_outlined, color: AppColors.gold, size: 18),
+                      icon: const Icon(Icons.edit_outlined, color: LightColors.goldMuted, size: 18),
                     ),
                   ],
                 ),

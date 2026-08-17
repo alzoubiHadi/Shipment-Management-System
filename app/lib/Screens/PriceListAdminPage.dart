@@ -12,6 +12,8 @@ import '../models/PriceListEntry.dart';
 /// Import uploads the edited CSV back. The list below is a read-only view of
 /// whatever is currently priced, for a quick sanity check without leaving
 /// the app.
+///
+/// Admin Phase 4 (2026-08-20) redesign to LightColors.
 class PriceListAdminPage extends StatefulWidget {
   const PriceListAdminPage({super.key});
 
@@ -55,9 +57,9 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
       await showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: LightColors.surface,
           title: const Text('Price list CSV',
-              style: TextStyle(color: AppColors.cream)),
+              style: TextStyle(color: LightColors.textPrimary)),
           content: SizedBox(
             width: double.maxFinite,
             height: 400,
@@ -65,7 +67,7 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
               child: SelectableText(
                 csv,
                 style: const TextStyle(
-                    color: AppColors.cream, fontFamily: 'monospace', fontSize: 11),
+                    color: LightColors.textPrimary, fontFamily: 'monospace', fontSize: 11),
               ),
             ),
           ),
@@ -77,11 +79,11 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                   const SnackBar(content: Text('Copied to clipboard')),
                 );
               },
-              child: const Text('Copy', style: TextStyle(color: AppColors.gold)),
+              child: const Text('Copy', style: TextStyle(color: LightColors.gold)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close', style: TextStyle(color: AppColors.muted)),
+              child: const Text('Close', style: TextStyle(color: LightColors.textSecondary)),
             ),
           ],
         ),
@@ -122,10 +124,10 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         title: Text(
           result['success'] == true ? 'Import complete' : 'Import failed',
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.textPrimary),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -135,17 +137,17 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(result['message']?.toString() ?? '',
-                    style: const TextStyle(color: AppColors.cream)),
+                    style: const TextStyle(color: LightColors.textPrimary)),
                 if (skipped.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   const Text('Skipped rows:',
                       style: TextStyle(
-                          color: AppColors.error, fontWeight: FontWeight.w600)),
+                          color: LightColors.error, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   for (final s in skipped)
                     Text('• $s',
                         style:
-                            const TextStyle(color: AppColors.muted, fontSize: 12)),
+                            const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                 ],
               ],
             ),
@@ -154,7 +156,7 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK', style: TextStyle(color: AppColors.gold)),
+            child: const Text('OK', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -173,19 +175,20 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Price List', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Price List', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       body: Stack(
         children: [
           RefreshIndicator(
-            color: AppColors.gold,
+            color: LightColors.gold,
             onRefresh: () async => _refresh(),
             child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
@@ -196,9 +199,10 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                           child: OutlinedButton.icon(
                             onPressed: _busy ? null : _export,
                             icon: const Icon(Icons.download_outlined,
-                                color: AppColors.gold, size: 18),
+                                color: LightColors.goldMuted, size: 18),
                             label: const Text('Export CSV',
-                                style: TextStyle(color: AppColors.gold)),
+                                style: TextStyle(color: LightColors.goldMuted)),
+                            style: OutlinedButton.styleFrom(side: const BorderSide(color: LightColors.border)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -206,9 +210,10 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                           child: OutlinedButton.icon(
                             onPressed: _busy ? null : _import,
                             icon: const Icon(Icons.upload_outlined,
-                                color: AppColors.gold, size: 18),
+                                color: LightColors.goldMuted, size: 18),
                             label: const Text('Import CSV',
-                                style: TextStyle(color: AppColors.gold)),
+                                style: TextStyle(color: LightColors.goldMuted)),
+                            style: OutlinedButton.styleFrom(side: const BorderSide(color: LightColors.border)),
                           ),
                         ),
                       ],
@@ -220,16 +225,25 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: TextField(
                       controller: _searchController,
-                      style: const TextStyle(color: AppColors.cream),
+                      style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'Search by destination or truck type...',
-                        hintStyle: const TextStyle(color: AppColors.muted),
-                        prefixIcon: const Icon(Icons.search, color: AppColors.muted),
+                        hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
+                        prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                         filled: true,
-                        fillColor: AppColors.surface,
+                        fillColor: LightColors.surface,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                          borderSide: const BorderSide(color: LightColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: LightColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: LightColors.gold),
                         ),
                       ),
                     ),
@@ -243,7 +257,7 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 80),
                           child: Center(
-                            child: CircularProgressIndicator(color: AppColors.gold),
+                            child: CircularProgressIndicator(color: LightColors.gold),
                           ),
                         );
                       }
@@ -252,7 +266,7 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                           padding: const EdgeInsets.all(24),
                           child: Text(
                             'Could not load price list: ${snapshot.error}',
-                            style: const TextStyle(color: AppColors.error),
+                            style: const TextStyle(color: LightColors.error),
                           ),
                         );
                       }
@@ -264,7 +278,7 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                           padding: EdgeInsets.symmetric(vertical: 60),
                           child: Center(
                             child: Text('No priced rows match',
-                                style: TextStyle(color: AppColors.muted)),
+                                style: TextStyle(color: LightColors.textSecondary)),
                           ),
                         );
                       }
@@ -279,9 +293,9 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 14, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surface,
+                                  color: LightColors.surface,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.border, width: 0.5),
+                                  border: Border.all(color: LightColors.border, width: 0.5),
                                 ),
                                 child: Row(
                                   children: [
@@ -291,20 +305,20 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
                                         children: [
                                           Text(entries[i].destination,
                                               style: const TextStyle(
-                                                  color: AppColors.cream,
+                                                  color: LightColors.textPrimary,
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 13)),
                                           const SizedBox(height: 2),
                                           Text(entries[i].truckType,
                                               style: const TextStyle(
-                                                  color: AppColors.muted, fontSize: 11)),
+                                                  color: LightColors.textSecondary, fontSize: 11)),
                                         ],
                                       ),
                                     ),
                                     Text(
                                       '${entries[i].basePrice.toStringAsFixed(0)} AED',
                                       style: const TextStyle(
-                                          color: AppColors.gold,
+                                          color: LightColors.goldMuted,
                                           fontWeight: FontWeight.w600,
                                           fontSize: 13),
                                     ),
@@ -325,7 +339,7 @@ class _PriceListAdminPageState extends State<PriceListAdminPage> {
             Container(
               color: Colors.black45,
               child: const Center(
-                child: CircularProgressIndicator(color: AppColors.gold),
+                child: CircularProgressIndicator(color: LightColors.gold),
               ),
             ),
         ],
