@@ -41,6 +41,17 @@ class ShipmentOfferController extends Controller
             ], 403);
         }
 
+        // Unified Approvals / document-expiry feature (2026-08-22): an
+        // expired trade license blocks creating a NEW shipment only —
+        // approval_status/account_status are untouched, so the company can
+        // still log in and view existing shipments/tracking/finance/
+        // documents/profile (see Company::recomputeComplianceStatus()).
+        if ($company->compliance_status === 'action_required') {
+            return response()->json([
+                'message' => 'Your trade license has expired — renew it before creating a new shipment',
+            ], 403);
+        }
+
         try {
             $validated = $request->validate([
                 'origin' => ['required', 'string'],

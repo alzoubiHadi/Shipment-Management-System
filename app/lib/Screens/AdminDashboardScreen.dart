@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../API/AdminDashboardService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
+import 'ApprovalsPage.dart';
 import 'Companiespage.dart';
+import 'DocumentAlertsPage.dart';
 import 'Driverspage.dart';
 import 'ReportsHomePage.dart';
 import 'ShipmentPageAdmin.dart';
@@ -12,11 +14,23 @@ import 'ShipmentPageAdmin.dart';
 /// (2026-08-21 mockup). Lives as index 0 of HomeScreen's admin IndexedStack;
 /// its hamburger button opens the outer Scaffold's AdminDrawer (no Scaffold
 /// of its own, so Scaffold.of(context) resolves to HomeScreen's).
+///
+/// Unified Approvals Phase 6 (2026-08-22): added Pending Approvals/Document
+/// Renewals/Changes Required stat cards (via [onOpenApprovals], which
+/// switches HomeScreen's IndexedStack the same way [onOpenWallet] does for
+/// the driver/company dashboards) and routed the Expiring/Expired document
+/// alerts to the new DocumentAlertsPage instead of a generic driver list.
 class AdminDashboardScreen extends StatefulWidget {
   final AppUser user;
   final VoidCallback onOpenDrawer;
+  final void Function(ApprovalSection section) onOpenApprovals;
 
-  const AdminDashboardScreen({super.key, required this.user, required this.onOpenDrawer});
+  const AdminDashboardScreen({
+    super.key,
+    required this.user,
+    required this.onOpenDrawer,
+    required this.onOpenApprovals,
+  });
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -145,12 +159,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             childAspectRatio: 1.5,
                             children: [
                               _StatCard(
-                                icon: Icons.assignment_late_outlined,
-                                label: 'Registration Pending',
-                                value: stats.registrationPending,
+                                icon: Icons.fact_check_outlined,
+                                label: 'Pending Approvals',
+                                value: stats.pendingApprovals,
                                 color: LightColors.pending,
                                 bg: LightColors.pendingBg,
-                                onTap: () => _openTab(context, Driverspage(user: widget.user, initialFilter: 'pending')),
+                                onTap: () => widget.onOpenApprovals(ApprovalSection.registrations),
+                              ),
+                              _StatCard(
+                                icon: Icons.description_outlined,
+                                label: 'Document Renewals',
+                                value: stats.documentRenewalsPending,
+                                color: LightColors.gold,
+                                bg: LightColors.gold.withOpacity(0.12),
+                                onTap: () => widget.onOpenApprovals(ApprovalSection.renewals),
+                              ),
+                              _StatCard(
+                                icon: Icons.edit_note_outlined,
+                                label: 'Changes Required',
+                                value: stats.changesRequiredTotal,
+                                color: LightColors.gold,
+                                bg: LightColors.gold.withOpacity(0.12),
+                                onTap: () => widget.onOpenApprovals(ApprovalSection.changes),
                               ),
                               _StatCard(
                                 icon: Icons.people_alt_outlined,
@@ -224,9 +254,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     alert: a,
                                     onTap: () {
                                       if (a.type == 'registration_pending') {
-                                        _openTab(context, Driverspage(user: widget.user, initialFilter: 'pending'));
+                                        widget.onOpenApprovals(ApprovalSection.registrations);
                                       } else if (a.type == 'documents_expiring') {
-                                        _openTab(context, Driverspage(user: widget.user));
+                                        _openTab(context, DocumentAlertsPage(user: widget.user, status: 'expiring_soon'));
+                                      } else if (a.type == 'documents_expired') {
+                                        _openTab(context, DocumentAlertsPage(user: widget.user, status: 'expired'));
                                       }
                                     },
                                   ),
@@ -308,7 +340,7 @@ class _AlertTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isExpiring = alert.type == 'documents_expiring';
+    final isExpiring = alert.type == 'documents_expiring' || alert.type == 'documents_expired';
     return Material(
       color: LightColors.surface,
       borderRadius: BorderRadius.circular(12),

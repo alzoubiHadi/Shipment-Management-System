@@ -25,5 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // Needs a real cron entry (`* * * * * php artisan schedule:run`) in
         // production, or `php artisan schedule:work` while developing.
         $schedule->command('offers:process-expired-matches')->everyMinute();
+
+        // Unified Approvals / document-expiry feature (2026-08-22): daily
+        // sweep of every driver/truck/company document's expiry status —
+        // updates Valid/Expiring Soon/Expired, sends the 30/15/7/1-day
+        // notifications, and recomputes compliance_status for anyone whose
+        // critical document just expired in place (no renewal submitted).
+        $schedule->command('documents:check-expiry')->daily();
     })
     ->create();

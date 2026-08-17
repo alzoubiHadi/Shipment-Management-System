@@ -60,7 +60,7 @@ class AdminBottomNav extends StatelessWidget {
               _NavIcon(
                 icon: Icons.assignment_outlined,
                 activeIcon: Icons.assignment_rounded,
-                label: 'Requests',
+                label: 'Approvals',
                 active: selectedTab == AdminNavTab.requests,
                 onTap: () => onSelectTab(AdminNavTab.requests),
               ),

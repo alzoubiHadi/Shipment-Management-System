@@ -411,13 +411,17 @@ public function restore( $id)
     /**
      * A driver renewing/uploading their own document is a change that's
      * material to eligibility (it directly feeds Driver::isEligibleForNewJob
-     * / documentIssues), so it is NEVER applied straight away here — it's
-     * stored as a pending ProfileEditRequest and only actually written into
-     * driver_documents (see the exact apply logic in
-     * ProfileController::applyDocument()) once an admin approves it. The
-     * uploaded file itself is stored immediately (so nothing is lost while
-     * it waits for review), just not yet linked as the driver's current
-     * document.
+     * / documentIssues), so it is NEVER applied straight away here.
+     *
+     * Unified Approvals / document-expiry feature (2026-08-22): the new
+     * row IS created immediately, as a real `driver_documents` row with
+     * status='under_review' and is_current=false — this is what makes it
+     * show up as a real "Renewal Submitted" document (Admin > Approvals >
+     * Document Renewals), not just an entry buried in a JSON payload. The
+     * OLD row keeps is_current=true (and therefore keeps counting for
+     * Driver::documentIssues()/eligibility) until an admin actually
+     * decides — see ProfileController::applyDocument()/reject() for where
+     * that decision is applied.
      */
     public function uploadDocument(Request $request, $driver_user_id)
     {
@@ -447,13 +451,14 @@ public function restore( $id)
         // application back in front of an admin, so there's nothing to
         // gate here that a second review step would add.
         if ($driver->approval_status === 'changes_required') {
-            $driver->documents()->where('type', $validated['type'])->update(['is_current' => false]);
+            $driver->documents()->where('type', $validated['type'])->update(['is_current' => false, 'status' => 'superseded']);
 
             $document = $driver->documents()->create([
                 'type' => $validated['type'],
                 'file_path' => $path,
                 'expiry_date' => $validated['expiry_date'] ?? null,
                 'is_current' => true,
+                'status' => 'valid',
                 'uploaded_by_user_id' => $driver_user_id,
             ]);
 
@@ -473,10 +478,20 @@ public function restore( $id)
             ], 201);
         }
 
+        $document = $driver->documents()->create([
+            'type' => $validated['type'],
+            'file_path' => $path,
+            'expiry_date' => $validated['expiry_date'] ?? null,
+            'is_current' => false,
+            'status' => 'under_review',
+            'uploaded_by_user_id' => $driver_user_id,
+        ]);
+
         $editRequest = ProfileEditRequest::create([
             'user_id' => $driver_user_id,
             'category' => 'document',
             'payload' => [
+                'document_id' => $document->id,
                 'type' => $validated['type'],
                 'file_path' => $path,
                 'expiry_date' => $validated['expiry_date'] ?? null,
@@ -496,6 +511,7 @@ public function restore( $id)
         return response()->json([
             'message' => 'Document submitted for admin review — it will apply once approved.',
             'edit_request' => $editRequest,
+            'document' => $document,
         ], 201);
     }
 

@@ -16,13 +16,15 @@ enum DriverDocTab { driver, truck }
 /// the same type, it's never deleted.
 ///
 /// Driver redesign Phase 4 (2026-08-17 mockup): added a "Truck Documents"
-/// tab alongside the original driver-documents list. Truck Documents is
-/// READ-ONLY (view + expiry only, no upload/renew here) — deliberately,
-/// because TruckController::updateMyTruck on the backend only allows
-/// editing truck fields/files while the driver's approval_status is
-/// 'changes_required' (an admin-flagged edit window), unlike driver
-/// personal documents which really are freely renewable any time. Faking
-/// an always-available renew button here would just 409 in practice.
+/// tab alongside the original driver-documents list.
+///
+/// Unified Approvals redesign (2026-08-22): Truck Documents is no longer
+/// read-only — TruckController::uploadMyTruckDocument now gives trucks the
+/// same always-available renewal path driver documents already had,
+/// creating a real TruckDocument row (status='under_review') plus a
+/// ProfileEditRequest that shows up in Admin > Approvals > Document
+/// Renewals. (The older `updateMyTruck` edit-during-changes_required path
+/// is untouched and still used by ChangesRequiredEditScreen.)
 class DriverDocumentsPage extends StatefulWidget {
   final DriverDocTab initialTab;
   const DriverDocumentsPage({super.key, this.initialTab = DriverDocTab.driver});
@@ -231,6 +233,149 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
     );
   }
 
+  Future<void> _openTruckUploadSheet(String type, String label) async {
+    PlatformFile? pickedFile;
+    DateTime? expiryDate;
+    bool saving = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Renew $label',
+                    style: const TextStyle(color: AppColors.cream, fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: () async {
+                      final result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+                        withData: true,
+                      );
+                      if (result != null && result.files.isNotEmpty) {
+                        setSheetState(() => pickedFile = result.files.single);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: pickedFile == null ? AppColors.border : AppColors.gold),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            pickedFile == null ? Icons.upload_file_outlined : Icons.check_circle_outline,
+                            color: pickedFile == null ? AppColors.muted : AppColors.gold,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              pickedFile?.name ?? 'Choose file (PDF/JPG/PNG)',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: pickedFile == null ? AppColors.muted : AppColors.cream, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: DateTime.now().add(const Duration(days: 365)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 15)),
+                      );
+                      if (picked != null) setSheetState(() => expiryDate = picked);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: expiryDate == null ? AppColors.border : AppColors.gold),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.event_outlined, color: AppColors.muted, size: 20),
+                          const SizedBox(width: 12),
+                          Text(
+                            expiryDate == null
+                                ? 'New expiry date'
+                                : '${expiryDate!.year}-${expiryDate!.month.toString().padLeft(2, '0')}-${expiryDate!.day.toString().padLeft(2, '0')}',
+                            style: TextStyle(color: expiryDate == null ? AppColors.muted : AppColors.cream, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold),
+                      onPressed: (saving || pickedFile?.bytes == null || expiryDate == null)
+                          ? null
+                          : () async {
+                              setSheetState(() => saving = true);
+                              final result = await TruckService.uploadMyTruckDocument(
+                                type: type,
+                                fileBytes: pickedFile!.bytes!,
+                                fileName: pickedFile!.name,
+                                expiryDate: expiryDate!,
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (!mounted) return;
+                              if (result['success'] == true) {
+                                setState(() => _trucksFuture = TruckService().fetchMyTrucks());
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(result['message']?.toString() ?? '')),
+                              );
+                            },
+                      child: saving
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg),
+                            )
+                          : const Text('Submit for Review', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -301,9 +446,9 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
           }
 
           final docs = [
-            ('Vehicle License', trucks.first.licenseExpiry, trucks.first.licenseFilePath),
-            ('Insurance', trucks.first.insuranceExpiry, trucks.first.insuranceFilePath),
-            ('Technical Inspection', trucks.first.technicalInspectionExpiry, trucks.first.technicalInspectionFilePath),
+            ('license', 'Vehicle License', trucks.first.licenseExpiry, trucks.first.licenseFilePath),
+            ('insurance', 'Insurance', trucks.first.insuranceExpiry, trucks.first.insuranceFilePath),
+            ('technical_inspection', 'Technical Inspection', trucks.first.technicalInspectionExpiry, trucks.first.technicalInspectionFilePath),
           ];
 
           return ListView(
@@ -312,11 +457,11 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'Truck documents can only be updated when an admin requests changes to your registration — contact support if one of these needs renewing.',
+                  'Renewing a document here submits it for admin review — it applies once approved.',
                   style: TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
               ),
-              for (final (label, expiry, path) in docs)
+              for (final (typeKey, label, expiry, path) in docs)
                 Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
@@ -355,11 +500,22 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                           ],
                         ),
                       ),
-                      if ((path ?? '').isNotEmpty)
-                        TextButton(
-                          onPressed: () => _viewFile(path),
-                          child: const Text('View', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
-                        ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if ((path ?? '').isNotEmpty)
+                            TextButton(
+                              onPressed: () => _viewFile(path),
+                              style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28)),
+                              child: const Text('View', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                            ),
+                          TextButton(
+                            onPressed: () => _openTruckUploadSheet(typeKey, label),
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28)),
+                            child: const Text('Renew', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

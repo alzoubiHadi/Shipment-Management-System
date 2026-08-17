@@ -18,8 +18,10 @@ class Company extends Model
         'approval_status',
         'rejection_reason',
         'license_file_path',
+        'license_expiry',
         'account_status',
         'suspension_reason',
+        'compliance_status',
         'balance',
         'credit_limit',
     ];
@@ -27,6 +29,7 @@ class Company extends Model
     protected $casts = [
         'balance' => 'decimal:2',
         'credit_limit' => 'decimal:2',
+        'license_expiry' => 'date:Y-m-d',
     ];
 
     public function user()
@@ -37,6 +40,20 @@ class Company extends Model
     public function shipments()
     {
         return $this->hasMany(Shipment::class);
+    }
+
+    /**
+     * Full append-only trade-license (and any future document type)
+     * history — see CompanyDocument::STATUSES.
+     */
+    public function documents()
+    {
+        return $this->hasMany(CompanyDocument::class);
+    }
+
+    public function currentDocuments()
+    {
+        return $this->documents()->where('is_current', true);
     }
 
     public function shipmentOffers()
@@ -91,5 +108,33 @@ class Company extends Model
     public function isActive(): bool
     {
         return $this->approval_status === 'approved' && $this->account_status === 'active';
+    }
+
+    /**
+     * Unified Approvals / document-expiry feature (2026-08-22): the trade
+     * license is the only compliance-relevant company document today.
+     * Expired -> 'action_required' (blocks ShipmentOfferController::create()
+     * only — approval_status and account_status are untouched, existing
+     * shipments/tracking/finance/documents/profile all stay reachable).
+     * Missing entirely (license_expiry null, e.g. never renewed with a
+     * dated document yet) is treated as fine here, not blocking — unlike a
+     * driver's documents, a company's trade license predates this feature
+     * for most existing accounts and there's no guarantee every approved
+     * company has a dated CompanyDocument row yet.
+     *
+     * Called after every trade-license renewal approval (see
+     * ProfileController::applyCompanyLicense()) and by the daily
+     * CheckDocumentExpiry command so an in-place expiry (nobody has
+     * renewed yet) is caught too, not just a renewal decision.
+     */
+    public function recomputeComplianceStatus(): void
+    {
+        $expired = $this->license_expiry !== null && $this->license_expiry->isPast();
+
+        $newStatus = $expired ? 'action_required' : 'active';
+
+        if ($this->compliance_status !== $newStatus) {
+            $this->update(['compliance_status' => $newStatus]);
+        }
     }
 }

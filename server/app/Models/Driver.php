@@ -303,4 +303,54 @@ class Driver extends Model
 
         return $this->residency_expiry->greaterThanOrEqualTo(now()->addMonths(3));
     }
+
+    /**
+     * Unified Approvals / document-expiry feature (2026-08-22): a critical
+     * document expiring — the driver's own license/passport/residency, OR
+     * their linked truck's license/insurance/technical inspection —
+     * doesn't touch approval_status (the driver stays 'approved', can
+     * still log in and see their own account/documents) but DOES set
+     * compliance_status = 'action_required', which MatchingService::
+     * eligibleDriversQuery() already excludes from matching (compliance_
+     * status !== 'active'), so this alone is enough to block new job
+     * matching/accept without any separate "job_eligibility" flag.
+     *
+     * Deliberately only ever toggles between 'active' and
+     * 'action_required' — a driver already 'warning'/'suspended'/'banned'
+     * (set by ComplianceReport resolution or DriverController::suspend(),
+     * a completely separate misconduct axis) is left untouched here, since
+     * a document renewal must never silently clear an admin's misconduct
+     * decision, and this method must never overwrite a misconduct state
+     * with a document-driven one either.
+     *
+     * Called after every document renewal approval (see
+     * ProfileController::applyDocument()) and by the daily
+     * CheckDocumentExpiry command, so an in-place expiry (nobody has
+     * renewed yet) is caught too, not just a renewal decision.
+     */
+    public function recomputeComplianceStatus(): void
+    {
+        if (! in_array($this->compliance_status, ['active', 'action_required'], true)) {
+            return;
+        }
+
+        $today = now()->toDateString();
+
+        $ownDocsExpired = ($this->license_expiry && $this->license_expiry->toDateString() < $today)
+            || ($this->passport_expiry && $this->passport_expiry->toDateString() < $today)
+            || ($this->residency_expiry && $this->residency_expiry->toDateString() < $today);
+
+        $truck = $this->truck;
+        $truckDocsExpired = $truck && (
+            ($truck->license_expiry && $truck->license_expiry->toDateString() < $today)
+            || ($truck->insurance_expiry && $truck->insurance_expiry->toDateString() < $today)
+            || ($truck->technical_inspection_expiry && $truck->technical_inspection_expiry->toDateString() < $today)
+        );
+
+        $newStatus = ($ownDocsExpired || $truckDocsExpired) ? 'action_required' : 'active';
+
+        if ($this->compliance_status !== $newStatus) {
+            $this->update(['compliance_status' => $newStatus]);
+        }
+    }
 }

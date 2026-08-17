@@ -21,6 +21,14 @@ class Company {
   // not yet a full URL. See CompanyDetailsPage for how it's turned into a
   // viewable link.
   final String? licenseFilePath;
+  // Unified Approvals redesign (2026-08-22): 'active' | 'action_required' —
+  // set by Company::recomputeComplianceStatus() when the trade license
+  // expires. Unlike Driver.complianceStatus, there's no misconduct branch
+  // here (no company-level suspension/warning states), just this one flag.
+  // approval_status stays 'approved' the whole time — the company can still
+  // log in and use everything except creating a new shipment (see
+  // ShipmentOfferController::create()'s 403 check).
+  final String complianceStatus;
   // Laravel's default Eloquent timestamp — when this company row (and thus
   // the registration request) was created. Used by the Registration
   // Requests screen's "Applied on" date.
@@ -40,6 +48,7 @@ class Company {
     this.approvalStatus = 'approved',
     this.rejectionReason,
     this.licenseFilePath,
+    this.complianceStatus = 'active',
     this.createdAt,
   });
 
@@ -58,6 +67,7 @@ class Company {
       approvalStatus: map['approval_status']?.toString() ?? 'approved',
       rejectionReason: map['rejection_reason']?.toString(),
       licenseFilePath: map['license_file_path']?.toString(),
+      complianceStatus: map['compliance_status']?.toString() ?? 'active',
       createdAt: DateTime.tryParse(map['created_at']?.toString() ?? ''),
     );
   }
@@ -70,6 +80,7 @@ class Company {
     String? rejectionReason,
     bool clearRejectionReason = false,
     String? licenseFilePath,
+    String? complianceStatus,
   }) {
     return Company(
       id: id,
@@ -87,6 +98,7 @@ class Company {
       rejectionReason:
           clearRejectionReason ? null : (rejectionReason ?? this.rejectionReason),
       licenseFilePath: licenseFilePath ?? this.licenseFilePath,
+      complianceStatus: complianceStatus ?? this.complianceStatus,
       createdAt: createdAt,
     );
   }
@@ -106,6 +118,7 @@ class Company {
       'approval_status': approvalStatus,
       'rejection_reason': rejectionReason,
       'license_file_path': licenseFilePath,
+      'compliance_status': complianceStatus,
     };
   }
 }

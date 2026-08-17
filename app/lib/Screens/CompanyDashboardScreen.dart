@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../API/CompanyService.dart';
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
+import '../models/Company.dart';
 import '../models/Shipment.dart';
 import 'AddShipmentOfferPage.dart';
 import 'CompanyOffersPage.dart';
+import 'CompanyProfileScreen.dart';
 import 'ShipmentDetailsPageCompany.dart';
 import 'ShipmentTrackingPage.dart';
 import 'register_shared.dart';
@@ -38,16 +41,21 @@ class CompanyDashboardScreen extends StatefulWidget {
 
 class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
   late Future<List<Shipment>> _future;
+  late Future<Company> _companyFuture;
 
   @override
   void initState() {
     super.initState();
     _future = ShipmentService().fetchShipmentscompany();
+    _companyFuture = CompanyService().fetchMyCompany();
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = ShipmentService().fetchShipmentscompany());
-    await _future;
+    setState(() {
+      _future = ShipmentService().fetchShipmentscompany();
+      _companyFuture = CompanyService().fetchMyCompany();
+    });
+    await Future.wait([_future, _companyFuture]);
   }
 
   String get _greeting {
@@ -142,7 +150,11 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                 ),
               ),
               SliverToBoxAdapter(
-                child: FutureBuilder<List<Shipment>>(
+                child: FutureBuilder<Company>(
+                  future: _companyFuture,
+                  builder: (context, companySnapshot) {
+                    final complianceStatus = companySnapshot.data?.complianceStatus ?? 'active';
+                    return FutureBuilder<List<Shipment>>(
                   future: _future,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -183,6 +195,15 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (complianceStatus == 'action_required') ...[
+                            _ComplianceBanner(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => CompanyProfileScreen(user: widget.user)),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                           if (liveShipments.isNotEmpty) ...[
                             _LiveTrackingBanner(
                               count: liveShipments.length,
@@ -206,9 +227,13 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                           ),
                           const SizedBox(height: 18),
                           LightPrimaryButton(
-                            label: 'Create Shipment',
+                            label: complianceStatus == 'action_required' ? 'Create Shipment (Blocked)' : 'Create Shipment',
                             icon: Icons.add_rounded,
-                            onPressed: () => _createShipment(context),
+                            onPressed: complianceStatus == 'action_required'
+                                ? () => ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Your trade license has expired — renew it to create new shipments.')),
+                                    )
+                                : () => _createShipment(context),
                           ),
                           const SizedBox(height: 10),
                           Center(
@@ -245,8 +270,54 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                       ),
                     );
                   },
+                );
+                  },
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when Company.compliance_status == 'action_required' (trade
+/// license expired) — per spec the company keeps full access to existing
+/// shipments/tracking/finance/documents/profile, only Create Shipment is
+/// blocked (see the gated LightPrimaryButton above and
+/// ShipmentOfferController::create()'s matching 403 on the backend).
+class _ComplianceBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ComplianceBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: LightColors.errorBg,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.error.withOpacity(0.4))),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: LightColors.error, size: 22),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Trade license expired', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 2),
+                    Text('Renew it to keep creating new shipments — existing shipments are unaffected.',
+                        style: TextStyle(color: LightColors.textSecondary, fontSize: 11.5)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: LightColors.textSecondary),
             ],
           ),
         ),

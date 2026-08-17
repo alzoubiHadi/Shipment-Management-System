@@ -14,16 +14,18 @@ import 'ShipmentOffersAdminPage.dart';
 
 /// Left sidebar navigation from the admin dashboard redesign, adapted to
 /// mobile as a slide-out Drawer paired with a bottom nav — Dashboard/
-/// Requests/Shipments/Finance/Menu, where Menu opens this Drawer for
+/// Approvals/Shipments/Finance/Menu, where Menu opens this Drawer for
 /// everything else, rather than the Drawer being the only nav.
 ///
-/// Only Home/Registration Requests/Shipments/Finance live in HomeScreen's
-/// IndexedStack (go through [onSelectTab]); Drivers/Companies/Offers/
-/// Documents & Permissions/Reports/Notifications/Activity Log/Settings are
-/// full standalone pages reached via a normal push.
+/// Only Home/Approvals/Shipments/Finance live in HomeScreen's IndexedStack
+/// (go through [onSelectTab]); Drivers/Companies/Offers/Work Destinations/
+/// Reports/Notifications/Activity Log/Settings are full standalone pages
+/// reached via a normal push. "Work Destinations" (AdminProfileEditRequestsPage)
+/// is what's left of the old generic profile-edit-requests queue now that
+/// document renewals moved into the Approvals tab — see that page's docblock.
 class AdminDrawer extends StatelessWidget {
   final AppUser user;
-  final int currentTabIndex; // 0=Home,1=Registration Requests,2=Shipments,3=Finance
+  final int currentTabIndex; // 0=Home,1=Approvals,2=Shipments,3=Finance
   final void Function(int index) onSelectTab;
   final int pendingRegistrations;
   final int unreadNotifications;
@@ -119,7 +121,7 @@ class AdminDrawer extends StatelessWidget {
                   ),
                   _DrawerTile(
                     icon: Icons.assignment_outlined,
-                    label: 'Registration Requests',
+                    label: 'Approvals',
                     selected: currentTabIndex == 1,
                     badge: pendingRegistrations,
                     onTap: () => _selectTab(context, 1),
@@ -146,8 +148,8 @@ class AdminDrawer extends StatelessWidget {
                     onTap: () => _push(context, const ShipmentOffersAdminPage()),
                   ),
                   _DrawerTile(
-                    icon: Icons.folder_shared_outlined,
-                    label: 'Documents & Permissions',
+                    icon: Icons.public_outlined,
+                    label: 'Work Destinations',
                     onTap: () => _push(context, const AdminProfileEditRequestsPage()),
                   ),
                   _DrawerTile(

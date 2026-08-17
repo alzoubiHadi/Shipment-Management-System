@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Driver;
+use App\Models\ProfileEditRequest;
 use App\Models\Truck;
+use App\Models\TruckDocument;
+use App\Models\User;
+use App\Notifications\AppPushNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -268,5 +272,102 @@ class TruckController extends Controller
             'message' => 'Truck updated',
             'truck' => $truck->fresh(),
         ], 200);
+    }
+
+    // ── Truck documents (Unified Approvals / document-expiry feature, 2026-08-22) ──
+
+    /** History of this driver's truck's document renewals — same pattern as DriverController::documents(). */
+    public function myTruckDocuments($driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        $truck = Truck::where('default_driver_id', $driver->id)->first();
+        if (! $truck) {
+            return response()->json(['message' => 'You do not have a registered truck yet'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Truck documents retrieved successfully',
+            'documents' => $truck->documents()->orderByDesc('created_at')->get(),
+        ], 200);
+    }
+
+    /**
+     * A driver renewing their truck's license/insurance/technical
+     * inspection — previously there was no workflow for this at all
+     * outside the changes_required edit window (see updateMyTruck()
+     * above). Mirrors DriverController::uploadDocument() exactly: the new
+     * row is created immediately as status='under_review', is_current
+     * stays false so the truck's existing (still is_current=true) document
+     * keeps counting for Truck::isRoadworthy()/suitabilityIssue() until an
+     * admin decides — see ProfileController::applyTruckDocument().
+     */
+    public function uploadMyTruckDocument(Request $request, $driver_user_id)
+    {
+        $driver = Driver::where('user_id', $driver_user_id)->first();
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        $truck = Truck::where('default_driver_id', $driver->id)->first();
+        if (! $truck) {
+            return response()->json(['message' => 'You do not have a registered truck yet'], 404);
+        }
+
+        try {
+            $validated = $request->validate([
+                'type' => ['required', 'string', 'in:' . implode(',', TruckDocument::TYPES)],
+                'file' => ['required', 'file', 'max:10240'],
+                'expiry_date' => ['nullable', 'date'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        }
+
+        $folder = match ($validated['type']) {
+            'insurance' => 'truck_insurance',
+            'technical_inspection' => 'truck_inspections',
+            default => 'truck_licenses',
+        };
+        $path = $request->file('file')->store($folder, 'public');
+
+        $document = $truck->documents()->create([
+            'type' => $validated['type'],
+            'file_path' => $path,
+            'expiry_date' => $validated['expiry_date'] ?? null,
+            'is_current' => false,
+            'status' => 'under_review',
+            'uploaded_by_user_id' => $driver_user_id,
+        ]);
+
+        $editRequest = ProfileEditRequest::create([
+            'user_id' => $driver_user_id,
+            'category' => 'truck_document',
+            'payload' => [
+                'document_id' => $document->id,
+                'type' => $validated['type'],
+                'file_path' => $path,
+                'expiry_date' => $validated['expiry_date'] ?? null,
+            ],
+            'status' => 'pending',
+        ]);
+
+        foreach (User::whereIn('type', ['admin', 'super_admin', 'sub_admin'])->get() as $admin) {
+            $admin->notify(new AppPushNotification(
+                'profile_edit_pending',
+                'Truck document awaiting review',
+                sprintf('%s submitted a truck %s renewal for review.', $driver->name, str_replace('_', ' ', $validated['type'])),
+                ['request_id' => $editRequest->id],
+            ));
+        }
+
+        return response()->json([
+            'message' => 'Document submitted for admin review — it will apply once approved.',
+            'edit_request' => $editRequest,
+            'document' => $document,
+        ], 201);
     }
 }

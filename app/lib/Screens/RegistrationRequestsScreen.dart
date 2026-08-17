@@ -8,6 +8,13 @@ import '../models/Company.dart';
 import '../models/Driver.dart';
 import 'RequestReviewScreen.dart';
 
+/// DEAD CODE (2026-08-22): superseded by ApprovalsPage.dart as admin
+/// bottom-nav tab index 1 — see ApprovalsPage's docblock for the Unified
+/// Approvals redesign (New Registrations / Document Renewals / Changes
+/// Required). Left in place, unreferenced, per this codebase's
+/// never-delete-only-document convention; safe to delete in a future
+/// cleanup pass once the new screen has been in production a while.
+///
 /// Unified driver+company registration review queue (2026-08-21 mockup,
 /// Phase 2 of the admin dashboard redesign). Lives as a bottom-nav tab
 /// (see AdminBottomNav) rather than behind the drawer, since it's the

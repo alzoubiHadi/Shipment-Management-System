@@ -100,6 +100,20 @@ class Truck extends Model
     }
 
     /**
+     * Full append-only document history (license/insurance/technical
+     * inspection renewals) — see TruckDocument::STATUSES.
+     */
+    public function documents()
+    {
+        return $this->hasMany(TruckDocument::class);
+    }
+
+    public function currentDocuments()
+    {
+        return $this->documents()->where('is_current', true);
+    }
+
+    /**
      * A truck is currently eligible for a new job if it is active and all of
      * its permits / insurance / registration are still valid. Unlike driver
      * documents, a missing (null) expiry here is NOT a block — insurance and

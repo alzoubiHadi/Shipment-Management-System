@@ -148,10 +148,13 @@ class ProfileService {
   }
 
   /// Company self-service trade-license renewal — pending admin approval,
-  /// same as a driver's document renewal.
+  /// same as a driver's document renewal. expiryDate is required
+  /// server-side ('YYYY-MM-DD') since 2026-08-22 (companies previously had
+  /// no license_expiry tracked at all).
   Future<Map<String, dynamic>> submitCompanyLicense({
     required Uint8List fileBytes,
     required String fileName,
+    required String expiryDate,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -160,6 +163,7 @@ class ProfileService {
       final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/me/company/license'));
       request.headers['Accept'] = 'application/json';
       request.headers['Authorization'] = 'Bearer $token';
+      request.fields['expiry_date'] = expiryDate;
       request.files.add(http.MultipartFile.fromBytes('license_file', fileBytes, filename: fileName));
 
       final streamed = await request.send();
@@ -322,10 +326,18 @@ class ProfileService {
   // ── Admin review ─────────────────────────────────────────────────────
 
   Future<List<ProfileEditRequest>> fetchPendingEditRequests() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/admin/profile-edit-requests?status=pending'),
-      headers: await _authHeaders(),
-    );
+    return fetchEditRequests();
+  }
+
+  /// Backs both the legacy destinations-only queue (AdminProfileEditRequestsPage)
+  /// and the new Approvals "Document Renewals" tab (ApprovalsPage) — [category]
+  /// is a comma-separated list matching ProfileController::adminIndex()'s
+  /// `category` query param, e.g. 'document,truck_document,company_license'.
+  Future<List<ProfileEditRequest>> fetchEditRequests({String status = 'pending', String? category}) async {
+    final params = <String, String>{'status': status};
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    final uri = Uri.parse('$baseUrl/admin/profile-edit-requests').replace(queryParameters: params);
+    final response = await http.get(uri, headers: await _authHeaders());
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return (data['requests'] as List).map((e) => ProfileEditRequest.fromJson(e)).toList();

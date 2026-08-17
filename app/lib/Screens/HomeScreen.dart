@@ -25,7 +25,7 @@ import 'DriverDashboardScreen.dart';
 import 'DriverOffersPage.dart';
 import 'PlaceholderPage.dart';
 import 'Profile.dart';
-import 'RegistrationRequestsScreen.dart';
+import 'ApprovalsPage.dart';
 import 'ShipmentPageAdmin.dart';
 import 'UserHomePage.dart';
 
@@ -47,12 +47,14 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Registration Requests tab (admin index 1) is re-filterable from the "+"
-  // quick action / drawer shortcuts. Changing these swaps the ValueKey on
-  // RegistrationRequestsScreen below, forcing it to rebuild with the new
-  // initial filter instead of keeping whatever filter the admin had before.
-  String _requestsTypeFilter = 'all';
-  String _requestsStatusFilter = 'all';
+  // Approvals tab (admin index 1, formerly "Registration Requests" /
+  // RegistrationRequestsScreen — see ApprovalsPage's docblock for the
+  // Unified Approvals redesign). _requestsSection picks which of the 3
+  // Approvals tabs (registrations/renewals/changes) opens by default;
+  // changing it swaps the ValueKey on ApprovalsPage below, forcing it to
+  // rebuild on that section instead of keeping whatever section the admin
+  // had open before.
+  ApprovalSection _requestsSection = ApprovalSection.registrations;
 
   bool get _isAdmin =>
       widget.user.role == 'admin' || widget.user.role == 'super_admin' || widget.user.role == 'sub_admin';
@@ -61,10 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _isDriver => widget.user.role == 'driver';
 
-  void _goToRequests({String type = 'all', String status = 'all'}) {
+  void _goToRequests({ApprovalSection section = ApprovalSection.registrations}) {
     setState(() {
-      _requestsTypeFilter = type;
-      _requestsStatusFilter = status;
+      _requestsSection = section;
       _selectedIndex = 1;
     });
   }
@@ -223,13 +224,13 @@ class _HomeScreenState extends State<HomeScreen> {
           AdminDashboardScreen(
             user: widget.user,
             onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+            onOpenApprovals: (section) => _goToRequests(section: section),
           ),
-          RegistrationRequestsScreen(
-            key: ValueKey('requests-$_requestsTypeFilter-$_requestsStatusFilter'),
+          ApprovalsPage(
+            key: ValueKey('approvals-$_requestsSection'),
             user: widget.user,
             onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
-            initialTypeTab: _requestsTypeFilter,
-            initialStatusFilter: _requestsStatusFilter,
+            initialSection: _requestsSection,
           ),
           Shipmentpageadmin(user: widget.user),
           const AdminFinancePage(),

@@ -73,6 +73,7 @@ class _ChangesRequiredEditScreenState extends State<ChangesRequiredEditScreen> {
   final _phoneCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   PlatformFile? _companyLicenseFile;
+  DateTime? _companyLicenseExpiry;
   bool _savingCompanyInfo = false;
   bool _savingLicense = false;
 
@@ -336,13 +337,21 @@ class _ChangesRequiredEditScreenState extends State<ChangesRequiredEditScreen> {
   }
 
   Future<void> _pickCompanyLicense() async {
+    if (_companyLicenseExpiry == null) {
+      _showBanner('Select the trade license expiry date first', isError: true);
+      return;
+    }
     final f = await _pickFile();
     if (f == null || f.bytes == null) return;
     setState(() {
       _companyLicenseFile = f;
       _savingLicense = true;
     });
-    final result = await _service.submitCompanyLicense(fileBytes: f.bytes!, fileName: f.name);
+    final result = await _service.submitCompanyLicense(
+      fileBytes: f.bytes!,
+      fileName: f.name,
+      expiryDate: _fmtDate(_companyLicenseExpiry!),
+    );
     if (!mounted) return;
     setState(() => _savingLicense = false);
     _showBanner(result['message']?.toString() ?? '', isError: result['success'] != true);
@@ -630,6 +639,17 @@ class _ChangesRequiredEditScreenState extends State<ChangesRequiredEditScreen> {
       const SizedBox(height: 28),
       const _SectionTitle('Company Documents'),
       const SizedBox(height: 12),
+      LightPickerField(
+        label: 'Trade License Expiry',
+        hint: 'dd/mm/yyyy',
+        value: _companyLicenseExpiry == null ? null : _fmtDate(_companyLicenseExpiry!),
+        icon: Icons.event_outlined,
+        onTap: () async {
+          final d = await _pickDate(_companyLicenseExpiry);
+          if (d != null) setState(() => _companyLicenseExpiry = d);
+        },
+      ),
+      const SizedBox(height: 14),
       LightPickerField(
         label: 'Trade License',
         hint: _savingLicense ? 'Uploading…' : 'PDF/JPG/PNG',

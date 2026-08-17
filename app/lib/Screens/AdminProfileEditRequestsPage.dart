@@ -4,9 +4,15 @@ import '../API/ProfileService.dart';
 import '../API/config.dart';
 import '../models/ProfileEditRequest.dart';
 
-/// Admin review queue for self-service profile edits that are material to
-/// eligibility (driver document/destination changes, company license
-/// renewals) — see ProfileController on the backend for the approval flow.
+/// Admin review queue for driver work-destination change requests.
+///
+/// Unified Approvals redesign (2026-08-22): this page used to handle every
+/// ProfileEditRequest category (documents, truck documents, company license,
+/// destinations). Document/truck_document/company_license renewals now live
+/// in the dedicated "Document Renewals" tab of ApprovalsPage — this page is
+/// narrowed to the one category that still doesn't have a home there:
+/// 'destinations' (a driver changing which countries they cover isn't a
+/// document renewal, so it stays here under Documents & Permissions).
 ///
 /// Admin Phase 5 (2026-08-20) redesign to LightColors.
 class AdminProfileEditRequestsPage extends StatefulWidget {
@@ -27,7 +33,7 @@ class _AdminProfileEditRequestsPageState extends State<AdminProfileEditRequestsP
     _refresh();
   }
 
-  void _refresh() => setState(() => _future = _service.fetchPendingEditRequests());
+  void _refresh() => setState(() => _future = _service.fetchEditRequests(category: 'destinations'));
 
   Future<void> _approve(ProfileEditRequest r) async {
     setState(() => _busy = true);
@@ -102,7 +108,7 @@ class _AdminProfileEditRequestsPageState extends State<AdminProfileEditRequestsP
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.textPrimary),
-        title: const Text('Profile Edit Requests', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: const Text('Work Destination Changes', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       body: RefreshIndicator(
         color: LightColors.gold,

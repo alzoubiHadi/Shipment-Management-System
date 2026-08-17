@@ -47,6 +47,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Admin Dashboard "Home" screen — one summary-counts endpoint.
     Route::get('/admin/dashboard-stats', [AdminDashboardController::class, 'stats']);
+    // Unified Approvals / document-expiry feature (2026-08-22): the
+    // "Documents Expiring Soon" / "Expired Documents" dashboard alert
+    // tap-through — affected people, not an approval queue.
+    Route::get('/admin/document-alerts', [AdminDashboardController::class, 'documentAlerts']);
 
     // Central price list (Finance Admin, UC-33) + editable platform settings
     Route::get('/price-list', [PriceListController::class, 'index'])->middleware('permission:finance');
@@ -167,6 +171,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/driver/{driver_user_id}/trucks', [TruckController::class, 'myTrucks']);
     Route::post('/driver/{driver_user_id}/trucks', [TruckController::class, 'addMyTruck']);
     Route::put('/driver/{driver_user_id}/my-truck', [TruckController::class, 'updateMyTruck']);
+    // Truck documents (append-only, Unified Approvals feature 2026-08-22) —
+    // license/insurance/technical_inspection renewal, previously had no
+    // workflow at all outside the changes_required edit window.
+    Route::get('/driver/{driver_user_id}/truck-documents', [TruckController::class, 'myTruckDocuments']);
+    Route::post('/driver/{driver_user_id}/truck-documents', [TruckController::class, 'uploadMyTruckDocument']);
 
     // Shipment Offers — companies create these directly (UC-11)
     Route::get('/shipment-offers', [ShipmentOfferController::class, 'index']);

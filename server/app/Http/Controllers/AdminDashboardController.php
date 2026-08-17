@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\CompanyDocument;
 use App\Models\Driver;
 use App\Models\DriverDocument;
+use App\Models\ProfileEditRequest;
 use App\Models\Shipment;
 use App\Models\Truck;
+use App\Models\TruckDocument;
 use Illuminate\Http\Request;
 
 /**
@@ -14,15 +17,35 @@ use Illuminate\Http\Request;
  * one endpoint returning every summary count the screen needs, computed
  * with real queries instead of the app fetching full driver/company/
  * shipment lists just to count them client-side.
+ *
+ * Unified Approvals / document-expiry feature (2026-08-22): added
+ * pending_approvals (New Registrations + Document Renewals + Changes
+ * Required, matching the 3 tabs of the admin Approvals screen) and split
+ * the old single "documents expiring" alert into Expiring Soon vs Expired,
+ * now covering driver + truck + company documents instead of only driver
+ * ones.
  */
 class AdminDashboardController extends Controller
 {
+    const RENEWAL_CATEGORIES = ['document', 'truck_document', 'company_license'];
+
     public function stats(Request $request)
     {
         $now = now();
 
         $pendingDrivers = Driver::where('approval_status', 'pending')->count();
         $pendingCompanies = Company::where('approval_status', 'pending')->count();
+        $pendingTotal = $pendingDrivers + $pendingCompanies;
+
+        $changesRequiredDrivers = Driver::where('approval_status', 'changes_required')->count();
+        $changesRequiredCompanies = Company::where('approval_status', 'changes_required')->count();
+        $changesRequiredTotal = $changesRequiredDrivers + $changesRequiredCompanies;
+
+        $pendingDocumentRenewals = ProfileEditRequest::whereIn('category', self::RENEWAL_CATEGORIES)
+            ->where('status', 'pending')
+            ->count();
+
+        $pendingApprovals = $pendingTotal + $pendingDocumentRenewals + $changesRequiredTotal;
 
         $activeDrivers = Driver::where('approval_status', 'approved')->count();
 
@@ -49,23 +72,29 @@ class AdminDashboardController extends Controller
             ->whereYear('delivered_at', $now->year)
             ->count();
 
-        // Alerts feed — kept intentionally small for this first pass:
-        // documents expiring soon (license/passport/residency, any driver)
-        // and the same pending-registration count already computed above.
-        $documentsExpiringSoon = DriverDocument::where('is_current', true)
-            ->whereNotNull('expiry_date')
-            ->whereBetween('expiry_date', [$now->toDateString(), $now->copy()->addDays(7)->toDateString()])
-            ->count();
+        $expiringSoonCount = DriverDocument::where('is_current', true)->where('status', 'expiring_soon')->count()
+            + TruckDocument::where('is_current', true)->where('status', 'expiring_soon')->count()
+            + CompanyDocument::where('is_current', true)->where('status', 'expiring_soon')->count();
+
+        $expiredCount = DriverDocument::where('is_current', true)->where('status', 'expired')->count()
+            + TruckDocument::where('is_current', true)->where('status', 'expired')->count()
+            + CompanyDocument::where('is_current', true)->where('status', 'expired')->count();
 
         $alerts = [];
-        if ($documentsExpiringSoon > 0) {
+        if ($expiringSoonCount > 0) {
             $alerts[] = [
                 'type' => 'documents_expiring',
-                'count' => $documentsExpiringSoon,
-                'message' => "$documentsExpiringSoon documents expiring within 7 days",
+                'count' => $expiringSoonCount,
+                'message' => "$expiringSoonCount document(s) expiring within 30 days",
             ];
         }
-        $pendingTotal = $pendingDrivers + $pendingCompanies;
+        if ($expiredCount > 0) {
+            $alerts[] = [
+                'type' => 'documents_expired',
+                'count' => $expiredCount,
+                'message' => "$expiredCount document(s) expired",
+            ];
+        }
         if ($pendingTotal > 0) {
             $alerts[] = [
                 'type' => 'registration_pending',
@@ -77,16 +106,93 @@ class AdminDashboardController extends Controller
         return response()->json([
             'message' => 'Dashboard stats retrieved successfully',
             'stats' => [
+                'pending_approvals' => $pendingApprovals,
                 'registration_pending' => $pendingTotal,
                 'registration_pending_drivers' => $pendingDrivers,
                 'registration_pending_companies' => $pendingCompanies,
+                'document_renewals_pending' => $pendingDocumentRenewals,
+                'changes_required_total' => $changesRequiredTotal,
                 'drivers_active' => $activeDrivers,
                 'trucks_available' => $availableTrucks,
                 'companies_active' => $activeCompanies,
                 'shipments_active' => $activeShipments,
                 'shipments_completed_this_month' => $completedThisMonth,
+                'documents_expiring_soon' => $expiringSoonCount,
+                'documents_expired' => $expiredCount,
             ],
             'alerts' => $alerts,
+        ], 200);
+    }
+
+    /**
+     * "Documents Expiring Soon" / "Expired Documents" alert tap-through:
+     * a list of the AFFECTED PEOPLE (driver/truck-owner/company), not an
+     * approval queue — per spec, the person may well not have submitted a
+     * renewal yet, so this is deliberately separate from
+     * ProfileController::adminIndex() (the actual Document Renewals
+     * queue). One flat list merging all three document tables.
+     */
+    public function documentAlerts(Request $request)
+    {
+        $status = $request->query('status', 'expiring_soon');
+        if (! in_array($status, ['expiring_soon', 'expired'], true)) {
+            return response()->json(['message' => 'status must be expiring_soon or expired'], 422);
+        }
+
+        $items = collect();
+
+        DriverDocument::where('is_current', true)->where('status', $status)
+            ->with('driver')
+            ->get()
+            ->each(function (DriverDocument $doc) use ($items) {
+                if (! $doc->driver) {
+                    return;
+                }
+                $items->push([
+                    'subject_type' => 'driver',
+                    'subject_id' => $doc->driver->id,
+                    'name' => $doc->driver->name,
+                    'document_type' => $doc->type,
+                    'expiry_date' => optional($doc->expiry_date)->toDateString(),
+                ]);
+            });
+
+        TruckDocument::where('is_current', true)->where('status', $status)
+            ->with('truck.ownerDriver')
+            ->get()
+            ->each(function (TruckDocument $doc) use ($items) {
+                $driver = $doc->truck?->ownerDriver;
+                if (! $driver) {
+                    return;
+                }
+                $items->push([
+                    'subject_type' => 'driver',
+                    'subject_id' => $driver->id,
+                    'name' => $driver->name,
+                    'document_type' => "truck_{$doc->type}",
+                    'expiry_date' => optional($doc->expiry_date)->toDateString(),
+                ]);
+            });
+
+        CompanyDocument::where('is_current', true)->where('status', $status)
+            ->with('company')
+            ->get()
+            ->each(function (CompanyDocument $doc) use ($items) {
+                if (! $doc->company) {
+                    return;
+                }
+                $items->push([
+                    'subject_type' => 'company',
+                    'subject_id' => $doc->company->id,
+                    'name' => $doc->company->name,
+                    'document_type' => $doc->type,
+                    'expiry_date' => optional($doc->expiry_date)->toDateString(),
+                ]);
+            });
+
+        return response()->json([
+            'message' => 'Affected accounts retrieved successfully',
+            'items' => $items->values(),
         ], 200);
     }
 }

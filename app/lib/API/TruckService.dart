@@ -121,4 +121,57 @@ class TruckService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+  /// Unified Approvals redesign (2026-08-22): unlike [addMyTruck]'s license
+  /// upload (only editable during an admin-flagged 'changes_required'
+  /// window), this always-available renewal path goes through
+  /// TruckController::uploadMyTruckDocument — creates a real
+  /// TruckDocument row (status='under_review') plus a ProfileEditRequest
+  /// (category 'truck_document') for the new Approvals > Document Renewals
+  /// queue, exactly mirroring DriverService.uploadMyDocument.
+  static Future<Map<String, dynamic>> uploadMyTruckDocument({
+    required String type, // 'license' | 'insurance' | 'technical_inspection'
+    required Uint8List fileBytes,
+    required String fileName,
+    required DateTime expiryDate,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final userId = prefs.getString('id');
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/driver/$userId/truck-documents'),
+      );
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $token';
+      request.fields['type'] = type;
+      request.fields['expiry_date'] =
+          '${expiryDate.year.toString().padLeft(4, '0')}-${expiryDate.month.toString().padLeft(2, '0')}-${expiryDate.day.toString().padLeft(2, '0')}';
+      request.files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fileName));
+
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 201) {
+        return {'success': true, 'message': data['message']};
+      }
+
+      if (response.statusCode == 422) {
+        String message = data['message'] ?? 'Validation failed';
+        if (data['errors'] != null) {
+          data['errors'].forEach((key, value) {
+            message += '\n${value[0]}';
+          });
+        }
+        return {'success': false, 'message': message};
+      }
+
+      return {'success': false, 'message': data['message'] ?? 'Server Error (${response.statusCode})'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

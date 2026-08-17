@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Company;
+use App\Models\CompanyDocument;
 use App\Models\Driver;
 use App\Models\DriverDestination;
+use App\Models\DriverDocument;
 use App\Models\ProfileEditRequest;
+use App\Models\TruckDocument;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
 use Illuminate\Http\Request;
@@ -212,9 +215,13 @@ class ProfileController extends Controller
 
     /**
      * Company self-service trade-license renewal — mirrors
-     * DriverController::uploadDocument(): the file is stored immediately,
-     * but it only becomes the company's license_file_path once an admin
-     * approves it.
+     * DriverController::uploadDocument(). Unified Approvals /
+     * document-expiry feature (2026-08-22): now also collects an
+     * expiry_date (previously not tracked at all — companies had no
+     * license_expiry column) and creates a real CompanyDocument row
+     * immediately as status='under_review'; the company's current
+     * license_file_path/license_expiry are left untouched until an admin
+     * decides — see applyCompanyLicense() below.
      */
     public function submitCompanyLicense(Request $request)
     {
@@ -226,6 +233,7 @@ class ProfileController extends Controller
         try {
             $validated = $request->validate([
                 'license_file' => ['required', 'file', 'max:10240'],
+                'expiry_date' => ['required', 'date'],
             ]);
         } catch (ValidationException $e) {
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
@@ -237,8 +245,21 @@ class ProfileController extends Controller
         // directly is safe — resubmit() is what triggers a fresh admin
         // review, so a second gate here would be redundant.
         if ($user->company->approval_status === 'changes_required') {
-            $oldPath = $user->company->license_file_path;
-            $user->company->update(['license_file_path' => $path]);
+            $company = $user->company;
+            $oldPath = $company->license_file_path;
+
+            $company->documents()->update(['is_current' => false, 'status' => 'superseded']);
+            $company->documents()->create([
+                'type' => 'trade_license',
+                'file_path' => $path,
+                'expiry_date' => $validated['expiry_date'],
+                'is_current' => true,
+                'status' => 'valid',
+                'uploaded_by_user_id' => $user->id,
+            ]);
+            $company->update(['license_file_path' => $path, 'license_expiry' => $validated['expiry_date']]);
+            $company->recomputeComplianceStatus();
+
             if ($oldPath) {
                 Storage::disk('public')->delete($oldPath);
             }
@@ -249,10 +270,23 @@ class ProfileController extends Controller
             ], 200);
         }
 
+        $document = $user->company->documents()->create([
+            'type' => 'trade_license',
+            'file_path' => $path,
+            'expiry_date' => $validated['expiry_date'],
+            'is_current' => false,
+            'status' => 'under_review',
+            'uploaded_by_user_id' => $user->id,
+        ]);
+
         $editRequest = ProfileEditRequest::create([
             'user_id' => $user->id,
             'category' => 'company_license',
-            'payload' => ['file_path' => $path],
+            'payload' => [
+                'document_id' => $document->id,
+                'file_path' => $path,
+                'expiry_date' => $validated['expiry_date'],
+            ],
             'status' => 'pending',
         ]);
 
@@ -268,11 +302,24 @@ class ProfileController extends Controller
         return response()->json([
             'message' => 'Trade license submitted for admin review — it will apply once approved.',
             'edit_request' => $editRequest,
+            'document' => $document,
         ], 201);
     }
 
     // ── Admin review ─────────────────────────────────────────────────────
 
+    /**
+     * $category (optional, comma-separated) narrows to specific
+     * ProfileEditRequest categories — used by the admin Approvals screen's
+     * "Document Renewals" tab (2026-08-22) to fetch only
+     * document/truck_document/company_license, excluding 'destinations'.
+     *
+     * For those three document categories, each request also gets an
+     * `old_document` key attached (queried live, not stored on the
+     * request) so the admin review screen can show "Old Document / Expiry
+     * Date / Status" next to the newly-submitted one without a second
+     * round-trip per request.
+     */
     public function adminIndex(Request $request)
     {
         $status = $request->query('status', 'pending');
@@ -282,10 +329,56 @@ class ProfileController extends Controller
             $query->where('status', $status);
         }
 
+        if ($category = $request->query('category')) {
+            $query->whereIn('category', explode(',', $category));
+        }
+
+        $requests = $query->get();
+
+        $requests->each(function (ProfileEditRequest $r) {
+            if (in_array($r->category, ['document', 'truck_document', 'company_license'], true)) {
+                $r->old_document = $this->findOldDocumentFor($r);
+            }
+        });
+
         return response()->json([
             'message' => 'Edit requests retrieved successfully',
-            'requests' => $query->get(),
+            'requests' => $requests,
         ], 200);
+    }
+
+    /** See adminIndex()'s docblock. Returns null when there's no prior current document (e.g. this is the driver's very first upload of that type). */
+    private function findOldDocumentFor(ProfileEditRequest $editRequest): ?array
+    {
+        $payload = $editRequest->payload;
+        $newDocumentId = $payload['document_id'] ?? null;
+        $type = $payload['type'] ?? 'trade_license';
+
+        $ownerQuery = match ($editRequest->category) {
+            'document' => Driver::where('user_id', $editRequest->user_id)->first()?->documents(),
+            'truck_document' => Driver::where('user_id', $editRequest->user_id)->first()?->truck?->documents(),
+            'company_license' => Company::where('user_id', $editRequest->user_id)->first()?->documents(),
+            default => null,
+        };
+
+        if (! $ownerQuery) {
+            return null;
+        }
+
+        $old = $ownerQuery->where('type', $type)
+            ->where('is_current', true)
+            ->when($newDocumentId, fn ($q) => $q->where('id', '!=', $newDocumentId))
+            ->first();
+
+        if (! $old) {
+            return null;
+        }
+
+        return [
+            'file_path' => $old->file_path,
+            'expiry_date' => optional($old->expiry_date)->format('Y-m-d'),
+            'status' => $old->status,
+        ];
     }
 
     public function approve(Request $request, ProfileEditRequest $profileEditRequest)
@@ -303,6 +396,7 @@ class ProfileController extends Controller
                 'document' => $this->applyDocument($profileEditRequest),
                 'destinations' => $this->applyDestinations($profileEditRequest),
                 'company_license' => $this->applyCompanyLicense($profileEditRequest),
+                'truck_document' => $this->applyTruckDocument($profileEditRequest),
                 default => null,
             };
 
@@ -342,10 +436,25 @@ class ProfileController extends Controller
 
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
 
-        // The submitted file was never linked anywhere — safe to remove.
-        $filePath = $profileEditRequest->payload['file_path'] ?? null;
-        if ($filePath) {
-            Storage::disk('public')->delete($filePath);
+        // Unified Approvals / document-expiry feature (2026-08-22): for the
+        // three document categories, a real driver_documents/
+        // truck_documents/company_documents row was already created at
+        // submission time (status='under_review') — reject it in place
+        // (status='rejected', is_current stays false) rather than deleting
+        // the file, per the append-only "never delete a row" convention.
+        // 'destinations' has no associated document row, so this is a
+        // no-op for that category.
+        $documentId = $profileEditRequest->payload['document_id'] ?? null;
+        if ($documentId) {
+            $documentModel = match ($profileEditRequest->category) {
+                'document' => DriverDocument::class,
+                'truck_document' => TruckDocument::class,
+                'company_license' => CompanyDocument::class,
+                default => null,
+            };
+            if ($documentModel) {
+                $documentModel::where('id', $documentId)->update(['status' => 'rejected']);
+            }
         }
 
         $profileEditRequest->update([
@@ -374,7 +483,17 @@ class ProfileController extends Controller
         return response()->json(['message' => 'Edit request rejected'], 200);
     }
 
-    /** Exact same apply logic DriverController::uploadDocument() used to run inline before it became review-gated. */
+    /**
+     * Unified Approvals / document-expiry feature (2026-08-22): the new
+     * row already exists (created at submission time by
+     * DriverController::uploadDocument(), status='under_review') — this
+     * just flips the decision: old current row -> is_current=false,
+     * status = 'expired' (if it genuinely was) or 'superseded' otherwise;
+     * new row -> is_current=true, status='valid'. Then re-syncs the legacy
+     * column and re-evaluates the driver's OVERALL compliance (this
+     * document might not be the only expired one — see
+     * Driver::recomputeComplianceStatus()).
+     */
     private function applyDocument(ProfileEditRequest $editRequest): void
     {
         $driver = Driver::where('user_id', $editRequest->user_id)->first();
@@ -383,16 +502,36 @@ class ProfileController extends Controller
         }
 
         $payload = $editRequest->payload;
+        $newDocument = isset($payload['document_id'])
+            ? $driver->documents()->find($payload['document_id'])
+            : null;
 
-        $driver->documents()->where('type', $payload['type'])->update(['is_current' => false]);
+        $oldCurrent = $driver->documents()
+            ->where('type', $payload['type'])
+            ->where('is_current', true)
+            ->when($newDocument, fn ($q) => $q->where('id', '!=', $newDocument->id))
+            ->first();
 
-        $driver->documents()->create([
-            'type' => $payload['type'],
-            'file_path' => $payload['file_path'],
-            'expiry_date' => $payload['expiry_date'] ?? null,
-            'is_current' => true,
-            'uploaded_by_user_id' => $editRequest->user_id,
-        ]);
+        if ($oldCurrent) {
+            $oldCurrent->update([
+                'is_current' => false,
+                'status' => $oldCurrent->isExpired() ? 'expired' : 'superseded',
+            ]);
+        }
+
+        if ($newDocument) {
+            $newDocument->update(['is_current' => true, 'status' => 'valid']);
+        } else {
+            // Fallback for any pre-migration payload without a document_id.
+            $driver->documents()->create([
+                'type' => $payload['type'],
+                'file_path' => $payload['file_path'],
+                'expiry_date' => $payload['expiry_date'] ?? null,
+                'is_current' => true,
+                'status' => 'valid',
+                'uploaded_by_user_id' => $editRequest->user_id,
+            ]);
+        }
 
         $legacyColumn = match ($payload['type']) {
             'license' => 'license_expiry',
@@ -404,6 +543,74 @@ class ProfileController extends Controller
         if ($legacyColumn) {
             $driver->update([$legacyColumn => $payload['expiry_date'] ?? null]);
         }
+
+        $driver->recomputeComplianceStatus();
+    }
+
+    /**
+     * Same pattern as applyDocument(), for a truck's license/insurance/
+     * technical_inspection renewal. Syncs the matching column on the
+     * `trucks` row itself (the denormalized "current value", same role
+     * drivers.license_expiry etc. play) and re-evaluates the OWNING
+     * DRIVER's compliance (a truck has no compliance_status of its own —
+     * see Driver::recomputeComplianceStatus(), which already checks the
+     * linked truck's expiries too).
+     */
+    private function applyTruckDocument(ProfileEditRequest $editRequest): void
+    {
+        $driver = Driver::where('user_id', $editRequest->user_id)->first();
+        if (! $driver) {
+            return;
+        }
+
+        $truck = $driver->truck;
+        if (! $truck) {
+            return;
+        }
+
+        $payload = $editRequest->payload;
+        $newDocument = isset($payload['document_id'])
+            ? $truck->documents()->find($payload['document_id'])
+            : null;
+
+        $oldCurrent = $truck->documents()
+            ->where('type', $payload['type'])
+            ->where('is_current', true)
+            ->when($newDocument, fn ($q) => $q->where('id', '!=', $newDocument->id))
+            ->first();
+
+        if ($oldCurrent) {
+            $oldCurrent->update([
+                'is_current' => false,
+                'status' => $oldCurrent->isExpired() ? 'expired' : 'superseded',
+            ]);
+        }
+
+        if ($newDocument) {
+            $newDocument->update(['is_current' => true, 'status' => 'valid']);
+        } else {
+            $truck->documents()->create([
+                'type' => $payload['type'],
+                'file_path' => $payload['file_path'],
+                'expiry_date' => $payload['expiry_date'] ?? null,
+                'is_current' => true,
+                'status' => 'valid',
+                'uploaded_by_user_id' => $editRequest->user_id,
+            ]);
+        }
+
+        $truckColumn = match ($payload['type']) {
+            'license' => 'license_expiry',
+            'insurance' => 'insurance_expiry',
+            'technical_inspection' => 'technical_inspection_expiry',
+            default => null,
+        };
+
+        if ($truckColumn) {
+            $truck->update([$truckColumn => $payload['expiry_date'] ?? null]);
+        }
+
+        $driver->recomputeComplianceStatus();
     }
 
     /** Exact same apply logic DriverController::syncDestinations() used to run inline before it became review-gated. */
@@ -420,6 +627,7 @@ class ProfileController extends Controller
         }
     }
 
+    /** Same pattern as applyDocument(), for the company's trade license. */
     private function applyCompanyLicense(ProfileEditRequest $editRequest): void
     {
         $company = Company::where('user_id', $editRequest->user_id)->first();
@@ -427,11 +635,42 @@ class ProfileController extends Controller
             return;
         }
 
-        $oldPath = $company->license_file_path;
-        $company->update(['license_file_path' => $editRequest->payload['file_path']]);
+        $payload = $editRequest->payload;
+        $newDocument = isset($payload['document_id'])
+            ? $company->documents()->find($payload['document_id'])
+            : null;
 
-        if ($oldPath) {
-            Storage::disk('public')->delete($oldPath);
+        $oldCurrent = $company->documents()
+            ->where('type', 'trade_license')
+            ->where('is_current', true)
+            ->when($newDocument, fn ($q) => $q->where('id', '!=', $newDocument->id))
+            ->first();
+
+        if ($oldCurrent) {
+            $oldCurrent->update([
+                'is_current' => false,
+                'status' => $oldCurrent->isExpired() ? 'expired' : 'superseded',
+            ]);
         }
+
+        if ($newDocument) {
+            $newDocument->update(['is_current' => true, 'status' => 'valid']);
+        } else {
+            $company->documents()->create([
+                'type' => 'trade_license',
+                'file_path' => $payload['file_path'],
+                'expiry_date' => $payload['expiry_date'] ?? null,
+                'is_current' => true,
+                'status' => 'valid',
+                'uploaded_by_user_id' => $editRequest->user_id,
+            ]);
+        }
+
+        $company->update([
+            'license_file_path' => $payload['file_path'],
+            'license_expiry' => $payload['expiry_date'] ?? null,
+        ]);
+
+        $company->recomputeComplianceStatus();
     }
 }

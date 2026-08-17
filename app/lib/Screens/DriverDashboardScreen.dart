@@ -7,6 +7,7 @@ import '../API/config.dart';
 import '../models/AppNotification.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
+import 'DriverDocumentsPage.dart';
 import 'NotificationsPage.dart';
 import 'ShipmentTrackingPage.dart';
 import 'UserHomePage.dart';
@@ -164,11 +165,22 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                         }
                         current ??= shipments.cast<Shipment?>().firstWhere((s) => s!.status == 0, orElse: () => null);
 
+                        final complianceStatus = report['compliance_status']?.toString() ?? 'active';
+
                         return Padding(
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (complianceStatus == 'action_required') ...[
+                                _ComplianceBanner(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const DriverDocumentsPage()),
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                              ],
                               _WalletCard(balance: balance, onTap: widget.onOpenWallet),
                               const SizedBox(height: 18),
                               Row(
@@ -278,6 +290,51 @@ class _NotificationBell extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when Driver.compliance_status == 'action_required' — a critical
+/// document (license/passport/residency, or the linked truck's own
+/// license/insurance/inspection) has expired. Per spec the driver can still
+/// log in and use everything except Matching/accepting new shipments, so
+/// this is a dismissible-feeling nudge rather than a blocking screen —
+/// tapping goes straight to My Documents to renew.
+class _ComplianceBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ComplianceBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.error.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.error.withOpacity(0.4))),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 22),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Action needed', style: TextStyle(color: AppColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 2),
+                    Text('A document has expired — renew it now to keep receiving new shipment offers.',
+                        style: TextStyle(color: AppColors.muted, fontSize: 11.5)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+            ],
+          ),
         ),
       ),
     );

@@ -21,7 +21,10 @@ class ProfileEditRequest extends Model
         'reviewed_at' => 'datetime',
     ];
 
-    public const CATEGORIES = ['document', 'destinations', 'company_license'];
+    // 'truck_document' added for the Unified Approvals / document-expiry
+    // feature (2026-08-22) — a driver's truck previously had no renewal
+    // workflow at all (see TruckDocument).
+    public const CATEGORIES = ['document', 'destinations', 'company_license', 'truck_document'];
 
     public function user()
     {

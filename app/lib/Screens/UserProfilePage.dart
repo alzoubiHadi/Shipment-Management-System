@@ -108,6 +108,16 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _renewLicense() async {
+    final now = DateTime.now();
+    final expiry = await showDatePicker(
+      context: context,
+      helpText: 'New trade license expiry date',
+      initialDate: now.add(const Duration(days: 365)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 10)),
+    );
+    if (expiry == null) return;
+
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
@@ -119,6 +129,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final r = await _service.submitCompanyLicense(
       fileBytes: result.files.single.bytes!,
       fileName: result.files.single.name,
+      expiryDate: '${expiry.year}-${expiry.month.toString().padLeft(2, '0')}-${expiry.day.toString().padLeft(2, '0')}',
     );
     if (!mounted) return;
     setState(() => _submittingLicense = false);
