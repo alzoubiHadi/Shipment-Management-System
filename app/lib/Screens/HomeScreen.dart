@@ -8,11 +8,14 @@ import '../models/Appuser.dart';
 import '../models/NavItem.dart';
 
 
+import 'AddShipmentOfferPage.dart';
 import 'AdminBottomNav.dart';
 import 'AdminDashboardScreen.dart';
 import 'AdminDrawer.dart';
 import 'CelebrateBottomNav.dart';
-import 'CompanyOffersPage.dart';
+import 'CompanyBalancePage.dart';
+import 'CompanyBottomNav.dart';
+import 'CompanyDashboardScreen.dart';
 import 'CompnayShipments.dart';
 import 'DriverOffersPage.dart';
 import 'PlaceholderPage.dart';
@@ -49,6 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _isAdmin =>
       widget.user.role == 'admin' || widget.user.role == 'super_admin' || widget.user.role == 'sub_admin';
+
+  bool get _isCompany => widget.user.role == 'company';
 
   void _goToRequests({String type = 'all', String status = 'all'}) {
     setState(() {
@@ -189,8 +194,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       case "company":
         return [
+          CompanyDashboardScreen(user: widget.user, onOpenShipments: () => setState(() => _selectedIndex = 1)),
           Compnayshipments(user: widget.user),
-          CompanyOffersPage(user: widget.user),
+          const CompanyBalancePage(),
           Profile(user: widget.user),
         ];
 //
@@ -283,6 +289,42 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           onMenu: () => _scaffoldKey.currentState?.openDrawer(),
+        ),
+      );
+    }
+
+    // Company redesign Phase 1 (2026-08-17 mockup): Home/Shipments/+/
+    // Finance/Profile bottom nav, mirroring AdminBottomNav's raised-FAB
+    // layout. Only the Home tab is re-themed so far — Shipments/Finance/
+    // Profile stay on the old dark theme until their own phases land.
+    if (_isCompany) {
+      return Scaffold(
+        backgroundColor: LightColors.bg,
+        body: IndexedStack(
+          index: safeIndex,
+          children: pages,
+        ),
+        bottomNavigationBar: CompanyBottomNav(
+          selectedTab: switch (safeIndex) {
+            1 => CompanyNavTab.shipments,
+            2 => CompanyNavTab.finance,
+            3 => CompanyNavTab.profile,
+            _ => CompanyNavTab.home,
+          },
+          onSelectTab: (tab) {
+            setState(() {
+              _selectedIndex = switch (tab) {
+                CompanyNavTab.home => 0,
+                CompanyNavTab.shipments => 1,
+                CompanyNavTab.finance => 2,
+                CompanyNavTab.profile => 3,
+              };
+            });
+          },
+          onCreate: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddShipmentOfferPage()),
+          ),
         ),
       );
     }
