@@ -103,9 +103,27 @@ class ShipmentOfferController extends Controller
             ], 422);
         }
 
+        // Admin Shipments redesign (2026-08-24): a representative
+        // destination coordinate lets the Trip Report / Live Tracking
+        // screens show a straight-line distance. Only external offers have
+        // a fixed, known destination — internal ones stay free text with
+        // no coordinates, so destination_lat/lng are simply left null and
+        // the UI omits distance for those rather than guessing.
+        if ($validated['order_type'] === 'external') {
+            $coords = Destinations::coordsFor($validated['destination']);
+            if ($coords) {
+                [$validated['destination_lat'], $validated['destination_lng']] = $coords;
+            }
+        }
+
         $pricing = app(PricingService::class)->computeAutoPrice($validated['destination'], $validated['required_truck_type']);
 
         $validated['company_id'] = $company->id;
+        // Admin Shipments redesign (2026-08-24): same generation pattern as
+        // Shipment's own tracking_number (finalizeAcceptance() below) — a
+        // continuous #TRK-xxxxx identity from the moment the offer exists,
+        // not only once a driver accepts it.
+        $validated['tracking_number'] = 'TRK' . strtoupper(uniqid());
         $validated['status'] = $pricing ? 'pending' : ShipmentOffer::STATUS_AWAITING_MANUAL_PRICE;
 
         if ($pricing) {
@@ -502,11 +520,20 @@ class ShipmentOfferController extends Controller
         $offer->update([
             'status' => 'cancelled',
             'cancellation_reason' => $validated['cancellation_reason'],
+            'cancelled_by_user_id' => $request->user()->id,
+            'cancelled_at' => now(),
             // Frees the hold on the company's available balance — no
             // ledger transaction was ever posted for this offer, so there
             // is nothing to reverse, only the reservation to release.
             'financial_status' => $offer->financial_status === 'reserved' ? 'released' : $offer->financial_status,
         ]);
+
+        // Admin Shipments redesign (2026-08-24): close out any still-open
+        // round so the Matching Status/history doesn't show a phantom
+        // "still waiting" round for an offer that's actually cancelled.
+        \App\Models\ShipmentOfferMatchingRound::where('shipment_offer_id', $offer->id)
+            ->where('outcome', \App\Models\ShipmentOfferMatchingRound::OUTCOME_WAITING)
+            ->update(['outcome' => \App\Models\ShipmentOfferMatchingRound::OUTCOME_NO_ACCEPTANCE, 'resolved_at' => now()]);
 
         return response()->json([
             'message' => 'Offer cancelled successfully',
@@ -532,7 +559,11 @@ class ShipmentOfferController extends Controller
             'truck_id' => $truck->id,
             'tracking_number' => $trackingNumber,
             'origin' => $offer->origin,
+            'origin_lat' => $offer->origin_lat,
+            'origin_lng' => $offer->origin_lng,
             'destination' => $offer->destination,
+            'destination_lat' => $offer->destination_lat,
+            'destination_lng' => $offer->destination_lng,
             'weight' => $offer->weight,
             'description' => $offer->description,
             'needs_permit' => $offer->needs_permit,
@@ -555,6 +586,17 @@ class ShipmentOfferController extends Controller
             // X), so no fresh canAffordOffer() re-check is needed here.
             'financial_status' => 'committed',
         ]);
+
+        // Admin Shipments redesign (2026-08-24): close out this offer's
+        // current matching round as a genuine acceptance, not a timeout —
+        // see ShipmentOfferMatchingRound / MatchingService::matchNextBatch().
+        \App\Models\ShipmentOfferMatchingRound::where('shipment_offer_id', $offer->id)
+            ->where('outcome', \App\Models\ShipmentOfferMatchingRound::OUTCOME_WAITING)
+            ->update([
+                'outcome' => \App\Models\ShipmentOfferMatchingRound::OUTCOME_ACCEPTED,
+                'accepted_by_driver_id' => $driver->id,
+                'resolved_at' => now(),
+            ]);
 
         // Company is only actually charged once the shipment is real (a
         // driver has committed to it) — NOT at offer creation, and not

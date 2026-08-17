@@ -6,9 +6,11 @@ use App\Models\Driver;
 use App\Models\PayoutRequest;
 use App\Models\PlatformSetting;
 use App\Models\ShipmentOffer;
+use App\Models\ShipmentOfferMatchingRound;
 use App\Notifications\AppPushNotification;
 use App\Services\ComplianceService;
 use App\Support\Destinations;
+use App\Support\Geo;
 
 /**
  * UC-14/UC-16: weighted matching of a shipment offer to eligible drivers,
@@ -202,7 +204,7 @@ class MatchingService
             return 0.5;
         }
 
-        $distanceKm = $this->haversineKm(
+        $distanceKm = Geo::haversineKm(
             (float) $driver->last_lat,
             (float) $driver->last_lng,
             (float) $offer->origin_lat,
@@ -247,19 +249,6 @@ class MatchingService
         return min(1.0, $priorTrips / 5);
     }
 
-    private function haversineKm(float $lat1, float $lng1, float $lat2, float $lng2): float
-    {
-        $earthRadiusKm = 6371;
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-
-        $a = sin($dLat / 2) ** 2
-            + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-        return $earthRadiusKm * $c;
-    }
-
     /**
      * Sends the next batch (default 5) of top-scored eligible drivers a
      * match notification, and advances the offer's matching state. Applies
@@ -273,6 +262,18 @@ class MatchingService
     {
         $batchSize = (int) PlatformSetting::get('matching_batch_size', '5');
         $alreadyNotified = $offer->matched_driver_ids ?? [];
+
+        // Admin Shipments redesign (2026-08-24): whatever round is still
+        // sitting 'waiting' is, by definition, over the instant this method
+        // runs again for the same offer — matchNextBatch() is only ever
+        // re-invoked either by an offer just having timed out
+        // (ProcessExpiredMatches) or by an admin-triggered rematch, never
+        // while a round is genuinely still live. Close it out before
+        // opening the next one so the Matching Status screen has a clean
+        // round-by-round history.
+        ShipmentOfferMatchingRound::where('shipment_offer_id', $offer->id)
+            ->where('outcome', ShipmentOfferMatchingRound::OUTCOME_WAITING)
+            ->update(['outcome' => ShipmentOfferMatchingRound::OUTCOME_NO_ACCEPTANCE, 'resolved_at' => now()]);
 
         $candidates = $this->eligibleDriversQuery($offer)
             ->whereNotIn('id', $alreadyNotified)
@@ -292,11 +293,20 @@ class MatchingService
         $timeoutMinutes = (int) PlatformSetting::get('matching_response_timeout_minutes', '5');
         $newlyMatched = $ranked->pluck('driver');
         $newIds = $newlyMatched->pluck('id')->all();
+        $newRoundNumber = $offer->matching_round + 1;
 
         $offer->update([
             'matched_driver_ids' => array_values(array_unique(array_merge($offer->matched_driver_ids ?? [], $newIds))),
-            'matching_round' => $offer->matching_round + 1,
+            'matching_round' => $newRoundNumber,
             'expires_at' => now()->addMinutes($timeoutMinutes),
+        ]);
+
+        ShipmentOfferMatchingRound::create([
+            'shipment_offer_id' => $offer->id,
+            'round_number' => $newRoundNumber,
+            'driver_ids' => $newIds,
+            'notified_at' => now(),
+            'outcome' => ShipmentOfferMatchingRound::OUTCOME_WAITING,
         ]);
 
         foreach ($newlyMatched as $driver) {

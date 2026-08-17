@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminShipmentController;
 use App\Http\Controllers\ComplianceReportController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DriverController;
@@ -189,6 +190,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/shipment-offers/{offer}/raise-price', [ShipmentOfferController::class, 'raisePrice']);
     Route::post('/shipment-offers/{offer}/rematch', [ShipmentOfferController::class, 'rematch']);
     Route::post('/shipment-offers/{offer}/assign-driver', [ShipmentOfferController::class, 'assignDriver']);
+
+    // Admin Shipments redesign (2026-08-24): unified list (merges
+    // still-matching offers + real shipments into one feed) + status-aware
+    // detail, keyed by the shared tracking_number — see AdminShipmentController.
+    Route::get('/admin/shipments', [AdminShipmentController::class, 'index']);
+    Route::get('/admin/shipments/{trackingNumber}', [AdminShipmentController::class, 'show']);
 
     // Shipments Requests
     Route::get('/shipments', [ShipmentController::class, 'index']);

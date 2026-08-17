@@ -552,6 +552,11 @@ class ShipmentController extends Controller
             'cancellation_reason' => (int) $newStatus === 4
                 ? $request->cancellation_reason
                 : $shipment->cancellation_reason,
+            // Cancellation Report screen (2026-08-24): who + exactly when,
+            // not inferable from updated_at alone (that column changes on
+            // every subsequent edit, not just the cancellation itself).
+            'cancelled_by_user_id' => (int) $newStatus === 4 ? $request->user()->id : $shipment->cancelled_by_user_id,
+            'cancelled_at' => (int) $newStatus === 4 ? now() : $shipment->cancelled_at,
         ]);
 
         // Free the driver back up once the job is finished (delivered=3, cancelled=4)

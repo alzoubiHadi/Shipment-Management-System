@@ -26,7 +26,7 @@ import 'DriverOffersPage.dart';
 import 'PlaceholderPage.dart';
 import 'Profile.dart';
 import 'ApprovalsPage.dart';
-import 'ShipmentPageAdmin.dart';
+import 'AdminShipmentsScreen.dart';
 import 'UserHomePage.dart';
 
 
@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
             initialSection: _requestsSection,
           ),
-          Shipmentpageadmin(user: widget.user),
+          AdminShipmentsScreen(user: widget.user),
           const AdminFinancePage(),
         ];
 

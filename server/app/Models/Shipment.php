@@ -15,7 +15,11 @@ class Shipment extends Model
         'truck_id',
         'tracking_number',
         'origin',
+        'origin_lat',
+        'origin_lng',
         'destination',
+        'destination_lat',
+        'destination_lng',
         'weight',
         'description',
         'needs_permit',
@@ -26,6 +30,8 @@ class Shipment extends Model
         'price_to_client',
         'status',
         'cancellation_reason',
+        'cancelled_by_user_id',
+        'cancelled_at',
         'pickup_time',
         'delivered_at',
         'delivery_status',
@@ -55,6 +61,11 @@ class Shipment extends Model
         'unloaded_at' => 'datetime',
         'delivered_at' => 'datetime',
         'company_confirmed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'origin_lat' => 'decimal:7',
+        'origin_lng' => 'decimal:7',
+        'destination_lat' => 'decimal:7',
+        'destination_lng' => 'decimal:7',
     ];
 
     /**
@@ -159,6 +170,11 @@ class Shipment extends Model
     public function companyConfirmedBy()
     {
         return $this->belongsTo(User::class, 'company_confirmed_by_user_id');
+    }
+
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by_user_id');
     }
 
     /**

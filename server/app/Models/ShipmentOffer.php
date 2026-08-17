@@ -18,10 +18,13 @@ class ShipmentOffer extends Model
 
     protected $fillable = [
         'company_id',
+        'tracking_number',
         'origin',
         'origin_lat',
         'origin_lng',
         'destination',
+        'destination_lat',
+        'destination_lng',
         'weight',
         'description',
         'needs_permit',
@@ -37,6 +40,8 @@ class ShipmentOffer extends Model
         'status',
         'financial_status',
         'cancellation_reason',
+        'cancelled_by_user_id',
+        'cancelled_at',
         'accepted_by_driver_id',
         'accepted_truck_id',
         'accepted_at',
@@ -51,9 +56,12 @@ class ShipmentOffer extends Model
         'is_fragile' => 'boolean',
         'accepted_at' => 'datetime',
         'expires_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'platform_margin_percent_snapshot' => 'decimal:2',
         'origin_lat' => 'decimal:7',
         'origin_lng' => 'decimal:7',
+        'destination_lat' => 'decimal:7',
+        'destination_lng' => 'decimal:7',
         'matched_driver_ids' => 'array',
     ];
 
@@ -77,8 +85,19 @@ class ShipmentOffer extends Model
         return $this->belongsTo(User::class, 'priced_by_user_id');
     }
 
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by_user_id');
+    }
+
     public function shipment()
     {
         return $this->hasOne(Shipment::class);
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Relations\HasMany<ShipmentOfferMatchingRound> */
+    public function matchingRounds()
+    {
+        return $this->hasMany(ShipmentOfferMatchingRound::class)->orderBy('round_number');
     }
 }
