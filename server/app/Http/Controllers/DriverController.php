@@ -172,6 +172,24 @@ public function restore( $id)
     }
 
     /**
+     * Admin request-review screen (Phase 3, 2026-08-17): the driver's own
+     * /me/profile endpoint already returns their truck, but nothing exposed
+     * a SPECIFIC driver's truck to an admin reviewing someone else's
+     * registration. Returns the full record (permit/insurance/technical
+     * inspection files + expiries) so the Truck Info/Truck Documents tabs
+     * have real data instead of just Driver::truck_number/truck_type.
+     */
+    public function truck(Driver $driver)
+    {
+        $truck = \App\Models\Truck::where('default_driver_id', $driver->id)->first();
+
+        return response()->json([
+            'message' => $truck ? 'Truck retrieved successfully' : 'This driver has no truck on file',
+            'truck' => $truck,
+        ], 200);
+    }
+
+    /**
      * Admin approves a self-registered driver, allowing them to be matched
      * with shipments. Also runs the document check so the admin gets an
      * immediate error if approving a driver whose documents are missing or

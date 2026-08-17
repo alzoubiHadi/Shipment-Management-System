@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/Driver.dart';
 import '../models/DriverDocument.dart';
 import '../models/DriverRating.dart';
+import '../models/Truck.dart';
 import 'config.dart';
 
 class DriverService {
@@ -298,6 +299,59 @@ class DriverService {
       print(e);
       return false;
     }
+  }
+
+  /// UC-5 alt flow (Request Changes): returns the application to the driver
+  /// for specific fixes instead of an outright rejection — sets
+  /// approval_status to 'changes_required' (see DriverController::
+  /// returnForCompletion() on the backend, which already existed but had no
+  /// Flutter wrapper until the Phase 3 request-review screen needed one).
+  static Future<Map<String, dynamic>> returnDriverForCompletion(String id, String message) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/drivers/$id/return-for-completion'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'message': message}),
+      );
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Fetches the truck currently owned by this driver (admin review screen's
+  /// Truck Info / Truck Documents tabs) — GET /drivers/{driver}/truck, a new
+  /// endpoint since no existing admin-facing call exposed a specific
+  /// driver's full truck record (permit/insurance/technical-inspection
+  /// files+expiries), only the driver's own /me/profile did.
+  static Future<Truck?> fetchTruckForDriver(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/drivers/$id/truck'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) return null;
+    final data = jsonDecode(response.body);
+    if (data['truck'] == null) return null;
+    return Truck.fromJson(Map<String, dynamic>.from(data['truck']));
   }
 
   /// Super Admin: freezes a driver directly (compliance_status='suspended'),

@@ -6,8 +6,7 @@ import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Company.dart';
 import '../models/Driver.dart';
-import 'CompanyDetailsPage.dart';
-import 'DriverDetails.dart';
+import 'RequestReviewScreen.dart';
 
 /// Unified driver+company registration review queue (2026-08-21 mockup,
 /// Phase 2 of the admin dashboard redesign). Lives as a bottom-nav tab
@@ -18,10 +17,8 @@ import 'DriverDetails.dart';
 /// client-side rather than adding a new backend endpoint — same pattern
 /// Driverspage/Companiespage already use for their own lists.
 ///
-/// Tapping a row currently opens the existing DriverDetailsPage/
-/// CompanyDetailsPage (dark-themed, already supports approve/reject) as an
-/// interim link. Phase 3 replaces this with the new light-themed tabbed
-/// review + decision screens from the mockup.
+/// Tapping a row opens RequestReviewScreen (Phase 3's tabbed review +
+/// decision screen) — refreshes the list on return if a decision was made.
 enum _TypeTab { all, drivers, companies }
 
 enum _StatusFilter { all, pending, changesRequired, rejected }
@@ -130,12 +127,12 @@ class _RegistrationRequestsScreenState extends State<RegistrationRequestsScreen>
     return result;
   }
 
-  void _openDetails(_UnifiedRequest r) {
-    if (r.kind == RequestKind.driver) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => DriverDetailsPage(driver: r.driver!)));
-    } else {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyDetailsPage(company: r.company!)));
-    }
+  Future<void> _openDetails(_UnifiedRequest r) async {
+    final screen = r.kind == RequestKind.driver
+        ? RequestReviewScreen.driver(r.driver!)
+        : RequestReviewScreen.company(r.company!);
+    final decided = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => screen));
+    if (decided == true) _refresh();
   }
 
   @override

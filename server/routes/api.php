@@ -131,6 +131,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/drivers/{driver}/approve', [DriverController::class, 'approve']);
     Route::put('/drivers/{driver}/reject', [DriverController::class, 'reject']);
     Route::put('/drivers/{driver}/return-for-completion', [DriverController::class, 'returnForCompletion']);
+    // Admin request-review screen (Phase 3): a specific driver's truck.
+    Route::get('/drivers/{driver}/truck', [DriverController::class, 'truck']);
     // Self-service edit + resubmit while approval_status === 'changes_required'
     Route::put('/me/driver-registration', [DriverController::class, 'updateDriverInfo']);
     Route::post('/me/driver-registration/resubmit', [DriverController::class, 'resubmit']);
