@@ -67,6 +67,9 @@ class ProfileController extends Controller
                 'address' => $user->company->address,
                 'license_file_path' => $user->company->license_file_path,
                 'approval_status' => $user->company->approval_status,
+                // Company Profile screen (2026-08-17 redesign) shows an
+                // Active/Suspended badge — wasn't previously returned here.
+                'account_status' => $user->company->account_status,
             ];
         }
 

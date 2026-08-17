@@ -16,6 +16,7 @@ import 'CelebrateBottomNav.dart';
 import 'CompanyBalancePage.dart';
 import 'CompanyBottomNav.dart';
 import 'CompanyDashboardScreen.dart';
+import 'CompanyProfileScreen.dart';
 import 'CompnayShipments.dart';
 import 'DriverOffersPage.dart';
 import 'PlaceholderPage.dart';
@@ -197,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
           CompanyDashboardScreen(user: widget.user, onOpenShipments: () => setState(() => _selectedIndex = 1)),
           Compnayshipments(user: widget.user),
           const CompanyBalancePage(),
-          Profile(user: widget.user),
+          CompanyProfileScreen(user: widget.user),
         ];
 //
 //
