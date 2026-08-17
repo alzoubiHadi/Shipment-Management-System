@@ -1,18 +1,18 @@
 import 'package:app/models/Company.dart';
 import 'package:flutter/material.dart';
 import '../API/CompanyService.dart';
-import '../API/DriverService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
-import '../models/Driver.dart';
 import 'AddCompanyPage.dart';
-import 'AddDriverPage.dart';
-import 'AppBarWidget.dart';
-import 'CompanyDetailsPage.dart';
-import 'DriverDetails.dart';
+import 'RequestReviewScreen.dart';
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
+/// Admin Phase 2 (2026-08-20) redesign to LightColors — same treatment as
+/// Driverspage.dart: "View" now opens RequestReviewScreen.company(company)
+/// instead of the old dark CompanyDetailsPage, which also means Approve/
+/// Reject/Request Changes are now reachable for a pending company directly
+/// from this list (previously only inside CompanyDetailsPage itself).
 class Companiespage extends StatefulWidget {
   final AppUser user;
   // Lets a caller (e.g. the admin drawer's "Registration Requests"
@@ -72,10 +72,22 @@ class _CompaniespageState extends State<Companiespage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(
+        backgroundColor: LightColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Companies', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.textSecondary),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.gold,
-        child: const Icon(Icons.add, color: AppColors.bg),
+        backgroundColor: LightColors.gold,
+        child: const Icon(Icons.add, color: LightColors.textPrimary),
         onPressed: () async {
           final result = await Navigator.push(
             context,
@@ -88,7 +100,7 @@ class _CompaniespageState extends State<Companiespage> {
         },
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async {
           _refresh();
           await _companyFuture;
@@ -96,27 +108,31 @@ class _CompaniespageState extends State<Companiespage> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            AppBarWidget(
-              user: widget.user,
-              subtitle: 'Companies',
-            ),
-
             // SEARCH BAR
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: "Search by name...",
-                    hintStyle: const TextStyle(color: AppColors.muted),
-                    prefixIcon: const Icon(Icons.search, color: AppColors.muted),
+                    hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                     filled: true,
-                    fillColor: AppColors.surface,
+                    fillColor: LightColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.gold),
                     ),
                   ),
                 ),
@@ -146,7 +162,7 @@ class _CompaniespageState extends State<Companiespage> {
                 }
 
                 return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                           (context, index) {
@@ -181,7 +197,7 @@ class _LoadingState extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 80),
       child: Center(
-        child: CircularProgressIndicator(color: AppColors.gold),
+        child: CircularProgressIndicator(color: LightColors.gold),
       ),
     );
   }
@@ -200,23 +216,23 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 48),
+          const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 48),
           const SizedBox(height: 16),
           const Text(
             'Failed to load companies',
-            style: TextStyle(color: AppColors.cream, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 20),
           TextButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.gold),
-            label: const Text('Retry', style: TextStyle(color: AppColors.gold)),
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.gold),
+            label: const Text('Retry', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -234,17 +250,17 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inventory_2_outlined, color: AppColors.muted, size: 48),
+          Icon(Icons.inventory_2_outlined, color: LightColors.textSecondary, size: 48),
           SizedBox(height: 16),
           Text(
             'No companies yet',
-            style: TextStyle(color: AppColors.cream, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 8),
           Text(
             'Your companies will appear here once created.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted, fontSize: 12),
+            style: TextStyle(color: LightColors.textSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -263,11 +279,11 @@ class CompanyItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border),
       ),
       child: Row(
         children: [
@@ -276,10 +292,10 @@ class CompanyItem extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
+              color: LightColors.gold.withOpacity(0.12),
             ),
-            child: const Icon(Icons.verified_user, color: AppColors.cream, size: 20),
+            child: const Icon(Icons.apartment_outlined, color: LightColors.goldMuted, size: 20),
           ),
           const SizedBox(width: 12),
 
@@ -289,21 +305,21 @@ class CompanyItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  company.id.toString(),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.cream),
+                  company.name ?? '',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LightColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  company.name ?? '',
-                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                  overflow: TextOverflow.ellipsis,
+                  'CO-${company.id}',
+                  style: const TextStyle(fontSize: 11, color: LightColors.textSecondary),
                 ),
                 if (company.approvalStatus == 'pending') ...[
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.info.withOpacity(0.12),
+                      color: LightColors.pendingBg,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -311,7 +327,7 @@ class CompanyItem extends StatelessWidget {
                       maxLines: 1,
                       softWrap: false,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 9, color: AppColors.info, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 9, color: LightColors.pending, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ] else if (company.approvalStatus == 'rejected') ...[
@@ -319,7 +335,7 @@ class CompanyItem extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.12),
+                      color: LightColors.errorBg,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -327,7 +343,7 @@ class CompanyItem extends StatelessWidget {
                       maxLines: 1,
                       softWrap: false,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 9, color: AppColors.error, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 9, color: LightColors.error, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ] else if (company.approvalStatus == 'changes_required') ...[
@@ -335,7 +351,7 @@ class CompanyItem extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.gold.withOpacity(0.12),
+                      color: LightColors.gold.withOpacity(0.14),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -343,7 +359,23 @@ class CompanyItem extends StatelessWidget {
                       maxLines: 1,
                       softWrap: false,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 9, color: AppColors.gold, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 9, color: LightColors.goldMuted, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: LightColors.successBg,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Approved',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 9, color: LightColors.success, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -352,7 +384,7 @@ class CompanyItem extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Status badge + License + Actions — width-capped, same fix as
+          // Email + phone + Actions — width-capped, same fix as
           // DriverItem, so a long email can't squeeze the leading Expanded
           // name column and wrap the status badge one character per line.
           ConstrainedBox(
@@ -360,29 +392,18 @@ class CompanyItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.gold,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    company.email ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.bg,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                Text(
+                  company.email ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10.5, color: LightColors.textSecondary, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   company.phone ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                  style: const TextStyle(fontSize: 10, color: LightColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
 
@@ -390,32 +411,33 @@ class CompanyItem extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 1. VIEW BUTTON
+                  // 1. VIEW BUTTON — opens the shared light-themed review
+                  // screen (Approve/Reject/Request Changes bar only shows
+                  // for pending/changes_required companies).
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     icon: const Icon(Icons.visibility_outlined, size: 20),
-                    color: AppColors.gold,
-                    onPressed: () {
-                      Navigator.push(
+                    color: LightColors.navy,
+                    onPressed: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => CompanyDetailsPage(company: company),
+                          builder: (_) => RequestReviewScreen.company(company),
                         ),
                       );
+                      if (result == true) onRefresh?.call();
                     },
                   ),
                   const SizedBox(width: 8),
 
-                  // 2. EDIT BUTTON (NEW)
+                  // 2. EDIT BUTTON
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     icon: const Icon(Icons.edit_outlined, size: 20),
-                    color: AppColors.info, // Blue color for edit
+                    color: LightColors.goldMuted,
                     onPressed: () async {
-                      // Navigate to AddDriverPage and pass the driver object for editing
-                      // Note: Ensure AddDriverPage accepts an optional `Driver? driver` parameter
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -423,7 +445,6 @@ class CompanyItem extends StatelessWidget {
                         ),
                       );
 
-                      // Refresh the list if we returned from the edit page
                       if (result != null) {
                         onRefresh?.call();
                       }
@@ -435,26 +456,26 @@ class CompanyItem extends StatelessWidget {
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.delete, size: 20),
-                    color: AppColors.error,
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    color: LightColors.error,
                     onPressed: () async {
                       bool? confirm = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          backgroundColor: AppColors.surface,
-                          title: const Text('Delete company', style: TextStyle(color: AppColors.cream)),
+                          backgroundColor: LightColors.surface,
+                          title: const Text('Delete company', style: TextStyle(color: LightColors.textPrimary)),
                           content: Text(
                             'Are you sure you want to delete ${company.name}?',
-                            style: const TextStyle(color: AppColors.muted),
+                            style: const TextStyle(color: LightColors.textSecondary),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+                              child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                              child: const Text('Delete', style: TextStyle(color: LightColors.error)),
                             ),
                           ],
                         ),
@@ -476,4 +497,3 @@ class CompanyItem extends StatelessWidget {
     );
   }
 }
-

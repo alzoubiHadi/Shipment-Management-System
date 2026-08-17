@@ -5,18 +5,17 @@ import '../API/ShipmentServices.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
-import 'AppBarWidget.dart';
 import 'ShipmentDetailsPageCompany.dart';
-
-// ── Status label helper ─────────────────────────────────────────────────────
-// TODO: Adjust these cases to match your actual Shipment status codes/enum.
-
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
+/// Admin Phase 3 (2026-08-20) redesign to LightColors, matching the rest of
+/// the admin dashboard redesign. "View" already pointed at
+/// ShipmentDetailsPageCompany, which was redesigned to LightColors in an
+/// earlier company-side phase — left unchanged here.
 class Shipmentpageadmin extends StatefulWidget {
   final AppUser user;
-  Shipmentpageadmin({required this.user});
+  Shipmentpageadmin({super.key, required this.user});
 
   @override
   State<Shipmentpageadmin> createState() => _CompnayshipmentsState();
@@ -87,7 +86,7 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
   Future<void> _onManage(Shipment shipment) async {
     final result = await showModalBottomSheet<_ManageSheetResult>(
       context: context,
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -145,26 +144,26 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         title: const Text('Cancel shipment',
-            style: TextStyle(color: AppColors.cream)),
+            style: TextStyle(color: LightColors.textPrimary)),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Reason for cancellation',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Back', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Confirm', style: TextStyle(color: AppColors.error)),
+            child: const Text('Confirm', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -180,7 +179,7 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
 
       final selectedDriver = await showModalBottomSheet<dynamic>(
         context: context,
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.surface,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
@@ -214,33 +213,50 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(
+        backgroundColor: LightColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Shipments', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.textSecondary),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            AppBarWidget(
-              user: widget.user,
-              subtitle: 'My Shipments',
-            ),
-
             //  SEARCH BAR
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: "Search by tracking number...",
-                    hintStyle: const TextStyle(color: AppColors.muted),
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                     filled: true,
-                    fillColor: AppColors.bg,
+                    fillColor: LightColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.gold),
                     ),
                   ),
                 ),
@@ -260,7 +276,7 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
                     height: 40,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: _statusOptions.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (context, index) {
@@ -275,12 +291,12 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
                               _selectedStatus = status;
                             });
                           },
-                          selectedColor: AppColors.gold.withOpacity(0.2),
-                          backgroundColor: AppColors.bg,
+                          selectedColor: LightColors.gold.withOpacity(0.16),
+                          backgroundColor: LightColors.surface,
                           labelStyle: TextStyle(
                             color: isSelected
-                                ? AppColors.gold
-                                : AppColors.muted,
+                                ? LightColors.goldMuted
+                                : LightColors.textSecondary,
                             fontWeight: isSelected
                                 ? FontWeight.w600
                                 : FontWeight.normal,
@@ -288,8 +304,8 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
                           ),
                           side: BorderSide(
                             color: isSelected
-                                ? AppColors.gold
-                                : AppColors.border,
+                                ? LightColors.gold
+                                : LightColors.border,
                             width: 0.5,
                           ),
                         );
@@ -326,8 +342,7 @@ class _CompnayshipmentsState extends State<Shipmentpageadmin> {
                   }
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                     child: Column(
                       children: [
                         for (int i = 0; i < shipments.length; i++) ...[
@@ -391,7 +406,7 @@ class _ManageShipmentSheet extends StatelessWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: LightColors.border,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -399,7 +414,7 @@ class _ManageShipmentSheet extends StatelessWidget {
             Text(
               'Manage Shipment ${shipment.id}',
               style: const TextStyle(
-                color: AppColors.cream,
+                color: LightColors.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -407,7 +422,7 @@ class _ManageShipmentSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Current status: ${statusLabel(shipment.status)}',
-              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+              style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
             ),
 
             if (isNew) ...[
@@ -420,14 +435,14 @@ class _ManageShipmentSheet extends StatelessWidget {
                     _ManageSheetResult.assignDriverAction(),
                   ),
                   icon: const Icon(Icons.local_shipping_outlined,
-                      color: Colors.black),
+                      color: LightColors.textPrimary),
                   label: const Text(
                     'Assign Driver',
                     style: TextStyle(
-                        color: Colors.black, fontWeight: FontWeight.w600),
+                        color: LightColors.textPrimary, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.gold,
+                    backgroundColor: LightColors.gold,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -438,7 +453,7 @@ class _ManageShipmentSheet extends StatelessWidget {
             const Text(
               'Update status',
               style: TextStyle(
-                color: AppColors.cream,
+                color: LightColors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -450,12 +465,12 @@ class _ManageShipmentSheet extends StatelessWidget {
               children: statusOptions.map((status) {
                 return ActionChip(
                   label: Text(status),
-                  backgroundColor: AppColors.bg,
+                  backgroundColor: LightColors.bg,
                   labelStyle: const TextStyle(
-                    color: AppColors.cream,
+                    color: LightColors.textPrimary,
                     fontSize: 12,
                   ),
-                  side: const BorderSide(color: AppColors.border, width: 0.5),
+                  side: const BorderSide(color: LightColors.border, width: 0.5),
                   onPressed: () => Navigator.pop(
                     context,
                     _ManageSheetResult.status(status),
@@ -479,13 +494,13 @@ class _ManageShipmentSheet extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.visibility_outlined,
-                    color: AppColors.gold),
+                    color: LightColors.goldMuted),
                 label: const Text(
                   'View full details',
-                  style: TextStyle(color: AppColors.gold),
+                  style: TextStyle(color: LightColors.goldMuted),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.gold),
+                  side: const BorderSide(color: LightColors.gold),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -519,7 +534,7 @@ class _AssignDriverSheet extends StatelessWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.border,
+                  color: LightColors.border,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -527,7 +542,7 @@ class _AssignDriverSheet extends StatelessWidget {
             const Text(
               'Assign Driver',
               style: TextStyle(
-                color: AppColors.cream,
+                color: LightColors.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -539,7 +554,7 @@ class _AssignDriverSheet extends StatelessWidget {
                 child: Center(
                   child: Text(
                     'No drivers available',
-                    style: TextStyle(color: AppColors.muted, fontSize: 13),
+                    style: TextStyle(color: LightColors.textSecondary, fontSize: 13),
                   ),
                 ),
               )
@@ -558,21 +573,21 @@ class _AssignDriverSheet extends StatelessWidget {
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
-                      tileColor: AppColors.surface,
+                      tileColor: LightColors.bg,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: const BorderSide(
-                            color: AppColors.border, width: 0.5),
+                            color: LightColors.border, width: 0.5),
                       ),
-                      leading: const CircleAvatar(
-                        backgroundColor: AppColors.bg,
-                        child: Icon(Icons.person_outline,
-                            color: AppColors.gold),
+                      leading: CircleAvatar(
+                        backgroundColor: LightColors.gold.withOpacity(0.12),
+                        child: const Icon(Icons.person_outline,
+                            color: LightColors.goldMuted),
                       ),
                       title: Text(
                         driver.name?.toString() ?? 'Driver ${driver.id}',
                         style: const TextStyle(
-                            color: AppColors.cream, fontSize: 14),
+                            color: LightColors.textPrimary, fontSize: 14),
                       ),
                       onTap: () => Navigator.pop(context, driver),
                     );
@@ -596,7 +611,7 @@ class _LoadingState extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 80),
       child: Center(
-        child: CircularProgressIndicator(color: AppColors.gold),
+        child: CircularProgressIndicator(color: LightColors.gold),
       ),
     );
   }
@@ -617,14 +632,14 @@ class _ErrorState extends StatelessWidget {
         children: [
           const Icon(
             Icons.cloud_off_rounded,
-            color: AppColors.error,
+            color: LightColors.error,
             size: 48,
           ),
           const SizedBox(height: 16),
           const Text(
             'Failed to load shipments',
             style: TextStyle(
-              color: AppColors.cream,
+              color: LightColors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -633,15 +648,15 @@ class _ErrorState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 20),
           TextButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.gold),
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.gold),
             label: const Text(
               'Retry',
-              style: TextStyle(color: AppColors.gold),
+              style: TextStyle(color: LightColors.gold),
             ),
           ),
         ],
@@ -662,14 +677,14 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(
             Icons.inventory_2_outlined,
-            color: AppColors.muted,
+            color: LightColors.textSecondary,
             size: 48,
           ),
           SizedBox(height: 16),
           Text(
             'No shipments yet',
             style: TextStyle(
-              color: AppColors.cream,
+              color: LightColors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -678,7 +693,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             'Your shipments will appear here once created.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted, fontSize: 12),
+            style: TextStyle(color: LightColors.textSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -692,18 +707,18 @@ class ShipmentItem extends StatelessWidget {
   final Shipment shipment;
   final VoidCallback? onManage;
 
-  const ShipmentItem({required this.shipment, this.onManage});
+  const ShipmentItem({super.key, required this.shipment, this.onManage});
 
   @override
   Widget build(BuildContext context) {
     final color = shipment.statusColor;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border),
       ),
       child: Row(
         children: [
@@ -712,7 +727,7 @@ class ShipmentItem extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(shipment.icon, color: color, size: 20),
@@ -728,15 +743,15 @@ class ShipmentItem extends StatelessWidget {
                   shipment.id.toString(),
                   style: const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.cream,
+                    fontWeight: FontWeight.w700,
+                    color: LightColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${shipment.origin} · ${shipment.destination}',
                   style:
-                  const TextStyle(fontSize: 11, color: AppColors.muted),
+                  const TextStyle(fontSize: 11, color: LightColors.textSecondary),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -752,7 +767,7 @@ class ShipmentItem extends StatelessWidget {
                 padding:
                 const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -768,7 +783,7 @@ class ShipmentItem extends StatelessWidget {
               Text(
                 shipment.weight,
                 style:
-                const TextStyle(fontSize: 10, color: AppColors.muted),
+                const TextStyle(fontSize: 10, color: LightColors.textSecondary),
               ),
             ],
           ),
@@ -780,7 +795,7 @@ class ShipmentItem extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.visibility_outlined),
-                color: AppColors.gold,
+                color: LightColors.goldMuted,
                 tooltip: 'View',
                 onPressed: () {
                   Navigator.push(
@@ -795,7 +810,7 @@ class ShipmentItem extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
-                color: AppColors.muted,
+                color: LightColors.textSecondary,
                 tooltip: 'Manage',
                 onPressed: onManage,
               ),

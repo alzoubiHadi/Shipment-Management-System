@@ -3,6 +3,7 @@ import '../API/CompanyService.dart';
 import '../API/config.dart';
 import '../models/Company.dart';
 
+/// Admin Phase 2 (2026-08-20) redesign to LightColors.
 class AddCompanyPage extends StatefulWidget {
   final Function(Company)? onSubmit;
   final Company? company;
@@ -91,7 +92,7 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppColors.error,
+          backgroundColor: LightColors.error,
           content: Text(e.toString()),
         ),
       );
@@ -107,18 +108,18 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
     final isEditing = widget.company != null;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.bg,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(
-          color: AppColors.cream,
+          color: LightColors.textPrimary,
         ),
         title: Text(
           isEditing ? 'Edit Company' : 'Add Company',
           style: const TextStyle(
-            color: AppColors.cream,
+            color: LightColors.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -130,10 +131,10 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surfaceHigh,
+              color: LightColors.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.border,
+                color: LightColors.border,
               ),
             ),
             child: Column(
@@ -163,7 +164,7 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     style: const TextStyle(
-                      color: AppColors.cream,
+                      color: LightColors.textPrimary,
                     ),
                     validator: (value) {
                       if (!isEditing &&
@@ -177,18 +178,18 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
                           ? 'Password (leave blank to keep current)'
                           : 'Password',
                       labelStyle: const TextStyle(
-                        color: AppColors.muted,
+                        color: LightColors.textSecondary,
                       ),
                       prefixIcon: const Icon(
                         Icons.lock,
-                        color: AppColors.gold,
+                        color: LightColors.gold,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility
                               : Icons.visibility_off,
-                          color: AppColors.gold,
+                          color: LightColors.gold,
                         ),
                         onPressed: () {
                           setState(() {
@@ -197,20 +198,20 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
                         },
                       ),
                       filled: true,
-                      fillColor: AppColors.surface,
+                      fillColor: LightColors.bg,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: AppColors.border,
+                          color: LightColors.border,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: AppColors.gold,
+                          color: LightColors.gold,
                           width: 2,
                         ),
                       ),
@@ -231,6 +232,7 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
+                        color: LightColors.textPrimary,
                       ),
                     )
                         : const Icon(Icons.save),
@@ -246,8 +248,8 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.gold,
-                      foregroundColor: AppColors.bg,
+                      backgroundColor: LightColors.gold,
+                      foregroundColor: LightColors.textPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -274,7 +276,7 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
         controller: controller,
         keyboardType: keyboardType,
         style: const TextStyle(
-          color: AppColors.cream,
+          color: LightColors.textPrimary,
         ),
         validator: (value) {
           if (value == null || value.trim().isEmpty) {
@@ -285,27 +287,27 @@ class _AddCompanyPageState extends State<AddCompanyPage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(
-            color: AppColors.muted,
+            color: LightColors.textSecondary,
           ),
           prefixIcon: Icon(
             icon,
-            color: AppColors.gold,
+            color: LightColors.gold,
           ),
           filled: true,
-          fillColor: AppColors.surface,
+          fillColor: LightColors.bg,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
-              color: AppColors.border,
+              color: LightColors.border,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
-              color: AppColors.gold,
+              color: LightColors.gold,
               width: 2,
             ),
           ),

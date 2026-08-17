@@ -1,14 +1,21 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../API/CompanyService.dart';
 import '../API/config.dart';
 import '../models/Company.dart';
-import 'AddDriverPage.dart'; // Kept as AddDriverPage to match your original imports
-import 'AppBarWidget.dart';
-import 'CompanyDetailsPage.dart';
+import 'AddCompanyPage.dart';
+import 'RequestReviewScreen.dart';
 
+/// Admin Phase 2 (2026-08-20) redesign to LightColors — same View →
+/// RequestReviewScreen.company() change as Companiespage.dart.
+///
+/// Also fixed two pre-existing bugs found while touching this file:
+/// the "+" FAB was pushing AddDriverPage instead of AddCompanyPage (a
+/// copy-paste leftover per the old inline comment), and the phone line
+/// under the email badge was printing company.email a second time instead
+/// of company.phone.
 class Deletedcompanies extends StatefulWidget {
+  const Deletedcompanies({super.key});
+
   @override
   State<Deletedcompanies> createState() => _CompaniespageState();
 }
@@ -51,37 +58,54 @@ class _CompaniespageState extends State<Deletedcompanies> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(
+        backgroundColor: LightColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Deleted Companies', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+      ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.gold,
-        child: const Icon(Icons.add, color: AppColors.bg),
+        backgroundColor: LightColors.gold,
+        child: const Icon(Icons.add, color: LightColors.textPrimary),
         onPressed: () async {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => AddDriverPage()),
+            MaterialPageRoute(builder: (_) => const AddCompanyPage()),
           );
           if (result != null) _refresh();
         },
       ),
       body: RefreshIndicator(
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: "Search by name...",
-                    hintStyle: const TextStyle(color: AppColors.muted),
-                    prefixIcon: const Icon(Icons.search, color: AppColors.muted),
+                    hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                     filled: true,
-                    fillColor: AppColors.surface,
+                    fillColor: LightColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.gold),
                     ),
                   ),
                 ),
@@ -95,7 +119,7 @@ class _CompaniespageState extends State<Deletedcompanies> {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 80),
                       child: Center(
-                        child: CircularProgressIndicator(color: AppColors.gold),
+                        child: CircularProgressIndicator(color: LightColors.gold),
                       ),
                     );
                   }
@@ -105,14 +129,14 @@ class _CompaniespageState extends State<Deletedcompanies> {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
                       child: Column(
                         children: [
-                          const Icon(Icons.cloud_off, color: AppColors.error, size: 40),
+                          const Icon(Icons.cloud_off, color: LightColors.error, size: 40),
                           const SizedBox(height: 10),
                           Text(snapshot.error.toString(),
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: AppColors.muted)),
+                              style: const TextStyle(color: LightColors.textSecondary)),
                           TextButton(
                             onPressed: _refresh,
-                            child: const Text("Retry", style: TextStyle(color: AppColors.gold)),
+                            child: const Text("Retry", style: TextStyle(color: LightColors.gold)),
                           )
                         ],
                       ),
@@ -127,14 +151,14 @@ class _CompaniespageState extends State<Deletedcompanies> {
                       child: Center(
                         child: Text(
                           "No deleted companies found",
-                          style: TextStyle(color: AppColors.muted),
+                          style: TextStyle(color: LightColors.textSecondary),
                         ),
                       ),
                     );
                   }
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                     child: Column(
                       children: [
                         for (final company in companies) ...[
@@ -185,7 +209,7 @@ class _CompanyItemState extends State<CompanyItem> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Company restored successfully"),
-          backgroundColor: Colors.green,
+          backgroundColor: LightColors.success,
         ),
       );
     } catch (e) {
@@ -194,7 +218,7 @@ class _CompanyItemState extends State<CompanyItem> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),
-          backgroundColor: Colors.red,
+          backgroundColor: LightColors.error,
         ),
       );
     } finally {
@@ -211,11 +235,11 @@ class _CompanyItemState extends State<CompanyItem> {
     final company = widget.company;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: LightColors.border),
       ),
       child: Row(
         children: [
@@ -223,12 +247,12 @@ class _CompanyItemState extends State<CompanyItem> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
+              color: LightColors.gold.withOpacity(0.12),
             ),
             child: const Icon(
               Icons.business,
-              color: AppColors.cream,
+              color: LightColors.goldMuted,
               size: 20,
             ),
           ),
@@ -241,15 +265,16 @@ class _CompanyItemState extends State<CompanyItem> {
                 Text(
                   company.name ?? '',
                   style: const TextStyle(
-                    color: AppColors.cream,
-                    fontWeight: FontWeight.w500,
+                    color: LightColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   "ID: ${company.id}",
                   style: const TextStyle(
-                    color: AppColors.muted,
+                    color: LightColors.textSecondary,
                     fontSize: 11,
                   ),
                 ),
@@ -260,30 +285,22 @@ class _CompanyItemState extends State<CompanyItem> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.gold,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  company.email, // Removed ?? '' to prevent compile error
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.bg, // Fixed invisible text (was gold on gold)
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
               Text(
                 company.email,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: LightColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                company.phone,
                 style: const TextStyle(
                   fontSize: 10,
-                  color: AppColors.muted,
+                  color: LightColors.textSecondary,
                 ),
               ),
               Row(
@@ -291,12 +308,12 @@ class _CompanyItemState extends State<CompanyItem> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.visibility_outlined),
-                    color: AppColors.gold, // Used existing color to avoid errors
+                    color: LightColors.navy,
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => CompanyDetailsPage(company: company),
+                          builder: (_) => RequestReviewScreen.company(company),
                         ),
                       );
                     },
@@ -305,11 +322,11 @@ class _CompanyItemState extends State<CompanyItem> {
                       ? const SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.gold),
                   )
                       : IconButton(
                     icon: const Icon(Icons.restore),
-                    color: AppColors.gold, // Used existing color to avoid errors
+                    color: LightColors.success,
                     onPressed: _restoreCompany,
                   ),
                 ],

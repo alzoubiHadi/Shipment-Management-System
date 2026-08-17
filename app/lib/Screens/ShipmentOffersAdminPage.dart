@@ -15,6 +15,8 @@ import '../utils/logout_helper.dart';
 /// is for oversight plus the two admin-only actions the workflow still
 /// needs: setting a manual price (UC-13, CRM) and manually assigning an
 /// escalated offer to a driver (UC-17, Super Admin).
+///
+/// Admin Phase 3 (2026-08-20) redesign to LightColors.
 class ShipmentOffersAdminPage extends StatefulWidget {
   const ShipmentOffersAdminPage({super.key});
 
@@ -45,25 +47,25 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Cancel offer', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Cancel offer', style: TextStyle(color: LightColors.textPrimary)),
         content: TextField(
           controller: reasonController,
           maxLines: 3,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Reason for cancellation',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Back', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, reasonController.text.trim()),
-            child: const Text('Confirm', style: TextStyle(color: AppColors.error)),
+            child: const Text('Confirm', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -98,28 +100,28 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Set manual price', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Set manual price', style: TextStyle(color: LightColors.textPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: driverPriceController,
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: AppColors.cream),
+              style: const TextStyle(color: LightColors.textPrimary),
               decoration: const InputDecoration(
                 labelText: 'Price to driver (AED)',
-                labelStyle: TextStyle(color: AppColors.muted),
+                labelStyle: TextStyle(color: LightColors.textSecondary),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: clientPriceController,
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: AppColors.cream),
+              style: const TextStyle(color: LightColors.textPrimary),
               decoration: const InputDecoration(
                 labelText: 'Price to client (AED)',
-                labelStyle: TextStyle(color: AppColors.muted),
+                labelStyle: TextStyle(color: LightColors.textSecondary),
               ),
             ),
           ],
@@ -127,11 +129,11 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Save', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -161,7 +163,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
         backgroundColor:
-            result['success'] == true ? AppColors.success : AppColors.error,
+            result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -177,7 +179,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
         backgroundColor:
-            result['success'] == true ? AppColors.success : AppColors.error,
+            result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -211,9 +213,9 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            backgroundColor: AppColors.surface,
+            backgroundColor: LightColors.surface,
             title: const Text('Assign driver',
-                style: TextStyle(color: AppColors.cream)),
+                style: TextStyle(color: LightColors.textPrimary)),
             content: SizedBox(
               width: double.maxFinite,
               child: Column(
@@ -221,11 +223,11 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                 children: [
                   DropdownButtonFormField<Driver>(
                     initialValue: selectedDriver,
-                    dropdownColor: AppColors.surface,
-                    style: const TextStyle(color: AppColors.cream),
+                    dropdownColor: LightColors.surface,
+                    style: const TextStyle(color: LightColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Driver',
-                      labelStyle: TextStyle(color: AppColors.muted),
+                      labelStyle: TextStyle(color: LightColors.textSecondary),
                     ),
                     items: drivers
                         .map((d) => DropdownMenuItem(
@@ -252,11 +254,11 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<Truck>(
                     initialValue: selectedTruck,
-                    dropdownColor: AppColors.surface,
-                    style: const TextStyle(color: AppColors.cream),
+                    dropdownColor: LightColors.surface,
+                    style: const TextStyle(color: LightColors.textPrimary),
                     decoration: const InputDecoration(
                       labelText: 'Truck',
-                      labelStyle: TextStyle(color: AppColors.muted),
+                      labelStyle: TextStyle(color: LightColors.textSecondary),
                     ),
                     items: driverTrucks
                         .map((t) => DropdownMenuItem(
@@ -273,7 +275,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel',
-                    style: TextStyle(color: AppColors.muted)),
+                    style: TextStyle(color: LightColors.textSecondary)),
               ),
               TextButton(
                 onPressed: (selectedDriver == null || selectedTruck == null)
@@ -283,7 +285,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                           'truck': selectedTruck,
                         }),
                 child: const Text('Assign',
-                    style: TextStyle(color: AppColors.gold)),
+                    style: TextStyle(color: LightColors.gold)),
               ),
             ],
           );
@@ -307,8 +309,8 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
       SnackBar(
         content: Text(assignResult['message']?.toString() ?? ''),
         backgroundColor: assignResult['success'] == true
-            ? AppColors.success
-            : AppColors.error,
+            ? LightColors.success
+            : LightColors.error,
       ),
     );
     if (assignResult['success'] == true) _refresh();
@@ -317,46 +319,52 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
   Color _statusColor(String status) {
     switch (status) {
       case 'accepted':
-        return AppColors.success;
+        return LightColors.success;
       case 'cancelled':
       case 'expired':
-        return AppColors.muted;
+        return LightColors.textSecondary;
       case 'awaiting_manual_price':
-        return AppColors.gold;
+        return LightColors.goldMuted;
       case 'escalated':
-        return AppColors.error;
+        return LightColors.error;
       default:
-        return AppColors.info;
+        return LightColors.navy;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Shipment Offers', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        actions: [logoutAction(context)],
+        title: const Text('Shipment Offers', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: LightColors.textSecondary),
+            tooltip: 'Log out',
+            onPressed: () => confirmAndLogout(context, light: true),
+          ),
+        ],
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<ShipmentOffer>>(
           future: _offersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: CircularProgressIndicator(color: AppColors.gold),
+                child: CircularProgressIndicator(color: LightColors.gold),
               );
             }
             if (snapshot.hasError) {
               return const Center(
                 child: Text(
                   'Could not load offers',
-                  style: TextStyle(color: AppColors.error),
+                  style: TextStyle(color: LightColors.error),
                 ),
               );
             }
@@ -370,7 +378,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                     child: Center(
                       child: Text(
                         'No offers yet. Companies create these themselves.',
-                        style: TextStyle(color: AppColors.muted),
+                        style: TextStyle(color: LightColors.textSecondary),
                       ),
                     ),
                   ),
@@ -387,9 +395,9 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +409,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                             child: Text(
                               '${offer.origin} → ${offer.destination}',
                               style: const TextStyle(
-                                color: AppColors.cream,
+                                color: LightColors.textPrimary,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
                               ),
@@ -430,7 +438,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                         offer.companyName.isEmpty
                             ? 'Client unknown'
                             : offer.companyName,
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -438,14 +446,14 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                         '${offer.needsPermit ? " · permit" : ""}'
                         '${offer.isHazardous ? " · hazardous" : ""}'
                         '${offer.isFragile ? " · fragile" : ""}',
-                        style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
                       ),
                       if (offer.priceToClient.isNotEmpty && offer.priceToClient != '0') ...[
                         const SizedBox(height: 4),
                         Text(
                           'Price to client: ${offer.priceToClient} AED'
                           '${offer.pricingMode != null ? " (${offer.pricingMode})" : ""}',
-                          style: const TextStyle(color: AppColors.gold, fontSize: 12),
+                          style: const TextStyle(color: LightColors.goldMuted, fontSize: 12),
                         ),
                       ],
                       if (offer.status == 'pending') ...[
@@ -453,7 +461,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                         Text(
                           '${offer.eligibleDriversCount} eligible driver(s) right now',
                           style: const TextStyle(
-                              color: AppColors.gold, fontSize: 12),
+                              color: LightColors.goldMuted, fontSize: 12),
                         ),
                       ],
                       const SizedBox(height: 10),
@@ -466,21 +474,21 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                               onPressed: () => _setManualPrice(offer),
                               child: const Text('Set Price',
                                   style: TextStyle(
-                                      color: AppColors.gold, fontSize: 12)),
+                                      color: LightColors.goldMuted, fontSize: 12)),
                             ),
                           if (offer.isPending)
                             TextButton(
                               onPressed: () => _rematch(offer),
                               child: const Text('Rematch',
                                   style: TextStyle(
-                                      color: AppColors.info, fontSize: 12)),
+                                      color: LightColors.navy, fontSize: 12)),
                             ),
                           if (offer.isEscalated)
                             TextButton(
                               onPressed: () => _assignDriver(offer),
                               child: const Text('Assign Driver',
                                   style: TextStyle(
-                                      color: AppColors.gold, fontSize: 12)),
+                                      color: LightColors.goldMuted, fontSize: 12)),
                             ),
                           if (offer.isPending ||
                               offer.isAwaitingManualPrice ||
@@ -489,7 +497,7 @@ class _ShipmentOffersAdminPageState extends State<ShipmentOffersAdminPage> {
                               onPressed: () => _cancelOffer(offer),
                               child: const Text(
                                 'Cancel',
-                                style: TextStyle(color: AppColors.error, fontSize: 12),
+                                style: TextStyle(color: LightColors.error, fontSize: 12),
                               ),
                             ),
                         ],
