@@ -1,16 +1,31 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../API/DriverService.dart';
+import '../API/TruckService.dart';
 import '../API/config.dart';
 import '../models/DriverDocument.dart';
+import '../models/Truck.dart';
+
+enum DriverDocTab { driver, truck }
 
 /// UC-8: driver uploads/renews their own documents (license, passport,
 /// residency, ID card, medical certificate). Append-only on the server —
 /// uploading a new one just supersedes the previous "current" version of
 /// the same type, it's never deleted.
+///
+/// Driver redesign Phase 4 (2026-08-17 mockup): added a "Truck Documents"
+/// tab alongside the original driver-documents list. Truck Documents is
+/// READ-ONLY (view + expiry only, no upload/renew here) — deliberately,
+/// because TruckController::updateMyTruck on the backend only allows
+/// editing truck fields/files while the driver's approval_status is
+/// 'changes_required' (an admin-flagged edit window), unlike driver
+/// personal documents which really are freely renewable any time. Faking
+/// an always-available renew button here would just 409 in practice.
 class DriverDocumentsPage extends StatefulWidget {
-  const DriverDocumentsPage({super.key});
+  final DriverDocTab initialTab;
+  const DriverDocumentsPage({super.key, this.initialTab = DriverDocTab.driver});
 
   @override
   State<DriverDocumentsPage> createState() => _DriverDocumentsPageState();
@@ -18,14 +33,36 @@ class DriverDocumentsPage extends StatefulWidget {
 
 class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
   late Future<List<DriverDocument>> _documentsFuture;
+  late Future<List<Truck>> _trucksFuture;
+  late DriverDocTab _tab;
 
   @override
   void initState() {
     super.initState();
+    _tab = widget.initialTab;
     _refresh();
+    _trucksFuture = TruckService().fetchMyTrucks();
   }
 
   void _refresh() => setState(() => _documentsFuture = DriverService.fetchMyDocuments());
+
+  Future<void> _viewFile(String? path) async {
+    if (path == null || path.isEmpty) return;
+    final launched = await launchUrl(Uri.parse(storageUrl(path)), mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open file')));
+    }
+  }
+
+  _ExpiryState _expiryState(DateTime? date) {
+    if (date == null) return _ExpiryState('—', AppColors.muted);
+    final daysLeft = date.difference(DateTime.now()).inDays;
+    if (daysLeft < 0) return _ExpiryState('Expired', AppColors.error);
+    if (daysLeft <= 30) return _ExpiryState('Expires Soon', AppColors.gold);
+    return _ExpiryState('Valid', AppColors.success);
+  }
+
+  String _fmt(DateTime? d) => d == null ? '—' : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   /// Only the current (latest) version of each type is shown as the
   /// "status" row — older versions are still counted so we can show a
@@ -204,7 +241,137 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
         title: const Text('My Documents', style: TextStyle(color: AppColors.cream)),
         iconTheme: const IconThemeData(color: AppColors.cream),
       ),
-      body: RefreshIndicator(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _DocTabChip(
+                    label: 'Driver Documents',
+                    active: _tab == DriverDocTab.driver,
+                    onTap: () => setState(() => _tab = DriverDocTab.driver),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DocTabChip(
+                    label: 'Truck Documents',
+                    active: _tab == DriverDocTab.truck,
+                    onTap: () => setState(() => _tab = DriverDocTab.truck),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _tab == DriverDocTab.driver ? _buildDriverDocs() : _buildTruckDocs(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTruckDocs() {
+    return RefreshIndicator(
+      color: AppColors.gold,
+      onRefresh: () async => setState(() => _trucksFuture = TruckService().fetchMyTrucks()),
+      child: FutureBuilder<List<Truck>>(
+        future: _trucksFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text('Could not load truck documents', style: TextStyle(color: AppColors.error)));
+          }
+
+          final trucks = snapshot.data ?? [];
+          if (trucks.isEmpty) {
+            return ListView(
+              children: const [
+                Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child: Center(child: Text('No truck registered yet', style: TextStyle(color: AppColors.muted))),
+                ),
+              ],
+            );
+          }
+
+          final docs = [
+            ('Vehicle License', trucks.first.licenseExpiry, trucks.first.licenseFilePath),
+            ('Insurance', trucks.first.insuranceExpiry, trucks.first.insuranceFilePath),
+            ('Technical Inspection', trucks.first.technicalInspectionExpiry, trucks.first.technicalInspectionFilePath),
+          ];
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Truck documents can only be updated when an admin requests changes to your registration — contact support if one of these needs renewing.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ),
+              for (final (label, expiry, path) in docs)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border, width: 0.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(color: _expiryState(expiry).color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                        child: Icon(Icons.description_outlined, color: _expiryState(expiry).color, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(label, style: const TextStyle(color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(color: _expiryState(expiry).color.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                                  child: Text(_expiryState(expiry).label,
+                                      style: TextStyle(color: _expiryState(expiry).color, fontSize: 10, fontWeight: FontWeight.w600)),
+                                ),
+                                const SizedBox(width: 6),
+                                Text('exp. ${_fmt(expiry)}', style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if ((path ?? '').isNotEmpty)
+                        TextButton(
+                          onPressed: () => _viewFile(path),
+                          child: const Text('View', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDriverDocs() {
+    return RefreshIndicator(
         color: AppColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<DriverDocument>>(
@@ -311,7 +478,38 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
             );
           },
         ),
+      );
+  }
+}
+
+class _DocTabChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _DocTabChip({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? AppColors.gold : AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: active ? AppColors.gold : AppColors.border),
+        ),
+        child: Text(label,
+            style: TextStyle(fontSize: 12.5, color: active ? AppColors.bg : AppColors.muted, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
       ),
     );
   }
+}
+
+class _ExpiryState {
+  final String label;
+  final Color color;
+  _ExpiryState(this.label, this.color);
 }

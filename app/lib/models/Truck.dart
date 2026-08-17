@@ -16,6 +16,10 @@ class Truck {
   final DateTime? technicalInspectionExpiry;
   final String? technicalInspectionFilePath;
   final bool isActive;
+  // Driver redesign Phase 4 (2026-08-17) "My Truck" screen's Capacity
+  // field — a real column (Truck::$fillable on the backend) that was
+  // never parsed on the Flutter side until now.
+  final double? maxLoad;
 
   Truck({
     required this.id,
@@ -31,6 +35,7 @@ class Truck {
     this.technicalInspectionExpiry,
     this.technicalInspectionFilePath,
     this.isActive = true,
+    this.maxLoad,
   });
 
   factory Truck.fromJson(Map<String, dynamic> json) {
@@ -41,6 +46,7 @@ class Truck {
       truckType: json['truck_type']?.toString() ?? '',
       hasRefrigeration: json['has_refrigeration'] == true ||
           json['has_refrigeration'] == 1,
+      maxLoad: json['max_load'] != null ? double.tryParse(json['max_load'].toString()) : null,
       permitType: json['permit_type']?.toString(),
       permitExpiry: parseDate(json['permit_expiry']),
       insuranceExpiry: parseDate(json['insurance_expiry']),

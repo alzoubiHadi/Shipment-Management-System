@@ -11,6 +11,7 @@ import 'DriverBalancePage.dart';
 import 'DriverComplianceReportsPage.dart';
 import 'DriverDestinationsPage.dart';
 import 'DriverDocumentsPage.dart';
+import 'DriverMyTruckPage.dart';
 
 class Profile extends StatefulWidget {
   final AppUser user;
@@ -235,6 +236,16 @@ class _ProfileState extends State<Profile> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DriverDocumentsPage()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _NavTile(
+                icon: Icons.local_shipping_outlined,
+                label: 'My Truck',
+                subtitle: 'Plate, capacity & document expiry',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverMyTruckPage()),
                 ),
               ),
               const SizedBox(height: 10),

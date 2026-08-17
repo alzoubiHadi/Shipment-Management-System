@@ -228,64 +228,43 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                     final balance =
                         double.tryParse(snapshot.data?['balance']?.toString() ?? '') ?? 0;
                     final hasPending = snapshot.data?['has_pending_payout'] == true;
+                    final totalEarnings =
+                        double.tryParse(snapshot.data?['total_earnings_this_month']?.toString() ?? '') ?? 0;
+                    final pendingAmount =
+                        double.tryParse(snapshot.data?['pending_amount']?.toString() ?? '') ?? 0;
 
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border, width: 0.5),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Current balance',
-                              style: TextStyle(color: AppColors.muted, fontSize: 12)),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${balance.toStringAsFixed(2)} AED',
-                            style: const TextStyle(
-                              color: AppColors.gold,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 46,
-                            child: ElevatedButton(
-                              onPressed: (_isBusy || hasPending || balance <= 0)
-                                  ? null
-                                  : () => _requestPayout(balance),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.gold,
-                                disabledBackgroundColor:
-                                    AppColors.gold.withOpacity(0.3),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                hasPending
-                                    ? 'Payout already in progress'
-                                    : 'Request payout',
-                                style: const TextStyle(
-                                    color: AppColors.bg,
-                                    fontWeight: FontWeight.w600),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildBalanceCard(balance, hasPending),
+                        const SizedBox(height: 14),
+                        // Driver redesign Phase 4 (2026-08-17 mockup): Total
+                        // Earnings / Pending Amount, distinct from the
+                        // withdrawable balance above — see
+                        // ReportController::driverSelf on the backend for
+                        // exactly what each number means.
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MiniStat(
+                                label: 'Total Earnings',
+                                sublabel: 'This month',
+                                value: '${totalEarnings.toStringAsFixed(0)} AED',
+                                color: AppColors.success,
                               ),
                             ),
-                          ),
-                          if (hasPending) ...[
-                            const SizedBox(height: 8),
-                            const Text(
-                              'You cannot accept new jobs until this payout is confirmed or rejected.',
-                              style: TextStyle(color: AppColors.muted, fontSize: 11),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _MiniStat(
+                                label: 'Pending Amount',
+                                sublabel: 'Awaiting confirmation',
+                                value: '${pendingAmount.toStringAsFixed(0)} AED',
+                                color: AppColors.gold,
+                              ),
                             ),
                           ],
-                        ],
-                      ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -345,6 +324,98 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
               child: const Center(
                   child: CircularProgressIndicator(color: AppColors.gold)),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard(double balance, bool hasPending) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Current balance',
+              style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          const SizedBox(height: 6),
+          Text(
+            '${balance.toStringAsFixed(2)} AED',
+            style: const TextStyle(
+              color: AppColors.gold,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
+              onPressed: (_isBusy || hasPending || balance <= 0)
+                  ? null
+                  : () => _requestPayout(balance),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                disabledBackgroundColor:
+                    AppColors.gold.withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                hasPending
+                    ? 'Payout already in progress'
+                    : 'Request payout',
+                style: const TextStyle(
+                    color: AppColors.bg,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          if (hasPending) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'You cannot accept new jobs until this payout is confirmed or rejected.',
+              style: TextStyle(color: AppColors.muted, fontSize: 11),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final String sublabel;
+  final String value;
+  final Color color;
+
+  const _MiniStat({required this.label, required this.sublabel, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11.5, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text(value, style: TextStyle(color: color, fontSize: 17, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 2),
+          Text(sublabel, style: const TextStyle(color: AppColors.mutedLight, fontSize: 10)),
         ],
       ),
     );
