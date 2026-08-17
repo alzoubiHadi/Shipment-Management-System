@@ -8,7 +8,7 @@ import 'Companiespage.dart';
 import 'DocumentAlertsPage.dart';
 import 'Driverspage.dart';
 import 'ReportsHomePage.dart';
-import 'ShipmentPageAdmin.dart';
+import 'AdminShipmentsScreen.dart';
 
 /// Admin "Home" landing screen — Phase 1 of the admin dashboard redesign
 /// (2026-08-21 mockup). Lives as index 0 of HomeScreen's admin IndexedStack;
@@ -213,7 +213,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 value: stats.shipmentsActive,
                                 color: LightColors.navy,
                                 bg: LightColors.gold.withOpacity(0.12),
-                                onTap: () => _openTab(context, Shipmentpageadmin(user: widget.user)),
+                                onTap: () => _openTab(context, AdminShipmentsScreen(user: widget.user)),
                               ),
                               _StatCard(
                                 icon: Icons.task_alt_rounded,

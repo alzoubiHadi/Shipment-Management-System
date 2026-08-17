@@ -704,7 +704,7 @@ class _LinkCard extends StatelessWidget {
             Icon(icon, color: LightColors.goldMuted, size: 18),
             const SizedBox(width: 12),
             Expanded(child: Text(label, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14))),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFA0A4AC)),
+            const Icon(Icons.chevron_right_rounded, color: LightColors.textMuted),
           ],
         ),
       ),
@@ -730,16 +730,16 @@ class _ReasonCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Reason from Admin', style: TextStyle(color: Color(0xFF8A6D1F), fontSize: 13, fontWeight: FontWeight.w700)),
+          const Text('Reason from Admin', style: TextStyle(color: LightColors.noteText, fontSize: 13, fontWeight: FontWeight.w700)),
           if (reason != null && reason!.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(reason!, style: const TextStyle(color: Color(0xFF8A6D1F), fontSize: 13, height: 1.4)),
+            Text(reason!, style: const TextStyle(color: LightColors.noteText, fontSize: 13, height: 1.4)),
           ],
           if (issues.isNotEmpty) ...[
             const SizedBox(height: 8),
             ...issues.map((i) => Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text('•  $i', style: const TextStyle(color: Color(0xFF8A6D1F), fontSize: 13)),
+                  child: Text('•  $i', style: const TextStyle(color: LightColors.noteText, fontSize: 13)),
                 )),
           ],
         ],

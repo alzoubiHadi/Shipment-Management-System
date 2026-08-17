@@ -34,9 +34,10 @@ double _toDouble(dynamic value) {
   return double.tryParse(value.toString()) ?? 0;
 }
 
-/// Driver "Home" — driver redesign Phase 1 (2026-08-17 mockup). Dark-themed
-/// (AppColors), matching the mockup itself and the user's request to
-/// improve the existing workflow rather than re-theme it.
+/// Driver "Home". FMS design system unification (2026-08-24): converted
+/// from the old dark `AppColors` theme to `LightColors`, matching
+/// Admin/Company now — the Wallet card below keeps a deliberate Navy "hero"
+/// background (see `_WalletCard`), everything else is light.
 ///
 /// Replaces UserHomePage.dart as the Home tab. UserHomePage.dart isn't
 /// deleted — it's still a working "my shipments" list, just temporarily
@@ -96,10 +97,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       body: SafeArea(
         child: RefreshIndicator(
-          color: AppColors.gold,
+          color: LightColors.gold,
           onRefresh: _refresh,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -112,8 +113,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                       Container(
                         width: 44,
                         height: 44,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.gold.withOpacity(0.15)),
-                        child: const Icon(Icons.person_rounded, color: AppColors.gold, size: 22),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: LightColors.gold.withOpacity(0.15)),
+                        child: const Icon(Icons.person_rounded, color: LightColors.gold, size: 22),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -121,8 +122,8 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('$_greeting, ${widget.user.name.split(' ').first}',
-                                style: const TextStyle(color: AppColors.cream, fontSize: 16, fontWeight: FontWeight.w700)),
-                            const Text('Drive safe!', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                                style: const TextStyle(color: LightColors.cream, fontSize: 16, fontWeight: FontWeight.w700)),
+                            const Text('Drive safe!', style: TextStyle(color: LightColors.muted, fontSize: 12)),
                           ],
                         ),
                       ),
@@ -150,7 +151,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                         if (shipSnapshot.connectionState == ConnectionState.waiting && reportSnapshot.connectionState == ConnectionState.waiting) {
                           return const Padding(
                             padding: EdgeInsets.symmetric(vertical: 60),
-                            child: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+                            child: Center(child: CircularProgressIndicator(color: LightColors.gold)),
                           );
                         }
                         if (shipSnapshot.hasError) {
@@ -158,10 +159,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                             padding: const EdgeInsets.all(24),
                             child: Column(
                               children: [
-                                const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 32),
+                                const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 32),
                                 const SizedBox(height: 8),
                                 Text('Could not load your shipments.\n${shipSnapshot.error}',
-                                    textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                                    textAlign: TextAlign.center, style: const TextStyle(color: LightColors.muted, fontSize: 13)),
                                 const SizedBox(height: 12),
                                 TextButton(onPressed: _refresh, child: const Text('Retry')),
                               ],
@@ -216,10 +217,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Quick Overview', style: TextStyle(color: AppColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
+                                  const Text('Quick Overview', style: TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
                                   TextButton(
                                     onPressed: _openMyShipments,
-                                    child: const Text('View All', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
+                                    child: const Text('View All', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
                                   ),
                                 ],
                               ),
@@ -232,15 +233,15 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                                 crossAxisSpacing: 12,
                                 childAspectRatio: 1.7,
                                 children: [
-                                  _StatCard(icon: Icons.route_outlined, label: 'Active Trips', value: '$active', color: AppColors.info),
-                                  _StatCard(icon: Icons.schedule_outlined, label: 'Upcoming', value: '$upcoming', color: AppColors.gold),
-                                  _StatCard(icon: Icons.task_alt_rounded, label: 'Completed', value: '$completed', color: AppColors.success),
-                                  _StatCard(icon: Icons.hourglass_bottom_rounded, label: 'Pending Payments', value: 'AED ${pendingAmount.toStringAsFixed(0)}', color: AppColors.error),
+                                  _StatCard(icon: Icons.route_outlined, label: 'Active Trips', value: '$active', color: LightColors.info),
+                                  _StatCard(icon: Icons.schedule_outlined, label: 'Upcoming', value: '$upcoming', color: LightColors.gold),
+                                  _StatCard(icon: Icons.task_alt_rounded, label: 'Completed', value: '$completed', color: LightColors.success),
+                                  _StatCard(icon: Icons.hourglass_bottom_rounded, label: 'Pending Payments', value: 'AED ${pendingAmount.toStringAsFixed(0)}', color: LightColors.error),
                                 ],
                               ),
                               if (current != null) ...[
                                 const SizedBox(height: 20),
-                                const Text('Current Trip', style: TextStyle(color: AppColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
+                                const Text('Current Trip', style: TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 10),
                                 _CurrentTripCard(shipment: current, onViewTracking: () => _openTracking(current!)),
                               ],
@@ -248,10 +249,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Recent Notifications', style: TextStyle(color: AppColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
+                                  const Text('Recent Notifications', style: TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
                                   TextButton(
                                     onPressed: _openNotifications,
-                                    child: const Text('View All', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
+                                    child: const Text('View All', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
                                   ),
                                 ],
                               ),
@@ -263,7 +264,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                                   if (items.isEmpty) {
                                     return const Padding(
                                       padding: EdgeInsets.symmetric(vertical: 12),
-                                      child: Text('No notifications yet', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                                      child: Text('No notifications yet', style: TextStyle(color: LightColors.muted, fontSize: 12.5)),
                                     );
                                   }
                                   return Column(
@@ -308,7 +309,7 @@ class _NotificationBell extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            const Icon(Icons.notifications_outlined, color: AppColors.cream, size: 24),
+            const Icon(Icons.notifications_outlined, color: LightColors.cream, size: 24),
             if (unreadCount > 0)
               Positioned(
                 right: -2,
@@ -316,7 +317,7 @@ class _NotificationBell extends StatelessWidget {
                 child: Container(
                   width: 10,
                   height: 10,
-                  decoration: const BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(color: LightColors.gold, shape: BoxShape.circle),
                 ),
               ),
           ],
@@ -340,9 +341,9 @@ class _ComplianceBanner extends StatelessWidget {
   const _ComplianceBanner({required this.status, required this.onTap});
 
   Color get _color => switch (status) {
-        'expiring_soon' => AppColors.gold,
-        'pending_review' => AppColors.info,
-        _ => AppColors.error,
+        'expiring_soon' => LightColors.gold,
+        'pending_review' => LightColors.info,
+        _ => LightColors.error,
       };
 
   IconData get _icon => switch (status) {
@@ -382,13 +383,13 @@ class _ComplianceBanner extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_title, style: const TextStyle(color: AppColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text(_title, style: const TextStyle(color: LightColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
-                    Text(_body, style: const TextStyle(color: AppColors.muted, fontSize: 11.5)),
+                    Text(_body, style: const TextStyle(color: LightColors.muted, fontSize: 11.5)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              const Icon(Icons.chevron_right_rounded, color: LightColors.muted),
             ],
           ),
         ),
@@ -412,19 +413,19 @@ class _InlineErrorNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.08),
+        color: LightColors.error.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+        border: Border.all(color: LightColors.error.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 16),
+          const Icon(Icons.error_outline_rounded, color: LightColors.error, size: 16),
           const SizedBox(width: 8),
-          Expanded(child: Text(message, style: const TextStyle(color: AppColors.error, fontSize: 11.5))),
+          Expanded(child: Text(message, style: const TextStyle(color: LightColors.error, fontSize: 11.5))),
           TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0)),
-            child: const Text('Retry', style: TextStyle(color: AppColors.error, fontSize: 11.5, fontWeight: FontWeight.w700)),
+            child: const Text('Retry', style: TextStyle(color: LightColors.error, fontSize: 11.5, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -432,6 +433,9 @@ class _InlineErrorNotice extends StatelessWidget {
   }
 }
 
+/// FMS "hero" card — deliberately Navy, per the design spec's explicit
+/// callout that the Wallet balance card stays a dark accent against the
+/// otherwise light Home screen, not a plain white card.
 class _WalletCard extends StatelessWidget {
   final double balance;
   final VoidCallback? onTap;
@@ -440,7 +444,7 @@ class _WalletCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surfaceHigh,
+      color: LightColors.navy,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -448,25 +452,25 @@ class _WalletCard extends StatelessWidget {
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
           child: Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Wallet Balance', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                    Text('Wallet Balance', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
                     const SizedBox(height: 6),
                     Text('AED ${balance.toStringAsFixed(2)}',
-                        style: const TextStyle(color: AppColors.gold, fontSize: 24, fontWeight: FontWeight.w800)),
+                        style: const TextStyle(color: LightColors.gold, fontSize: 24, fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(color: AppColors.gold.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.gold, size: 20),
+                decoration: BoxDecoration(color: LightColors.gold.withOpacity(0.18), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.account_balance_wallet_rounded, color: LightColors.gold, size: 20),
               ),
             ],
           ),
@@ -487,7 +491,7 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border, width: 0.5)),
+      decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.border, width: 0.5)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -497,8 +501,8 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 18),
           ),
           const Spacer(),
-          Text(value, style: const TextStyle(color: AppColors.cream, fontSize: 18, fontWeight: FontWeight.w800)),
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(color: LightColors.cream, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: LightColors.muted, fontSize: 11, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -511,20 +515,20 @@ class _CurrentTripCard extends StatelessWidget {
   const _CurrentTripCard({required this.shipment, required this.onViewTracking});
 
   Color get _color => switch (shipment.status) {
-        0 => AppColors.gold,
-        1 => AppColors.info,
-        2 => AppColors.success,
-        3 => AppColors.success,
-        4 => AppColors.error,
-        5 => AppColors.error,
-        _ => AppColors.muted,
+        0 => LightColors.gold,
+        1 => LightColors.info,
+        2 => LightColors.success,
+        3 => LightColors.success,
+        4 => LightColors.error,
+        5 => LightColors.error,
+        _ => LightColors.muted,
       };
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border, width: 0.5)),
+      decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: LightColors.border, width: 0.5)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -541,9 +545,9 @@ class _CurrentTripCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('SH-${shipment.id}', style: const TextStyle(color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w700)),
+                    Text('SH-${shipment.id}', style: const TextStyle(color: LightColors.cream, fontSize: 14, fontWeight: FontWeight.w700)),
                     Text('${shipment.origin} → ${shipment.destination}',
-                        overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                        overflow: TextOverflow.ellipsis, style: const TextStyle(color: LightColors.muted, fontSize: 12)),
                   ],
                 ),
               ),
@@ -560,9 +564,9 @@ class _CurrentTripCard extends StatelessWidget {
             height: 44,
             child: ElevatedButton.icon(
               onPressed: onViewTracking,
-              icon: const Icon(Icons.map_outlined, size: 18, color: AppColors.bg),
-              label: const Text('View Tracking', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w700)),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+              icon: const Icon(Icons.map_outlined, size: 18, color: LightColors.deepNavy),
+              label: const Text('View Tracking', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
             ),
           ),
         ],
@@ -584,24 +588,24 @@ class _NotificationPreviewTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: notification.isUnread ? AppColors.gold.withOpacity(0.06) : AppColors.surface,
+          color: notification.isUnread ? LightColors.gold.withOpacity(0.06) : LightColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: notification.isUnread ? AppColors.gold.withOpacity(0.3) : AppColors.border, width: 0.5),
+          border: Border.all(color: notification.isUnread ? LightColors.gold.withOpacity(0.3) : LightColors.border, width: 0.5),
         ),
         child: Row(
           children: [
             Container(
               width: 32,
               height: 32,
-              decoration: BoxDecoration(color: AppColors.gold.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
-              child: const Icon(Icons.notifications_outlined, color: AppColors.gold, size: 16),
+              decoration: BoxDecoration(color: LightColors.gold.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.notifications_outlined, color: LightColors.gold, size: 16),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(notification.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: AppColors.cream, fontSize: 12.5, fontWeight: notification.isUnread ? FontWeight.w700 : FontWeight.w500)),
+                  style: TextStyle(color: LightColors.cream, fontSize: 12.5, fontWeight: notification.isUnread ? FontWeight.w700 : FontWeight.w500)),
             ),
           ],
         ),

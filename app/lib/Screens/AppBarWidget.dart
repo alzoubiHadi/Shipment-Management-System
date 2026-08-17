@@ -43,14 +43,14 @@ class AppBarWidget extends StatelessWidget {
     final roleLabel = user.role;
 
     final roleColor = switch (user.role.toLowerCase()) {
-      "company" => AppColors.gold,
-      "driver" => AppColors.info,
-      "admin" => AppColors.error,
-      _ => AppColors.muted,
+      "company" => LightColors.gold,
+      "driver" => LightColors.info,
+      "admin" => LightColors.error,
+      _ => LightColors.muted,
     };
 
     return SliverAppBar(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       floating: true,
       pinned: false,
       elevation: 0,
@@ -62,14 +62,14 @@ class AppBarWidget extends StatelessWidget {
           PopupMenuButton<String>(
             tooltip: 'Account menu',
             offset: const Offset(0, 46),
-            color: AppColors.surface,
+            color: LightColors.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: EdgeInsets.zero,
             onSelected: (value) {
               if (value == 'settings') {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSettingsPage()));
               } else if (value == 'logout') {
-                confirmAndLogout(context);
+                confirmAndLogout(context, light: true);
               }
             },
             itemBuilder: (ctx) => [
@@ -78,9 +78,9 @@ class AppBarWidget extends StatelessWidget {
                   value: 'settings',
                   child: Row(
                     children: [
-                      Icon(Icons.settings_outlined, color: AppColors.cream, size: 18),
+                      Icon(Icons.settings_outlined, color: LightColors.cream, size: 18),
                       SizedBox(width: 10),
-                      Text('Settings', style: TextStyle(color: AppColors.cream)),
+                      Text('Settings', style: TextStyle(color: LightColors.cream)),
                     ],
                   ),
                 ),
@@ -88,9 +88,9 @@ class AppBarWidget extends StatelessWidget {
                 value: 'logout',
                 child: Row(
                   children: const [
-                    Icon(Icons.logout, color: AppColors.error, size: 18),
+                    Icon(Icons.logout, color: LightColors.error, size: 18),
                     SizedBox(width: 10),
-                    Text('Log out', style: TextStyle(color: AppColors.error)),
+                    Text('Log out', style: TextStyle(color: LightColors.error)),
                   ],
                 ),
               ),
@@ -101,10 +101,10 @@ class AppBarWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.gold.withOpacity(0.4),
+                  color: LightColors.gold.withOpacity(0.4),
                   width: 1.5,
                 ),
-                color: AppColors.surfaceHigh,
+                color: LightColors.surfaceHigh,
               ),
               child: Center(
                 child: Text(
@@ -113,7 +113,7 @@ class AppBarWidget extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.gold,
+                    color: LightColors.gold,
                   ),
                 ),
               ),
@@ -134,7 +134,7 @@ class AppBarWidget extends StatelessWidget {
                     subtitle ?? 'Good ${_greeting()},',
                     style: const TextStyle(
                       fontSize: 11,
-                      color: AppColors.muted,
+                      color: LightColors.muted,
                     ),
                   ),
                   Text(
@@ -143,7 +143,7 @@ class AppBarWidget extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.cream,
+                      color: LightColors.cream,
                       letterSpacing: -0.3,
                     ),
                   ),
@@ -233,7 +233,7 @@ class _NotificationBellState extends State<_NotificationBell> {
       children: [
         IconButton(
           onPressed: _open,
-          icon: const Icon(Icons.notifications_outlined, color: AppColors.cream),
+          icon: const Icon(Icons.notifications_outlined, color: LightColors.cream),
           splashRadius: 20,
         ),
         if (_unreadCount > 0)
@@ -244,7 +244,7 @@ class _NotificationBellState extends State<_NotificationBell> {
               width: 8,
               height: 8,
               decoration: const BoxDecoration(
-                color: AppColors.gold,
+                color: LightColors.gold,
                 shape: BoxShape.circle,
               ),
             ),

@@ -268,7 +268,7 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
         suffix: IconButton(
           onPressed: () => setState(() => _obscurePass = !_obscurePass),
           icon: Icon(_obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-              color: const Color(0xFFA0A4AC), size: 18),
+              color: LightColors.textMuted, size: 18),
         ),
       ),
       if (_strength != PasswordStrength.none) ...[
@@ -285,7 +285,7 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
         suffix: IconButton(
           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
           icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-              color: const Color(0xFFA0A4AC), size: 18),
+              color: LightColors.textMuted, size: 18),
         ),
       ),
       if (!_passwordsMatch) ...[
@@ -454,7 +454,7 @@ class _NoticeBanner extends StatelessWidget {
         children: [
           const Icon(Icons.info_outline, color: LightColors.pending, size: 16),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 11.5, color: Color(0xFF8A6D1F), height: 1.4))),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 11.5, color: LightColors.noteText, height: 1.4))),
         ],
       ),
     );

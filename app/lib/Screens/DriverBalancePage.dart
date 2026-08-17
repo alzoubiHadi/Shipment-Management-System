@@ -42,25 +42,25 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
     final amount = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Request payout', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Request payout', style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             labelText: 'Amount (AED)',
-            labelStyle: TextStyle(color: AppColors.muted),
+            labelStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, double.tryParse(controller.text.trim())),
-            child: const Text('Request', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Request', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -76,7 +76,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -98,20 +98,20 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Confirm receipt', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Confirm receipt', style: TextStyle(color: LightColors.cream)),
         content: const Text(
           'Only confirm once you have actually verified the money in your account. This closes the request and updates your balance.',
-          style: TextStyle(color: AppColors.muted),
+          style: TextStyle(color: LightColors.muted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Not yet', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Not yet', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('I received it', style: TextStyle(color: AppColors.gold)),
+            child: const Text('I received it', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -127,7 +127,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -139,25 +139,25 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Report not received', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Report not received', style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             hintText: 'Explain what happened',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Back', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Submit', style: TextStyle(color: AppColors.error)),
+            child: const Text('Submit', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -173,7 +173,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.info : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.info : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -182,30 +182,30 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
   Color _statusColor(String status) {
     switch (status) {
       case 'confirmed':
-        return AppColors.success;
+        return LightColors.success;
       case 'paid':
-        return AppColors.gold;
+        return LightColors.gold;
       case 'disputed':
-        return AppColors.error;
+        return LightColors.error;
       case 'rejected':
-        return AppColors.muted;
+        return LightColors.muted;
       default:
-        return AppColors.info;
+        return LightColors.info;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('My Balance', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('My Balance', style: TextStyle(color: LightColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         actions: [
           IconButton(
-            icon: const Icon(Icons.receipt_long_outlined, color: AppColors.cream),
+            icon: const Icon(Icons.receipt_long_outlined, color: LightColors.cream),
             tooltip: 'Statement',
             onPressed: () => Navigator.push(
               context,
@@ -217,7 +217,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
       body: Stack(
         children: [
           RefreshIndicator(
-            color: AppColors.gold,
+            color: LightColors.gold,
             onRefresh: () async => _refresh(),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
@@ -250,7 +250,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                                 label: 'Total Earnings',
                                 sublabel: 'This month',
                                 value: '${totalEarnings.toStringAsFixed(0)} AED',
-                                color: AppColors.success,
+                                color: LightColors.success,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -259,7 +259,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                                 label: 'Pending Amount',
                                 sublabel: 'Awaiting confirmation',
                                 value: '${pendingAmount.toStringAsFixed(0)} AED',
-                                color: AppColors.gold,
+                                color: LightColors.gold,
                               ),
                             ),
                           ],
@@ -271,7 +271,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                 const SizedBox(height: 20),
                 const Text('Payout history',
                     style: TextStyle(
-                        color: AppColors.cream,
+                        color: LightColors.cream,
                         fontSize: 15,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 10),
@@ -282,12 +282,12 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 40),
                         child: Center(
-                            child: CircularProgressIndicator(color: AppColors.gold)),
+                            child: CircularProgressIndicator(color: LightColors.gold)),
                       );
                     }
                     if (snapshot.hasError) {
                       return const Text('Could not load payout history',
-                          style: TextStyle(color: AppColors.error));
+                          style: TextStyle(color: LightColors.error));
                     }
 
                     final payouts = snapshot.data ?? [];
@@ -295,7 +295,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
                         child: Text('No payout requests yet',
-                            style: TextStyle(color: AppColors.muted)),
+                            style: TextStyle(color: LightColors.muted)),
                       );
                     }
 
@@ -322,7 +322,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
             Container(
               color: Colors.black45,
               child: const Center(
-                  child: CircularProgressIndicator(color: AppColors.gold)),
+                  child: CircularProgressIndicator(color: LightColors.gold)),
             ),
         ],
       ),
@@ -334,20 +334,20 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('Current balance',
-              style: TextStyle(color: AppColors.muted, fontSize: 12)),
+              style: TextStyle(color: LightColors.muted, fontSize: 12)),
           const SizedBox(height: 6),
           Text(
             '${balance.toStringAsFixed(2)} AED',
             style: const TextStyle(
-              color: AppColors.gold,
+              color: LightColors.gold,
               fontSize: 30,
               fontWeight: FontWeight.w700,
             ),
@@ -361,9 +361,9 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                   ? null
                   : () => _requestPayout(balance),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.gold,
+                backgroundColor: LightColors.gold,
                 disabledBackgroundColor:
-                    AppColors.gold.withOpacity(0.3),
+                    LightColors.gold.withOpacity(0.3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -373,7 +373,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                     ? 'Payout already in progress'
                     : 'Request payout',
                 style: const TextStyle(
-                    color: AppColors.bg,
+                    color: LightColors.deepNavy,
                     fontWeight: FontWeight.w600),
               ),
             ),
@@ -382,7 +382,7 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
             const SizedBox(height: 8),
             const Text(
               'You cannot accept new jobs until this payout is confirmed or rejected.',
-              style: TextStyle(color: AppColors.muted, fontSize: 11),
+              style: TextStyle(color: LightColors.muted, fontSize: 11),
             ),
           ],
         ],
@@ -404,18 +404,18 @@ class _MiniStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 11.5, fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(color: LightColors.muted, fontSize: 11.5, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(value, style: TextStyle(color: color, fontSize: 17, fontWeight: FontWeight.w800)),
           const SizedBox(height: 2),
-          Text(sublabel, style: const TextStyle(color: AppColors.mutedLight, fontSize: 10)),
+          Text(sublabel, style: const TextStyle(color: LightColors.mutedLight, fontSize: 10)),
         ],
       ),
     );
@@ -442,9 +442,9 @@ class _PayoutCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,7 +454,7 @@ class _PayoutCard extends StatelessWidget {
               Expanded(
                 child: Text('${payout.amount.toStringAsFixed(2)} AED',
                     style: const TextStyle(
-                        color: AppColors.cream, fontWeight: FontWeight.w600)),
+                        color: LightColors.cream, fontWeight: FontWeight.w600)),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -472,7 +472,7 @@ class _PayoutCard extends StatelessWidget {
           if (payout.rejectionReason != null) ...[
             const SizedBox(height: 6),
             Text(payout.rejectionReason!,
-                style: const TextStyle(color: AppColors.error, fontSize: 11)),
+                style: const TextStyle(color: LightColors.error, fontSize: 11)),
           ],
           if (payout.isPending) ...[
             const SizedBox(height: 8),
@@ -481,7 +481,7 @@ class _PayoutCard extends StatelessWidget {
               child: TextButton(
                 onPressed: onCancel,
                 child: const Text('Cancel',
-                    style: TextStyle(color: AppColors.error, fontSize: 12)),
+                    style: TextStyle(color: LightColors.error, fontSize: 12)),
               ),
             ),
           ],
@@ -493,12 +493,12 @@ class _PayoutCard extends StatelessWidget {
                 TextButton(
                   onPressed: onDispute,
                   child: const Text('Not received',
-                      style: TextStyle(color: AppColors.error, fontSize: 12)),
+                      style: TextStyle(color: LightColors.error, fontSize: 12)),
                 ),
                 TextButton(
                   onPressed: onConfirm,
                   child: const Text('Confirm receipt',
-                      style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                      style: TextStyle(color: LightColors.gold, fontSize: 12)),
                 ),
               ],
             ),

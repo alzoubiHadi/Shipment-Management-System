@@ -71,17 +71,17 @@ class _DriverDestinationsPageState extends State<DriverDestinationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('My Destinations', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('My Destinations', style: TextStyle(color: LightColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? const Center(child: CircularProgressIndicator(color: LightColors.gold))
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.error)))
+              ? Center(child: Text(_error!, style: const TextStyle(color: LightColors.error)))
               : Column(
                   children: [
                     Expanded(
@@ -92,7 +92,7 @@ class _DriverDestinationsPageState extends State<DriverDestinationsPage> {
                             padding: EdgeInsets.only(bottom: 12),
                             child: Text(
                               'Pick every destination you can work on — this decides which shipment offers get matched to you.',
-                              style: TextStyle(color: AppColors.muted, fontSize: 12),
+                              style: TextStyle(color: LightColors.muted, fontSize: 12),
                             ),
                           ),
                           ..._options.entries.map((entry) {
@@ -100,10 +100,10 @@ class _DriverDestinationsPageState extends State<DriverDestinationsPage> {
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               decoration: BoxDecoration(
-                                color: AppColors.surface,
+                                color: LightColors.surface,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: selected ? AppColors.gold : AppColors.border,
+                                  color: selected ? LightColors.gold : LightColors.border,
                                   width: selected ? 1 : 0.5,
                                 ),
                               ),
@@ -116,8 +116,8 @@ class _DriverDestinationsPageState extends State<DriverDestinationsPage> {
                                     _selected.remove(entry.key);
                                   }
                                 }),
-                                title: Text(entry.value, style: const TextStyle(color: AppColors.cream, fontSize: 14)),
-                                activeColor: AppColors.gold,
+                                title: Text(entry.value, style: const TextStyle(color: LightColors.cream, fontSize: 14)),
+                                activeColor: LightColors.gold,
                                 controlAffinity: ListTileControlAffinity.leading,
                               ),
                             );
@@ -131,13 +131,13 @@ class _DriverDestinationsPageState extends State<DriverDestinationsPage> {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: _saving ? null : _save,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold),
+                          style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold),
                           child: _saving
                               ? const SizedBox(
                                   width: 20, height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy),
                                 )
-                              : const Text('Save', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                              : const Text('Save', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ),

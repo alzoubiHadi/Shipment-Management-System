@@ -25,7 +25,7 @@ class SectionTitle extends StatelessWidget {
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w500,
-              color: AppColors.cream,
+              color: LightColors.cream,
               letterSpacing: -0.4,
             ),
           ),
@@ -37,7 +37,7 @@ class SectionTitle extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
                 child: Text(
                   actionLabel!,
-                  style: const TextStyle(fontSize: 13, color: AppColors.gold),
+                  style: const TextStyle(fontSize: 13, color: LightColors.gold),
                 ),
               ),
             ),
@@ -67,9 +67,9 @@ class StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +91,7 @@ class StatCard extends StatelessWidget {
                   trend!,
                   style: TextStyle(
                     fontSize: 11,
-                    color: trend!.startsWith('+') ? AppColors.success : AppColors.error,
+                    color: trend!.startsWith('+') ? LightColors.success : LightColors.error,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -103,12 +103,12 @@ class StatCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w300,
-              color: AppColors.cream,
+              color: LightColors.cream,
               letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+          Text(label, style: const TextStyle(fontSize: 11, color: LightColors.muted)),
         ],
       ),
     );
@@ -137,9 +137,9 @@ class EventCard extends StatelessWidget {
       margin: const EdgeInsets.only(right: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,27 +165,27 @@ class EventCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: AppColors.cream,
+              color: LightColors.cream,
               letterSpacing: -0.3,
             ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.calendar_today_outlined, size: 11, color: AppColors.muted),
+              const Icon(Icons.calendar_today_outlined, size: 11, color: LightColors.muted),
               const SizedBox(width: 4),
-              Text(date, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+              Text(date, style: const TextStyle(fontSize: 11, color: LightColors.muted)),
             ],
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined, size: 11, color: AppColors.muted),
+              const Icon(Icons.location_on_outlined, size: 11, color: LightColors.muted),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   location,
-                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                  style: const TextStyle(fontSize: 11, color: LightColors.muted),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

@@ -43,9 +43,9 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
   }
 
   Color get _approvalColor => switch (driver.approvalStatus) {
-        'approved' => AppColors.success,
-        'rejected' => AppColors.error,
-        _ => AppColors.info,
+        'approved' => LightColors.success,
+        'rejected' => LightColors.error,
+        _ => LightColors.info,
       };
 
   String get _approvalLabel => switch (driver.approvalStatus) {
@@ -74,24 +74,24 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Reject Driver', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Reject Driver', style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: reasonCtrl,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             hintText: 'Reason (optional)',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -106,9 +106,9 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
   }
 
   Color get _complianceColor => switch (driver.complianceStatus) {
-        'active' => AppColors.success,
-        'warning' => AppColors.gold,
-        _ => AppColors.error,
+        'active' => LightColors.success,
+        'warning' => LightColors.gold,
+        _ => LightColors.error,
       };
 
   /// Super Admin (UC-25 special requirement): freeze a driver directly,
@@ -118,26 +118,26 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Suspend Driver', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Suspend Driver', style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: reasonCtrl,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             hintText: 'Reason (required)',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: reasonCtrl.text.trim().isEmpty
                 ? null
                 : () => Navigator.pop(ctx, true),
-            child: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+            child: const Text('Suspend', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -180,8 +180,8 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          title: const Text('Rate driver', style: TextStyle(color: AppColors.cream)),
+          backgroundColor: LightColors.surface,
+          title: const Text('Rate driver', style: TextStyle(color: LightColors.cream)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -193,7 +193,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                     onPressed: () => setDialogState(() => score = starIndex),
                     icon: Icon(
                       starIndex <= score ? Icons.star : Icons.star_border,
-                      color: AppColors.gold,
+                      color: LightColors.gold,
                     ),
                   );
                 }),
@@ -201,10 +201,10 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               TextField(
                 controller: commentCtrl,
                 maxLines: 2,
-                style: const TextStyle(color: AppColors.cream),
+                style: const TextStyle(color: LightColors.cream),
                 decoration: const InputDecoration(
                   hintText: 'Comment (optional)',
-                  hintStyle: TextStyle(color: AppColors.muted),
+                  hintStyle: TextStyle(color: LightColors.muted),
                 ),
               ),
             ],
@@ -212,11 +212,11 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+              child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
             ),
             TextButton(
               onPressed: score == 0 ? null : () => Navigator.pop(ctx, score),
-              child: const Text('Submit', style: TextStyle(color: AppColors.gold)),
+              child: const Text('Submit', style: TextStyle(color: LightColors.gold)),
             ),
           ],
         ),
@@ -237,7 +237,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message']?.toString() ?? ''),
-          backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+          backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
         ),
       );
     }
@@ -246,16 +246,16 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         title: const Text(
           'Driver Details',
           style: TextStyle(
-            color: AppColors.cream,
+            color: LightColors.cream,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -265,9 +265,9 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.surfaceHigh,
+            color: LightColors.surfaceHigh,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: LightColors.border),
           ),
           child: Column(
             children: [
@@ -275,14 +275,14 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: LightColors.surface,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.gold, width: 2),
+                  border: Border.all(color: LightColors.gold, width: 2),
                 ),
                 child: const Icon(
                   Icons.person,
                   size: 48,
-                  color: AppColors.gold,
+                  color: LightColors.gold,
                 ),
               ),
               const SizedBox(height: 20),
@@ -293,7 +293,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.cream,
+                  color: LightColors.cream,
                 ),
               ),
               const SizedBox(height: 4),
@@ -301,7 +301,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                 driver.email ?? '',
                 style: const TextStyle(
                   fontSize: 14,
-                  color: AppColors.muted,
+                  color: LightColors.muted,
                 ),
               ),
 
@@ -326,7 +326,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                 const SizedBox(height: 10),
                 Text(
                   'Reason: ${driver.rejectionReason}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.error),
+                  style: const TextStyle(fontSize: 12, color: LightColors.error),
                 ),
               ],
 
@@ -334,10 +334,10 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.star, color: AppColors.gold, size: 16),
+                  const Icon(Icons.star, color: LightColors.gold, size: 16),
                   const SizedBox(width: 4),
                   Text(driver.rating.toStringAsFixed(2),
-                      style: const TextStyle(color: AppColors.cream, fontSize: 13)),
+                      style: const TextStyle(color: LightColors.cream, fontSize: 13)),
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -359,21 +359,21 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.08),
+                    color: LightColors.error.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: driver.documentIssues
                         .map((i) => Text('• $i',
-                            style: const TextStyle(fontSize: 12, color: AppColors.error)))
+                            style: const TextStyle(fontSize: 12, color: LightColors.error)))
                         .toList(),
                   ),
                 ),
               ],
 
               const SizedBox(height: 20),
-              const Divider(color: AppColors.border, thickness: 1),
+              const Divider(color: LightColors.border, thickness: 1),
               const SizedBox(height: 16),
 
               // Uploaded documents — the admin needs to actually open and
@@ -385,7 +385,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                   'Documents',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: AppColors.cream,
+                    color: LightColors.cream,
                     fontSize: 15,
                   ),
                 ),
@@ -397,13 +397,13 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
-                      child: CircularProgressIndicator(color: AppColors.gold),
+                      child: CircularProgressIndicator(color: LightColors.gold),
                     );
                   }
                   if (snapshot.hasError) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('Could not load documents', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                      child: Text('Could not load documents', style: TextStyle(color: LightColors.error, fontSize: 12)),
                     );
                   }
 
@@ -416,7 +416,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                   if (current.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('No documents uploaded yet', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                      child: Text('No documents uploaded yet', style: TextStyle(color: LightColors.muted, fontSize: 12)),
                     );
                   }
 
@@ -427,26 +427,26 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
+                          color: LightColors.surface,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border, width: 0.5),
+                          border: Border.all(color: LightColors.border, width: 0.5),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.description_outlined,
-                                color: expired ? AppColors.error : AppColors.gold, size: 18),
+                                color: expired ? LightColors.error : LightColors.gold, size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(driverDocumentTypeLabel(doc.type),
-                                      style: const TextStyle(color: AppColors.cream, fontSize: 13, fontWeight: FontWeight.w600)),
+                                      style: const TextStyle(color: LightColors.cream, fontSize: 13, fontWeight: FontWeight.w600)),
                                   if (doc.expiryDate != null)
                                     Text(
                                       'exp. ${doc.expiryDate!.year}-${doc.expiryDate!.month.toString().padLeft(2, '0')}-${doc.expiryDate!.day.toString().padLeft(2, '0')}',
                                       style: TextStyle(
-                                        color: expired ? AppColors.error : AppColors.muted,
+                                        color: expired ? LightColors.error : LightColors.muted,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -455,7 +455,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                             ),
                             TextButton(
                               onPressed: () => _openFile(doc.filePath),
-                              child: const Text('View', style: TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                              child: const Text('View', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
@@ -466,7 +466,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               ),
 
               const SizedBox(height: 12),
-              const Divider(color: AppColors.border, thickness: 1),
+              const Divider(color: LightColors.border, thickness: 1),
               const SizedBox(height: 16),
 
               // Driver Information — same order and fields as the
@@ -479,7 +479,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text('Driver Information',
-                    style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.cream, fontSize: 15)),
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: LightColors.cream, fontSize: 15)),
               ),
               const SizedBox(height: 8),
               _buildItem("ID", driver.id?.toString()),
@@ -510,14 +510,14 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                 _buildItem("Password", "********"),
 
               const SizedBox(height: 12),
-              const Divider(color: AppColors.border, thickness: 1),
+              const Divider(color: LightColors.border, thickness: 1),
               const SizedBox(height: 16),
 
               // Truck Information — Section 2 of registration.
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text('Truck Information',
-                    style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.cream, fontSize: 15)),
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: LightColors.cream, fontSize: 15)),
               ),
               const SizedBox(height: 8),
               _buildItem("Truck Number", driver.truck_number),
@@ -531,7 +531,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                       child: ElevatedButton.icon(
                         onPressed: _busy ? null : _approve,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.success,
+                          backgroundColor: LightColors.success,
                         ),
                         icon: const Icon(Icons.check_circle_outline, size: 18),
                         label: const Text('Approve'),
@@ -542,10 +542,10 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                       child: OutlinedButton.icon(
                         onPressed: _busy ? null : _reject,
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.error),
+                          side: const BorderSide(color: LightColors.error),
                         ),
-                        icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.error),
-                        label: const Text('Reject', style: TextStyle(color: AppColors.error)),
+                        icon: const Icon(Icons.cancel_outlined, size: 18, color: LightColors.error),
+                        label: const Text('Reject', style: TextStyle(color: LightColors.error)),
                       ),
                     ),
                   ],
@@ -560,10 +560,10 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                       child: OutlinedButton.icon(
                         onPressed: _busy ? null : _rate,
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.gold),
+                          side: const BorderSide(color: LightColors.gold),
                         ),
-                        icon: const Icon(Icons.star_outline, size: 18, color: AppColors.gold),
-                        label: const Text('Rate', style: TextStyle(color: AppColors.gold)),
+                        icon: const Icon(Icons.star_outline, size: 18, color: LightColors.gold),
+                        label: const Text('Rate', style: TextStyle(color: LightColors.gold)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -572,18 +572,18 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                           ? OutlinedButton.icon(
                               onPressed: _busy ? null : _suspend,
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppColors.error),
+                                side: const BorderSide(color: LightColors.error),
                               ),
-                              icon: const Icon(Icons.block, size: 18, color: AppColors.error),
-                              label: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+                              icon: const Icon(Icons.block, size: 18, color: LightColors.error),
+                              label: const Text('Suspend', style: TextStyle(color: LightColors.error)),
                             )
                           : OutlinedButton.icon(
                               onPressed: _busy ? null : _reactivate,
                               style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppColors.success),
+                                side: const BorderSide(color: LightColors.success),
                               ),
-                              icon: const Icon(Icons.refresh, size: 18, color: AppColors.success),
-                              label: const Text('Reactivate', style: TextStyle(color: AppColors.success)),
+                              icon: const Icon(Icons.refresh, size: 18, color: LightColors.success),
+                              label: const Text('Reactivate', style: TextStyle(color: LightColors.success)),
                             ),
                     ),
                   ],
@@ -608,7 +608,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               title,
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
-                color: AppColors.muted,
+                color: LightColors.muted,
                 fontSize: 14,
               ),
             ),
@@ -617,7 +617,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
             child: Text(
               (value == null || value.isEmpty) ? "-" : value,
               style: const TextStyle(
-                color: AppColors.cream,
+                color: LightColors.cream,
                 fontSize: 14,
               ),
             ),

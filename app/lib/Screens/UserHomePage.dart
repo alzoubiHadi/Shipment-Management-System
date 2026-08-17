@@ -53,15 +53,15 @@ class _UserHomePageState extends State<UserHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('My Shipments', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
+        title: const Text('My Shipments', style: TextStyle(color: LightColors.cream)),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -165,12 +165,12 @@ class _TabChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? AppColors.gold : AppColors.surface,
+          color: active ? LightColors.gold : LightColors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: active ? AppColors.gold : AppColors.border),
+          border: Border.all(color: active ? LightColors.gold : LightColors.border),
         ),
         child: Text(label,
-            style: TextStyle(fontSize: 12.5, color: active ? AppColors.bg : AppColors.muted, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
+            style: TextStyle(fontSize: 12.5, color: active ? LightColors.deepNavy : LightColors.muted, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
       ),
     );
   }
@@ -186,7 +186,7 @@ class _LoadingState extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 80),
       child: Center(
-        child: CircularProgressIndicator(color: AppColors.gold),
+        child: CircularProgressIndicator(color: LightColors.gold),
       ),
     );
   }
@@ -207,14 +207,14 @@ class _ErrorState extends StatelessWidget {
         children: [
           const Icon(
             Icons.cloud_off_rounded,
-            color: AppColors.error,
+            color: LightColors.error,
             size: 48,
           ),
           const SizedBox(height: 16),
           const Text(
             'Failed to load shipments',
             style: TextStyle(
-              color: AppColors.cream,
+              color: LightColors.cream,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -223,15 +223,15 @@ class _ErrorState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            style: const TextStyle(color: LightColors.muted, fontSize: 12),
           ),
           const SizedBox(height: 20),
           TextButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.gold),
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.gold),
             label: const Text(
               'Retry',
-              style: TextStyle(color: AppColors.gold),
+              style: TextStyle(color: LightColors.gold),
             ),
           ),
         ],
@@ -252,14 +252,14 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(
             Icons.inventory_2_outlined,
-            color: AppColors.muted,
+            color: LightColors.muted,
             size: 48,
           ),
           SizedBox(height: 16),
           Text(
             'No shipments here',
             style: TextStyle(
-              color: AppColors.cream,
+              color: LightColors.cream,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -268,7 +268,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             'Shipments matching this filter will appear here.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted, fontSize: 12),
+            style: TextStyle(color: LightColors.muted, fontSize: 12),
           ),
         ],
       ),
@@ -284,13 +284,13 @@ class ShipmentItem extends StatelessWidget {
   const ShipmentItem({super.key, required this.shipment});
 
   Color get _color => switch (shipment.status) {
-        0 => AppColors.gold,
-        1 => AppColors.info,
-        2 => AppColors.success,
-        3 => AppColors.success,
-        4 => AppColors.error,
-        5 => AppColors.error,
-        _ => AppColors.muted,
+        0 => LightColors.gold,
+        1 => LightColors.info,
+        2 => LightColors.success,
+        3 => LightColors.success,
+        4 => LightColors.error,
+        5 => LightColors.error,
+        _ => LightColors.muted,
       };
 
   @override
@@ -300,9 +300,9 @@ class ShipmentItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Row(
         children: [
@@ -328,14 +328,14 @@ class ShipmentItem extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.cream,
+                    color: LightColors.cream,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${shipment.origin} · ${shipment.destination}',
                   style:
-                  const TextStyle(fontSize: 11, color: AppColors.muted),
+                  const TextStyle(fontSize: 11, color: LightColors.muted),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -367,11 +367,11 @@ class ShipmentItem extends StatelessWidget {
               Text(
                 shipment.weight,
                 style:
-                const TextStyle(fontSize: 10, color: AppColors.muted),
+                const TextStyle(fontSize: 10, color: LightColors.muted),
               ),
               IconButton(
                 icon: const Icon(Icons.visibility_outlined),
-                color: AppColors.gold,
+                color: LightColors.gold,
                 onPressed: () {
                   Navigator.push(
                     context,

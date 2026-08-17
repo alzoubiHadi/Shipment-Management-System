@@ -146,7 +146,7 @@ class _RoleCard extends StatelessWidget {
                   color: active ? LightColors.gold.withOpacity(0.15) : LightColors.bg,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: active ? LightColors.goldMuted : const Color(0xFFA0A4AC), size: 20),
+                child: Icon(icon, color: active ? LightColors.goldMuted : LightColors.textMuted, size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -156,7 +156,7 @@ class _RoleCard extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: active ? LightColors.textPrimary : const Color(0xFFA0A4AC),
+                        color: active ? LightColors.textPrimary : LightColors.textMuted,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),

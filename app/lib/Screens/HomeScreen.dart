@@ -345,12 +345,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Driver redesign Phase 1 (2026-08-17 mockup): dedicated 4-tab bottom
     // nav (Home/Shipments/Wallet/Profile), replacing the old 3-tab
-    // CelebrateBottomNav (Home/Offers/Profile). Stays on the dark AppColors
-    // theme — the mockup itself is dark, and the user asked to improve the
-    // existing workflow, not re-theme it like admin/company were.
+    // CelebrateBottomNav (Home/Offers/Profile).
+    // FMS Design System unification (2026-08-24): converted from the dark
+    // AppColors theme to LightColors — Driver is no longer the one module
+    // kept dark; only the Splash screen and specific hero cards stay Navy.
     if (_isDriver) {
       return Scaffold(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         body: IndexedStack(
           index: safeIndex,
           children: pages,
@@ -379,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final items = _navItems;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
 
       body: IndexedStack(
         index: safeIndex,

@@ -26,30 +26,30 @@ class _StatementPageState extends State<StatementPage> {
 
   void _refresh() => setState(() => _future = _service.myTransactions());
 
-  Color _colorFor(FinancialTransaction t) => t.isCredit ? AppColors.success : AppColors.error;
+  Color _colorFor(FinancialTransaction t) => t.isCredit ? LightColors.success : LightColors.error;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Statement', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Statement', style: TextStyle(color: LightColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<FinancialTransaction>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return const Center(
-                child: Text('Could not load statement', style: TextStyle(color: AppColors.error)),
+                child: Text('Could not load statement', style: TextStyle(color: LightColors.error)),
               );
             }
 
@@ -60,7 +60,7 @@ class _StatementPageState extends State<StatementPage> {
                   Padding(
                     padding: EdgeInsets.only(top: 80),
                     child: Center(
-                      child: Text('No transactions yet', style: TextStyle(color: AppColors.muted)),
+                      child: Text('No transactions yet', style: TextStyle(color: LightColors.muted)),
                     ),
                   ),
                 ],
@@ -82,9 +82,9 @@ class _StatementPageState extends State<StatementPage> {
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Row(
                     children: [
@@ -109,15 +109,15 @@ class _StatementPageState extends State<StatementPage> {
                             Text(
                               financialTransactionTypeLabel(t.transactionType),
                               style: const TextStyle(
-                                  color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w600),
+                                  color: LightColors.cream, fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                             if ((t.description ?? '').isNotEmpty) ...[
                               const SizedBox(height: 2),
                               Text(t.description!,
-                                  style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                                  style: const TextStyle(color: LightColors.muted, fontSize: 11)),
                             ],
                             const SizedBox(height: 2),
-                            Text(dateLabel, style: const TextStyle(color: AppColors.muted, fontSize: 11)),
+                            Text(dateLabel, style: const TextStyle(color: LightColors.muted, fontSize: 11)),
                           ],
                         ),
                       ),
@@ -131,7 +131,7 @@ class _StatementPageState extends State<StatementPage> {
                           const SizedBox(height: 2),
                           Text(
                             'bal. ${t.balanceAfter.toStringAsFixed(2)}',
-                            style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                            style: const TextStyle(color: LightColors.muted, fontSize: 11),
                           ),
                         ],
                       ),

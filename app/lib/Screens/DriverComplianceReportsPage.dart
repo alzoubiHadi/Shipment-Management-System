@@ -26,9 +26,9 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
   void _refresh() => setState(() => _future = _service.myReports());
 
   Color _statusColor(ComplianceReport r) {
-    if (r.status == 'dismissed') return AppColors.success;
-    if (r.status == 'upheld') return AppColors.error;
-    return AppColors.gold;
+    if (r.status == 'dismissed') return LightColors.success;
+    if (r.status == 'upheld') return LightColors.error;
+    return LightColors.gold;
   }
 
   Future<void> _appeal(ComplianceReport report) async {
@@ -37,25 +37,25 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
     final text = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Appeal this decision', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Appeal this decision', style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: controller,
           maxLines: 4,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             hintText: 'Explain why you believe this decision was wrong',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Back', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Submit appeal', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Submit appeal', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -69,7 +69,7 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -78,25 +78,25 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Compliance Reports', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Compliance Reports', style: TextStyle(color: LightColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<ComplianceReport>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return const Center(
-                  child: Text('Could not load reports', style: TextStyle(color: AppColors.error)));
+                  child: Text('Could not load reports', style: TextStyle(color: LightColors.error)));
             }
 
             final reports = snapshot.data ?? [];
@@ -106,7 +106,7 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
                   padding: EdgeInsets.only(top: 60),
                   child: Center(
                       child: Text('No compliance reports on file — clean record.',
-                          style: TextStyle(color: AppColors.muted))),
+                          style: TextStyle(color: LightColors.muted))),
                 ),
               ]);
             }
@@ -120,9 +120,9 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +133,7 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
                             child: Text(
                               r.category.replaceAll('_', ' '),
                               style: const TextStyle(
-                                  color: AppColors.cream, fontWeight: FontWeight.w600),
+                                  color: LightColors.cream, fontWeight: FontWeight.w600),
                             ),
                           ),
                           Container(
@@ -151,16 +151,16 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(r.description, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                      Text(r.description, style: const TextStyle(color: LightColors.muted, fontSize: 13)),
                       if (r.resultingAction != null && r.resultingAction != 'none') ...[
                         const SizedBox(height: 6),
                         Text('Action: ${r.resultingAction}',
-                            style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                            style: const TextStyle(color: LightColors.error, fontSize: 12)),
                       ],
                       if (r.appealStatus != 'none') ...[
                         const SizedBox(height: 6),
                         Text('Appeal: ${r.appealStatus}',
-                            style: const TextStyle(color: AppColors.info, fontSize: 12)),
+                            style: const TextStyle(color: LightColors.info, fontSize: 12)),
                       ],
                       if (r.canAppeal) ...[
                         const SizedBox(height: 10),
@@ -169,7 +169,7 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
                           child: TextButton(
                             onPressed: () => _appeal(r),
                             child: const Text('Appeal',
-                                style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                                style: TextStyle(color: LightColors.gold, fontSize: 12)),
                           ),
                         ),
                       ],

@@ -53,10 +53,14 @@ Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async 
 }
 
 /// Drop-in AppBar action icon — `actions: [logoutAction(context)]`.
-Widget logoutAction(BuildContext context) {
+///
+/// [light]: same meaning as on [confirmAndLogout] — pass true from screens
+/// already migrated to the light redesign so both the icon and the
+/// confirmation dialog match. Defaults to false for any still-dark screens.
+Widget logoutAction(BuildContext context, {bool light = false}) {
   return IconButton(
-    icon: const Icon(Icons.logout, color: AppColors.cream),
+    icon: Icon(Icons.logout, color: light ? LightColors.textPrimary : AppColors.cream),
     tooltip: 'Log out',
-    onPressed: () => confirmAndLogout(context),
+    onPressed: () => confirmAndLogout(context, light: light),
   );
 }

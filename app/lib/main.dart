@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
+import 'theme/FmsTheme.dart';
 
 /// Runs in a separate background isolate when a push arrives while the app
 /// is backgrounded/terminated — must be a top-level function, and must
@@ -43,9 +44,12 @@ class MyApp extends StatelessWidget {
       navigatorKey: rootNavigatorKey,
       title: 'FMS',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
-      ),
+      // FMS design system unification (2026-08-24) — was a bare
+      // ColorScheme.fromSeed(seedColor: Colors.blueGrey) with no AppBar/
+      // button/input themes at all, so any stock Material widget a screen
+      // forgot to re-skin fell back to generic blue-grey Material instead
+      // of FMS's Navy+Gold identity. See theme/FmsTheme.dart.
+      theme: FmsTheme.lightTheme,
       home: const SplashPage(),
     );
   }

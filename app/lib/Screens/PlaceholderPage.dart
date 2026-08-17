@@ -17,19 +17,19 @@ class PlaceholderPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: AppColors.muted),
+            Icon(icon, size: 48, color: LightColors.muted),
             const SizedBox(height: 16),
             Text(
               label,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w300, color: AppColors.cream),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w300, color: LightColors.cream),
             ),
             const SizedBox(height: 8),
-            const Text('Coming soon', style: TextStyle(fontSize: 13, color: AppColors.muted)),
+            const Text('Coming soon', style: TextStyle(fontSize: 13, color: LightColors.muted)),
           ],
         ),
       ),

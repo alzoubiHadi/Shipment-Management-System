@@ -21,12 +21,12 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   bool _busy = false;
 
   Color get _statusColor =>
-      company.accountStatus == 'suspended' ? AppColors.error : AppColors.success;
+      company.accountStatus == 'suspended' ? LightColors.error : LightColors.success;
 
   Color get _approvalColor => switch (company.approvalStatus) {
-        'approved' => AppColors.success,
-        'rejected' => AppColors.error,
-        _ => AppColors.info,
+        'approved' => LightColors.success,
+        'rejected' => LightColors.error,
+        _ => LightColors.info,
       };
 
   String get _approvalLabel => switch (company.approvalStatus) {
@@ -61,24 +61,24 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Reject Company', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Reject Company', style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: reasonCtrl,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             hintText: 'Reason (optional)',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -128,26 +128,26 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Suspend Company', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Suspend Company', style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: reasonCtrl,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             hintText: 'Reason (required)',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: reasonCtrl.text.trim().isEmpty
                 ? null
                 : () => Navigator.pop(ctx, true),
-            child: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+            child: const Text('Suspend', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -198,16 +198,16 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         title: const Text(
           'Company Details',
           style: TextStyle(
-            color: AppColors.cream,
+            color: LightColors.cream,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -217,10 +217,10 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.surfaceHigh,
+            color: LightColors.surfaceHigh,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppColors.border,
+              color: LightColors.border,
             ),
           ),
           child: Column(
@@ -229,17 +229,17 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: LightColors.surface,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: AppColors.gold,
+                    color: LightColors.gold,
                     width: 2,
                   ),
                 ),
                 child: const Icon(
                   Icons.business,
                   size: 48,
-                  color: AppColors.gold,
+                  color: LightColors.gold,
                 ),
               ),
               const SizedBox(height: 20),
@@ -250,7 +250,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.cream,
+                  color: LightColors.cream,
                 ),
               ),
 
@@ -260,7 +260,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                 company.email,
                 style: const TextStyle(
                   fontSize: 14,
-                  color: AppColors.muted,
+                  color: LightColors.muted,
                 ),
               ),
 
@@ -296,7 +296,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
 
               const SizedBox(height: 24),
               const Divider(
-                color: AppColors.border,
+                color: LightColors.border,
                 thickness: 1,
               ),
               const SizedBox(height: 16),
@@ -323,10 +323,10 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                   child: OutlinedButton.icon(
                     onPressed: _openLicense,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.gold),
+                      side: const BorderSide(color: LightColors.gold),
                     ),
-                    icon: const Icon(Icons.description_outlined, size: 18, color: AppColors.gold),
-                    label: const Text('View Trade License', style: TextStyle(color: AppColors.gold)),
+                    icon: const Icon(Icons.description_outlined, size: 18, color: LightColors.gold),
+                    label: const Text('View Trade License', style: TextStyle(color: LightColors.gold)),
                   ),
                 ),
               ] else if (company.approvalStatus == 'pending') ...[
@@ -342,7 +342,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                       child: ElevatedButton.icon(
                         onPressed: _busy ? null : _approve,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.success,
+                          backgroundColor: LightColors.success,
                         ),
                         icon: const Icon(Icons.check_circle_outline, size: 18),
                         label: const Text('Approve'),
@@ -353,10 +353,10 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                       child: OutlinedButton.icon(
                         onPressed: _busy ? null : _reject,
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.error),
+                          side: const BorderSide(color: LightColors.error),
                         ),
-                        icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.error),
-                        label: const Text('Reject', style: TextStyle(color: AppColors.error)),
+                        icon: const Icon(Icons.cancel_outlined, size: 18, color: LightColors.error),
+                        label: const Text('Reject', style: TextStyle(color: LightColors.error)),
                       ),
                     ),
                   ],
@@ -371,18 +371,18 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                       ? OutlinedButton.icon(
                           onPressed: _busy ? null : _activate,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.success),
+                            side: const BorderSide(color: LightColors.success),
                           ),
-                          icon: const Icon(Icons.refresh, size: 18, color: AppColors.success),
-                          label: const Text('Activate', style: TextStyle(color: AppColors.success)),
+                          icon: const Icon(Icons.refresh, size: 18, color: LightColors.success),
+                          label: const Text('Activate', style: TextStyle(color: LightColors.success)),
                         )
                       : OutlinedButton.icon(
                           onPressed: _busy ? null : _suspend,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.error),
+                            side: const BorderSide(color: LightColors.error),
                           ),
-                          icon: const Icon(Icons.block, size: 18, color: AppColors.error),
-                          label: const Text('Suspend', style: TextStyle(color: AppColors.error)),
+                          icon: const Icon(Icons.block, size: 18, color: LightColors.error),
+                          label: const Text('Suspend', style: TextStyle(color: LightColors.error)),
                         ),
                 ),
               ],
@@ -405,7 +405,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
               title,
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
-                color: AppColors.muted,
+                color: LightColors.muted,
                 fontSize: 14,
               ),
             ),
@@ -414,7 +414,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
             child: Text(
               (value == null || value.isEmpty) ? "-" : value,
               style: const TextStyle(
-                color: AppColors.cream,
+                color: LightColors.cream,
                 fontSize: 14,
               ),
             ),

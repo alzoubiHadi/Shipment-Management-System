@@ -17,20 +17,20 @@ Future<bool> acceptOfferFlow(BuildContext context, ShipmentOffer offer) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text('Accept this job?', style: TextStyle(color: AppColors.cream)),
+      backgroundColor: LightColors.surface,
+      title: const Text('Accept this job?', style: TextStyle(color: LightColors.textPrimary)),
       content: Text(
         '${offer.origin} -> ${offer.destination}',
-        style: const TextStyle(color: AppColors.muted),
+        style: const TextStyle(color: LightColors.textSecondary),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+          child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Accept', style: TextStyle(color: AppColors.gold, fontWeight: FontWeight.w600)),
+          child: const Text('Accept', style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w600)),
         ),
       ],
     ),
@@ -46,7 +46,7 @@ Future<bool> acceptOfferFlow(BuildContext context, ShipmentOffer offer) async {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(result['message']?.toString() ?? (result['success'] == true ? 'Job accepted' : 'Failed')),
-      backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+      backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
     ),
   );
 

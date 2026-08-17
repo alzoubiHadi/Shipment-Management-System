@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Email',
                 hint: 'you@example.com',
                 keyboardType: TextInputType.emailAddress,
-                prefixIcon: const Icon(Icons.mail_outline, color: Color(0xFFA0A4AC), size: 20),
+                prefixIcon: const Icon(Icons.mail_outline, color: LightColors.textMuted, size: 20),
               ),
               const SizedBox(height: 16),
               buildLightTextField(
@@ -105,12 +105,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Password',
                 hint: '••••••••••',
                 obscure: _obscure,
-                prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFFA0A4AC), size: 20),
+                prefixIcon: const Icon(Icons.lock_outline, color: LightColors.textMuted, size: 20),
                 suffix: IconButton(
                   onPressed: () => setState(() => _obscure = !_obscure),
                   icon: Icon(
                     _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: const Color(0xFFA0A4AC),
+                    color: LightColors.textMuted,
                     size: 18,
                   ),
                 ),

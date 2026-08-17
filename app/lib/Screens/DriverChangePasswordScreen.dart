@@ -52,7 +52,7 @@ class _DriverChangePasswordScreenState extends State<DriverChangePasswordScreen>
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated'), backgroundColor: AppColors.success),
+          const SnackBar(content: Text('Password updated'), backgroundColor: LightColors.success),
         );
         Navigator.pop(context);
       }
@@ -68,47 +68,47 @@ class _DriverChangePasswordScreenState extends State<DriverChangePasswordScreen>
   InputDecoration _decoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
+      labelStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
       filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.gold)),
+      fillColor: LightColors.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.gold)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Change Password', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
+        title: const Text('Change Password', style: TextStyle(color: LightColors.cream)),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            TextFormField(controller: _currentCtrl, obscureText: true, style: const TextStyle(color: AppColors.cream), decoration: _decoration('Current Password')),
+            TextFormField(controller: _currentCtrl, obscureText: true, style: const TextStyle(color: LightColors.cream), decoration: _decoration('Current Password')),
             const SizedBox(height: 14),
-            TextFormField(controller: _passCtrl, obscureText: true, style: const TextStyle(color: AppColors.cream), decoration: _decoration('New Password')),
+            TextFormField(controller: _passCtrl, obscureText: true, style: const TextStyle(color: LightColors.cream), decoration: _decoration('New Password')),
             const SizedBox(height: 6),
             const Text('Minimum 8 characters, upper & lower case, a number and a symbol.',
-                style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                style: TextStyle(fontSize: 11, color: LightColors.muted)),
             const SizedBox(height: 14),
-            TextFormField(controller: _confirmCtrl, obscureText: true, style: const TextStyle(color: AppColors.cream), decoration: _decoration('Confirm New Password')),
+            TextFormField(controller: _confirmCtrl, obscureText: true, style: const TextStyle(color: LightColors.cream), decoration: _decoration('Confirm New Password')),
             if (_errorMessage != null) ...[
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: LightColors.error.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.error.withOpacity(0.4)),
+                  border: Border.all(color: LightColors.error.withOpacity(0.4)),
                 ),
-                child: Text(_errorMessage!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
+                child: Text(_errorMessage!, style: const TextStyle(color: LightColors.error, fontSize: 13)),
               ),
             ],
             const SizedBox(height: 24),
@@ -116,10 +116,10 @@ class _DriverChangePasswordScreenState extends State<DriverChangePasswordScreen>
               height: 52,
               child: ElevatedButton(
                 onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                 child: _loading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg))
-                    : const Text('Update Password', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy))
+                    : const Text('Update Password', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
               ),
             ),
           ],

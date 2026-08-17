@@ -19,8 +19,8 @@ class CelebrateBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+        color: LightColors.surface,
+        border: Border(top: BorderSide(color: LightColors.border, width: 0.5)),
       ),
       child: SafeArea(
         top: false,
@@ -39,7 +39,7 @@ class CelebrateBottomNav extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: active
                       ? BoxDecoration(
-                    color: AppColors.gold.withOpacity(0.1),
+                    color: LightColors.gold.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   )
                       : null,
@@ -48,7 +48,7 @@ class CelebrateBottomNav extends StatelessWidget {
                     children: [
                       Icon(
                         active ? item.activeIcon : item.icon,
-                        color: active ? AppColors.gold : AppColors.muted,
+                        color: active ? LightColors.gold : LightColors.muted,
                         size: 22,
                       ),
                       const SizedBox(height: 3),
@@ -57,7 +57,7 @@ class CelebrateBottomNav extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                          color: active ? AppColors.gold : AppColors.muted,
+                          color: active ? LightColors.gold : LightColors.muted,
                           letterSpacing: 0.2,
                         ),
                       ),

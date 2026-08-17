@@ -62,28 +62,54 @@ class AppColors {
   static const info         = Color(0xFF64B5F6);
 }
 
-/// Light theme tokens (2026-08-21 design pass) — used by the auth/
-/// onboarding screens (Welcome screen stays dark/gold; everything after it
-/// — Login, role confirm, registration wizards, account-status screens —
-/// switches to this light palette to match the design mockups). Kept
-/// separate from [AppColors] (dark) since the rest of the app — dashboard,
-/// shipments, admin screens — hasn't been redesigned yet and still relies
-/// on the dark palette; migrating those is a separate, larger follow-up.
+/// FMS unified design system palette (2026-08-24 pass) — "Light
+/// Professional Logistics", Navy + Gold off the app logo. Originally
+/// introduced 2026-08-21 for just the auth/onboarding screens while the
+/// rest of the app (dashboard, shipments, driver module) stayed on the dark
+/// [AppColors] palette; as of this pass it is the single palette for the
+/// WHOLE app — Admin, Company, and Driver all read from here now. The only
+/// intentionally-dark surface left is the Welcome/Splash screen
+/// (main.dart's SplashPage) and specific "hero" cards called out in
+/// individual screens (e.g. the driver Wallet balance card, Current Trip
+/// card) — those use [navy]/[deepNavy] as an accent background on an
+/// otherwise light screen, not a parallel dark theme.
+///
+/// Kept the class name `LightColors` rather than introducing a separate
+/// `FmsColors` — every already-migrated screen (57 of 87 as of this pass)
+/// already imports and uses this name correctly, and Dart has no clean way
+/// to alias a class's static members under a second name. This class IS
+/// the FMS design system's color token set.
+///
+/// [cream]/[muted]/[mutedLight]/[surfaceHigh] are compatibility aliases so
+/// files that used to read from [AppColors] convert with a pure
+/// `AppColors.` -> `LightColors.` identifier rename (no per-usage semantic
+/// remapping needed) — see the 2026-08-24 Driver-module conversion.
 class LightColors {
   static const bg           = Color(0xFFF7F8FA);
   static const surface      = Color(0xFFFFFFFF);
+  static const surfaceHigh  = Color(0xFFF0F1F4);
   static const border       = Color(0xFFE3E5EA);
   static const textPrimary  = Color(0xFF14161A);
   static const textSecondary = Color(0xFF6B7280);
+  static const textMuted    = Color(0xFFA0A4AC);
+  static const noteText     = Color(0xFF8A6D1F);
   static const gold         = Color(0xFFD4AF37);
   static const goldMuted    = Color(0xFFB8962E);
   static const navy         = Color(0xFF16213E);
+  static const deepNavy     = Color(0xFF0B1F3A);
   static const success      = Color(0xFF16A34A);
   static const successBg    = Color(0xFFE9F8EF);
   static const pending      = Color(0xFFF59E0B);
   static const pendingBg    = Color(0xFFFEF3E2);
   static const error        = Color(0xFFDC2626);
   static const errorBg      = Color(0xFFFDECEC);
+  static const info         = Color(0xFF2563EB);
+  static const infoBg       = Color(0xFFEAF1FE);
+
+  // Compatibility aliases — see class doc above.
+  static const cream        = textPrimary;
+  static const muted        = textSecondary;
+  static const mutedLight   = textSecondary;
 }
 
 String statusLabel(dynamic status) {

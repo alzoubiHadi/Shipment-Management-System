@@ -256,7 +256,7 @@ class _StatusRow extends StatelessWidget {
         ? LightColors.success
         : state == _RowState.active
             ? LightColors.pending
-            : const Color(0xFFC4C8CF);
+            : LightColors.textMuted;
     return Row(
       children: [
         Icon(icon, color: color, size: 18),

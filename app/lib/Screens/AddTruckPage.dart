@@ -81,15 +81,15 @@ class _AddTruckPageState extends State<AddTruckPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         title: const Text(
           'Add Truck',
-          style: TextStyle(color: AppColors.cream),
+          style: TextStyle(color: LightColors.cream),
         ),
       ),
       body: SingleChildScrollView(
@@ -104,21 +104,21 @@ class _AddTruckPageState extends State<AddTruckPage> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.1),
+                    color: LightColors.error.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                     border:
-                        Border.all(color: AppColors.error.withOpacity(0.4)),
+                        Border.all(color: LightColors.error.withOpacity(0.4)),
                   ),
                   child: Text(
                     _errorMessage!,
                     style: const TextStyle(
-                        color: AppColors.error, fontSize: 13),
+                        color: LightColors.error, fontSize: 13),
                   ),
                 ),
               ],
               TextFormField(
                 controller: _truckNumberController,
-                style: const TextStyle(color: AppColors.cream),
+                style: const TextStyle(color: LightColors.cream),
                 decoration: _decoration('Truck number'),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -126,8 +126,8 @@ class _AddTruckPageState extends State<AddTruckPage> {
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 value: _truckType,
-                dropdownColor: AppColors.surface,
-                style: const TextStyle(color: AppColors.cream, fontSize: 14),
+                dropdownColor: LightColors.surface,
+                style: const TextStyle(color: LightColors.cream, fontSize: 14),
                 decoration: _decoration('Truck type'),
                 items: kTruckTypes
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -138,18 +138,18 @@ class _AddTruckPageState extends State<AddTruckPage> {
               const SizedBox(height: 14),
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: LightColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: LightColors.border),
                 ),
                 child: SwitchListTile(
                   value: _hasRefrigeration,
                   onChanged: (v) => setState(() => _hasRefrigeration = v),
                   title: const Text(
                     'Has refrigeration',
-                    style: TextStyle(color: AppColors.cream, fontSize: 14),
+                    style: TextStyle(color: LightColors.cream, fontSize: 14),
                   ),
-                  activeColor: AppColors.gold,
+                  activeColor: LightColors.gold,
                 ),
               ),
               const SizedBox(height: 14),
@@ -159,10 +159,10 @@ class _AddTruckPageState extends State<AddTruckPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _licenseFile == null ? AppColors.border : AppColors.gold,
+                      color: _licenseFile == null ? LightColors.border : LightColors.gold,
                     ),
                   ),
                   child: Row(
@@ -171,7 +171,7 @@ class _AddTruckPageState extends State<AddTruckPage> {
                         _licenseFile == null
                             ? Icons.upload_file_outlined
                             : Icons.check_circle_outline,
-                        color: _licenseFile == null ? AppColors.muted : AppColors.gold,
+                        color: _licenseFile == null ? LightColors.muted : LightColors.gold,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -180,7 +180,7 @@ class _AddTruckPageState extends State<AddTruckPage> {
                           _licenseFile?.name ?? 'Attach vehicle license (PDF/JPG/PNG)',
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: _licenseFile == null ? AppColors.muted : AppColors.cream,
+                            color: _licenseFile == null ? LightColors.muted : LightColors.cream,
                             fontSize: 13,
                           ),
                         ),
@@ -195,7 +195,7 @@ class _AddTruckPageState extends State<AddTruckPage> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.gold,
+                    backgroundColor: LightColors.gold,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -206,13 +206,13 @@ class _AddTruckPageState extends State<AddTruckPage> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppColors.bg,
+                            color: LightColors.deepNavy,
                           ),
                         )
                       : const Text(
                           'Save Truck',
                           style: TextStyle(
-                            color: AppColors.bg,
+                            color: LightColors.deepNavy,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -228,20 +228,20 @@ class _AddTruckPageState extends State<AddTruckPage> {
   InputDecoration _decoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
+      labelStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
       filled: true,
-      fillColor: AppColors.surface,
+      fillColor: LightColors.surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: const BorderSide(color: LightColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: const BorderSide(color: LightColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.gold),
+        borderSide: const BorderSide(color: LightColors.gold),
       ),
     );
   }

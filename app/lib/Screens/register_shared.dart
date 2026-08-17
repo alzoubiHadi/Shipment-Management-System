@@ -90,31 +90,31 @@ Widget buildAuthTextField({
     enabled: enabled,
     keyboardType: keyboardType,
     maxLines: maxLines,
-    style: const TextStyle(color: Color(0xFFF5F0E8), fontSize: 15),
-    cursorColor: const Color(0xFFD4AF37),
+    style: const TextStyle(color: LightColors.textPrimary, fontSize: 15),
+    cursorColor: LightColors.gold,
     decoration: InputDecoration(
       labelText: label,
       labelStyle: TextStyle(
-        color: hasError ? const Color(0xFFE57373) : const Color(0xFF4A4540),
+        color: hasError ? LightColors.error : LightColors.textSecondary,
         fontSize: 13,
       ),
       suffixIcon: suffix,
       filled: true,
-      fillColor: const Color(0xFF111113),
+      fillColor: LightColors.surface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF2A2520)),
+        borderSide: const BorderSide(color: LightColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(
-          color: hasError ? const Color(0xFFE57373) : const Color(0xFF2A2520),
+          color: hasError ? LightColors.error : LightColors.border,
         ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(
-          color: hasError ? const Color(0xFFE57373) : const Color(0xFFD4AF37),
+          color: hasError ? LightColors.error : LightColors.gold,
         ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -156,7 +156,7 @@ Widget buildLightTextField({
         cursorColor: LightColors.gold,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Color(0xFFA0A4AC), fontSize: 14),
+          hintStyle: const TextStyle(color: LightColors.textMuted, fontSize: 14),
           prefixIcon: prefixIcon,
           suffixIcon: suffix,
           filled: true,
@@ -220,19 +220,19 @@ class LightPickerField extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(icon, color: value == null ? const Color(0xFFA0A4AC) : LightColors.gold, size: 18),
+                Icon(icon, color: value == null ? LightColors.textMuted : LightColors.gold, size: 18),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     value ?? hint,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: value == null ? const Color(0xFFA0A4AC) : LightColors.textPrimary,
+                      color: value == null ? LightColors.textMuted : LightColors.textPrimary,
                       fontSize: 14,
                     ),
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFFA0A4AC), size: 18),
+                const Icon(Icons.chevron_right_rounded, color: LightColors.textMuted, size: 18),
               ],
             ),
           ),
@@ -394,24 +394,24 @@ class PickerField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
-          color: const Color(0xFF111113),
+          color: LightColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: hasError
-                ? const Color(0xFFE57373)
-                : (value == null ? const Color(0xFF2A2520) : const Color(0xFFD4AF37)),
+                ? LightColors.error
+                : (value == null ? LightColors.border : LightColors.gold),
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: value == null ? const Color(0xFF6B6660) : const Color(0xFFD4AF37), size: 18),
+            Icon(icon, color: value == null ? LightColors.textSecondary : LightColors.gold, size: 18),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 value ?? label,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: value == null ? const Color(0xFF6B6660) : const Color(0xFFF5F0E8),
+                  color: value == null ? LightColors.textSecondary : LightColors.textPrimary,
                   fontSize: 13,
                 ),
               ),

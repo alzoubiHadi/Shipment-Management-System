@@ -48,25 +48,25 @@ class SupportCenterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Support Center', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
+        title: const Text('Support Center', style: TextStyle(color: LightColors.cream)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Container(
             padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border, width: 0.5)),
+            decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: LightColors.border, width: 0.5)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Need Help?', style: TextStyle(color: AppColors.cream, fontSize: 17, fontWeight: FontWeight.w700)),
+                const Text('Need Help?', style: TextStyle(color: LightColors.cream, fontSize: 17, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                const Text('Our team is here to help with anything trip or account related.', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                const Text('Our team is here to help with anything trip or account related.', style: TextStyle(color: LightColors.muted, fontSize: 12.5)),
                 const SizedBox(height: 16),
                 _ContactButton(
                   icon: Icons.call_outlined,
@@ -92,7 +92,7 @@ class SupportCenterPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('Frequently Asked Questions', style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+          const Text('Frequently Asked Questions', style: TextStyle(color: LightColors.muted, fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
           const SizedBox(height: 12),
           ..._faqs.map((f) => _FaqTile(question: f.$1, answer: f.$2)),
         ],
@@ -116,27 +116,27 @@ class _ContactButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border, width: 0.5)),
+        decoration: BoxDecoration(color: LightColors.bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: LightColors.border, width: 0.5)),
         child: Row(
           children: [
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(color: AppColors.gold.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, color: AppColors.gold, size: 18),
+              decoration: BoxDecoration(color: LightColors.gold.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: LightColors.gold, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(label, style: const TextStyle(color: LightColors.cream, fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                  Text(subtitle, style: const TextStyle(color: LightColors.muted, fontSize: 12)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.muted),
+            const Icon(Icons.chevron_right, color: LightColors.muted),
           ],
         ),
       ),
@@ -153,17 +153,17 @@ class _FaqTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border, width: 0.5)),
+      decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: LightColors.border, width: 0.5)),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          collapsedIconColor: AppColors.muted,
-          iconColor: AppColors.gold,
-          title: Text(question, style: const TextStyle(color: AppColors.cream, fontSize: 13.5, fontWeight: FontWeight.w600)),
+          collapsedIconColor: LightColors.muted,
+          iconColor: LightColors.gold,
+          title: Text(question, style: const TextStyle(color: LightColors.cream, fontSize: 13.5, fontWeight: FontWeight.w600)),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(answer, style: const TextStyle(color: AppColors.muted, fontSize: 12.5, height: 1.4)),
+            Text(answer, style: const TextStyle(color: LightColors.muted, fontSize: 12.5, height: 1.4)),
           ],
         ),
       ),

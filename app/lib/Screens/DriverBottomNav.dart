@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../API/config.dart';
 
-/// Bottom nav for the driver redesign (2026-08-17 mockup): Home / Shipments
-/// / Wallet / Profile — no raised "+" (confirmed with the user: drivers
-/// don't create shipments, accepting one already lives inside the
-/// Shipments tab). Dark-themed (AppColors) — unlike the admin/company
-/// redesigns, the driver mockup itself is dark, and the user asked to
-/// improve the existing workflow, not re-theme it.
+/// Bottom nav for the driver app: Home / Shipments / Wallet / Profile — no
+/// raised "+" (confirmed with the user: drivers don't create shipments,
+/// accepting one already lives inside the Shipments tab). FMS design system
+/// unification (2026-08-24): converted from the old dark `AppColors` to
+/// `LightColors`, same visual language as AdminBottomNav/CompanyBottomNav
+/// now — white background + subtle top border, gray inactive, gold icon +
+/// gold label when active.
 enum DriverNavTab { home, shipments, wallet, profile }
 
 class DriverBottomNav extends StatelessWidget {
@@ -30,8 +31,8 @@ class DriverBottomNav extends StatelessWidget {
     return Container(
       height: 64 + bottomInset,
       decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+        color: LightColors.surface,
+        border: Border(top: BorderSide(color: LightColors.border, width: 1)),
       ),
       child: SafeArea(
         top: false,
@@ -90,7 +91,7 @@ class _NavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.gold : AppColors.muted;
+    final color = active ? LightColors.gold : LightColors.muted;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,

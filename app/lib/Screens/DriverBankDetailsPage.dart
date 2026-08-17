@@ -70,7 +70,7 @@ class _DriverBankDetailsPageState extends State<DriverBankDetailsPage> {
 
     if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bank details updated'), backgroundColor: AppColors.success),
+        const SnackBar(content: Text('Bank details updated'), backgroundColor: LightColors.success),
       );
       Navigator.pop(context, true);
     } else {
@@ -81,27 +81,27 @@ class _DriverBankDetailsPageState extends State<DriverBankDetailsPage> {
   InputDecoration _decoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
+      labelStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
       filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.gold)),
+      fillColor: LightColors.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.gold)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Bank Details', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
+        title: const Text('Bank Details', style: TextStyle(color: LightColors.cream)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+          ? const Center(child: CircularProgressIndicator(color: LightColors.gold))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -111,13 +111,13 @@ class _DriverBankDetailsPageState extends State<DriverBankDetailsPage> {
                     padding: const EdgeInsets.all(14),
                     margin: const EdgeInsets.only(bottom: 18),
                     decoration: BoxDecoration(
-                      color: AppColors.gold.withOpacity(0.08),
+                      color: LightColors.gold.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.gold.withOpacity(0.25)),
+                      border: Border.all(color: LightColors.gold.withOpacity(0.25)),
                     ),
                     child: const Text(
                       'These details are used by our finance team to send your payouts. Double-check them before saving.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 12.5),
+                      style: TextStyle(color: LightColors.muted, fontSize: 12.5),
                     ),
                   ),
                   if (_error != null) ...[
@@ -125,21 +125,21 @@ class _DriverBankDetailsPageState extends State<DriverBankDetailsPage> {
                       padding: const EdgeInsets.all(12),
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.1),
+                        color: LightColors.error.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.error.withOpacity(0.4)),
+                        border: Border.all(color: LightColors.error.withOpacity(0.4)),
                       ),
-                      child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
+                      child: Text(_error!, style: const TextStyle(color: LightColors.error, fontSize: 13)),
                     ),
                   ],
-                  TextFormField(controller: _bankNameCtrl, style: const TextStyle(color: AppColors.cream), decoration: _decoration('Bank name')),
+                  TextFormField(controller: _bankNameCtrl, style: const TextStyle(color: LightColors.cream), decoration: _decoration('Bank name')),
                   const SizedBox(height: 14),
-                  TextFormField(controller: _holderCtrl, style: const TextStyle(color: AppColors.cream), decoration: _decoration('Account holder name')),
+                  TextFormField(controller: _holderCtrl, style: const TextStyle(color: LightColors.cream), decoration: _decoration('Account holder name')),
                   const SizedBox(height: 14),
                   TextFormField(
                     controller: _ibanCtrl,
                     textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(color: AppColors.cream),
+                    style: const TextStyle(color: LightColors.cream),
                     decoration: _decoration('IBAN / Account number'),
                   ),
                   const SizedBox(height: 28),
@@ -147,10 +147,10 @@ class _DriverBankDetailsPageState extends State<DriverBankDetailsPage> {
                     height: 52,
                     child: ElevatedButton(
                       onPressed: _saving ? null : _save,
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                      style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                       child: _saving
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg))
-                          : const Text('Save Bank Details', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy))
+                          : const Text('Save Bank Details', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],

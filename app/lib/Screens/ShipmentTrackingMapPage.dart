@@ -76,14 +76,14 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
         : const ll.LatLng(25.276987, 55.296249); // Dubai — neutral fallback center
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         title: Text(
           _shipment.trackingNumber.isEmpty ? 'Live Tracking' : _shipment.trackingNumber,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
         ),
       ),
       body: Column(
@@ -91,21 +91,21 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: AppColors.surface,
+            color: LightColors.surface,
             child: Row(
               children: [
-                const Icon(Icons.route_outlined, color: AppColors.gold, size: 18),
+                const Icon(Icons.route_outlined, color: LightColors.gold, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '${_shipment.origin} → ${_shipment.destination}',
-                    style: const TextStyle(color: AppColors.cream, fontSize: 13, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: LightColors.cream, fontSize: 13, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Text(
                   hasFix ? 'Updated ${_timeAgo(_shipment.driverLastLocationAt)}' : 'No GPS fix yet',
-                  style: TextStyle(color: hasFix ? AppColors.muted : AppColors.error, fontSize: 11),
+                  style: TextStyle(color: hasFix ? LightColors.muted : LightColors.error, fontSize: 11),
                 ),
               ],
             ),
@@ -129,7 +129,7 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
                             point: point,
                             width: 44,
                             height: 44,
-                            child: const Icon(Icons.local_shipping_rounded, color: AppColors.gold, size: 36),
+                            child: const Icon(Icons.local_shipping_rounded, color: LightColors.gold, size: 36),
                           ),
                         ],
                       ),
@@ -150,7 +150,7 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
                       child: Text(
                         'The driver hasn\'t reported a GPS position yet — this updates automatically once they do (the app reports location while a shipment is in progress).',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.muted, fontSize: 13),
+                        style: TextStyle(color: LightColors.muted, fontSize: 13),
                       ),
                     ),
                   ),

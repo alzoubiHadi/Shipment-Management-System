@@ -54,16 +54,16 @@ class _ProfileState extends State<Profile> {
     final role = (widget.user.role ?? '').toLowerCase();
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
         title: const Text(
           'Profile',
-          style: TextStyle(color: AppColors.cream),
+          style: TextStyle(color: LightColors.cream),
         ),
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        actions: [logoutAction(context)],
+        iconTheme: const IconThemeData(color: LightColors.cream),
+        actions: [logoutAction(context, light: true)],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -143,9 +143,9 @@ class _ProfileState extends State<Profile> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Row(
                     children: [
@@ -153,23 +153,23 @@ class _ProfileState extends State<Profile> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: AppColors.gold.withOpacity(0.1),
+                          color: LightColors.gold.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.account_balance_wallet_outlined,
-                            color: AppColors.gold, size: 18),
+                            color: LightColors.gold, size: 18),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
                         child: Text(
                           'My Balance',
                           style: TextStyle(
-                              color: AppColors.cream,
+                              color: LightColors.cream,
                               fontSize: 14,
                               fontWeight: FontWeight.w500),
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: AppColors.muted),
+                      const Icon(Icons.chevron_right, color: LightColors.muted),
                     ],
                   ),
                 ),
@@ -192,7 +192,7 @@ class _ProfileState extends State<Profile> {
                         child: _StatCard(
                           label: 'Completed',
                           value: completed.toString(),
-                          color: AppColors.success,
+                          color: LightColors.success,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -200,7 +200,7 @@ class _ProfileState extends State<Profile> {
                         child: _StatCard(
                           label: 'Cancelled',
                           value: cancelled.toString(),
-                          color: AppColors.error,
+                          color: LightColors.error,
                         ),
                       ),
                     ],
@@ -218,10 +218,10 @@ class _ProfileState extends State<Profile> {
                   final compliance =
                       snapshot.data?['compliance_status']?.toString() ?? 'active';
                   final complianceColor = compliance == 'active'
-                      ? AppColors.success
+                      ? LightColors.success
                       : compliance == 'warning'
-                          ? AppColors.gold
-                          : AppColors.error;
+                          ? LightColors.gold
+                          : LightColors.error;
 
                   return InkWell(
                     onTap: () => Navigator.push(
@@ -234,18 +234,18 @@ class _ProfileState extends State<Profile> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: LightColors.surface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border, width: 0.5),
+                        border: Border.all(color: LightColors.border, width: 0.5),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.star, color: AppColors.gold, size: 20),
+                          const Icon(Icons.star, color: LightColors.gold, size: 20),
                           const SizedBox(width: 6),
                           Text(
                             rating.toStringAsFixed(2),
                             style: const TextStyle(
-                                color: AppColors.cream,
+                                color: LightColors.cream,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600),
                           ),
@@ -265,7 +265,7 @@ class _ProfileState extends State<Profile> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right, color: AppColors.muted),
+                          const Icon(Icons.chevron_right, color: LightColors.muted),
                         ],
                       ),
                     ),
@@ -333,10 +333,10 @@ class _ProfileState extends State<Profile> {
                           );
                           if (added == true) _refreshTrucks();
                         },
-                        icon: const Icon(Icons.add, size: 16, color: AppColors.gold),
+                        icon: const Icon(Icons.add, size: 16, color: LightColors.gold),
                         label: const Text(
                           'Add Truck',
-                          style: TextStyle(color: AppColors.gold, fontSize: 13),
+                          style: TextStyle(color: LightColors.gold, fontSize: 13),
                         ),
                       );
                     },
@@ -352,7 +352,7 @@ class _ProfileState extends State<Profile> {
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Center(
                         child: CircularProgressIndicator(
-                          color: AppColors.gold,
+                          color: LightColors.gold,
                           strokeWidth: 2,
                         ),
                       ),
@@ -363,7 +363,7 @@ class _ProfileState extends State<Profile> {
                     return Text(
                       'Could not load trucks',
                       style: const TextStyle(
-                          color: AppColors.error, fontSize: 13),
+                          color: LightColors.error, fontSize: 13),
                     );
                   }
 
@@ -374,13 +374,13 @@ class _ProfileState extends State<Profile> {
                       padding: const EdgeInsets.symmetric(
                           vertical: 18, horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: LightColors.surface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border, width: 0.5),
+                        border: Border.all(color: LightColors.border, width: 0.5),
                       ),
                       child: const Text(
                         'No trucks added yet. Add your truck so you can be matched with shipments.',
-                        style: TextStyle(color: AppColors.muted, fontSize: 13),
+                        style: TextStyle(color: LightColors.muted, fontSize: 13),
                       ),
                     );
                   }
@@ -422,22 +422,22 @@ class _ProfileHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         children: [
           CircleAvatar(
             radius: 36,
-            backgroundColor: AppColors.bg,
+            backgroundColor: LightColors.bg,
             child: Icon(
               role == 'driver'
                   ? Icons.local_shipping_outlined
                   : role == 'company'
                   ? Icons.apartment_outlined
                   : Icons.person_outline,
-              color: AppColors.gold,
+              color: LightColors.gold,
               size: 36,
             ),
           ),
@@ -445,7 +445,7 @@ class _ProfileHeader extends StatelessWidget {
           Text(
             user.name ?? '—',
             style: const TextStyle(
-              color: AppColors.cream,
+              color: LightColors.cream,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -454,7 +454,7 @@ class _ProfileHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.gold.withOpacity(0.1),
+              color: LightColors.gold.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -462,7 +462,7 @@ class _ProfileHeader extends StatelessWidget {
                   ? 'User'
                   : role[0].toUpperCase() + role.substring(1),
               style: const TextStyle(
-                color: AppColors.gold,
+                color: LightColors.gold,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -485,7 +485,7 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        color: AppColors.muted,
+        color: LightColors.muted,
         fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
@@ -508,9 +508,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         children: [
@@ -521,7 +521,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            style: const TextStyle(color: LightColors.muted, fontSize: 12),
           ),
         ],
       ),
@@ -552,9 +552,9 @@ class _NavTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: LightColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(color: LightColors.border, width: 0.5),
         ),
         child: Row(
           children: [
@@ -562,10 +562,10 @@ class _NavTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.gold.withOpacity(0.1),
+                color: LightColors.gold.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: AppColors.gold, size: 18),
+              child: Icon(icon, color: LightColors.gold, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -575,17 +575,17 @@ class _NavTile extends StatelessWidget {
                   Text(
                     label,
                     style: const TextStyle(
-                        color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w500),
+                        color: LightColors.cream, fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                    style: const TextStyle(color: LightColors.muted, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.muted),
+            const Icon(Icons.chevron_right, color: LightColors.muted),
           ],
         ),
       ),
@@ -611,9 +611,9 @@ class _InfoTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Row(
         children: [
@@ -621,10 +621,10 @@ class _InfoTile extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.gold.withOpacity(0.1),
+              color: LightColors.gold.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: AppColors.gold, size: 18),
+            child: Icon(icon, color: LightColors.gold, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -634,7 +634,7 @@ class _InfoTile extends StatelessWidget {
                 Text(
                   label,
                   style: const TextStyle(
-                    color: AppColors.muted,
+                    color: LightColors.muted,
                     fontSize: 11,
                   ),
                 ),
@@ -642,7 +642,7 @@ class _InfoTile extends StatelessWidget {
                 Text(
                   value,
                   style: const TextStyle(
-                    color: AppColors.cream,
+                    color: LightColors.cream,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),

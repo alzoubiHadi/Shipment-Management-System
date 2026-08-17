@@ -70,7 +70,7 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
 
     if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated'), backgroundColor: AppColors.success),
+        const SnackBar(content: Text('Profile updated'), backgroundColor: LightColors.success),
       );
       Navigator.pop(context, true);
     } else {
@@ -81,24 +81,24 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
   InputDecoration _decoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
+      labelStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
       filled: true,
-      fillColor: AppColors.surface,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.gold)),
+      fillColor: LightColors.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.gold)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Personal Information', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
+        title: const Text('Personal Information', style: TextStyle(color: LightColors.cream)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -110,26 +110,26 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: LightColors.error.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.error.withOpacity(0.4)),
+                  border: Border.all(color: LightColors.error.withOpacity(0.4)),
                 ),
-                child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 13)),
+                child: Text(_error!, style: const TextStyle(color: LightColors.error, fontSize: 13)),
               ),
             ],
-            TextFormField(controller: _nameCtrl, style: const TextStyle(color: AppColors.cream), decoration: _decoration('Full name')),
+            TextFormField(controller: _nameCtrl, style: const TextStyle(color: LightColors.cream), decoration: _decoration('Full name')),
             const SizedBox(height: 14),
             TextFormField(
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
-              style: const TextStyle(color: AppColors.cream),
+              style: const TextStyle(color: LightColors.cream),
               decoration: _decoration('Phone'),
             ),
             const SizedBox(height: 14),
             TextFormField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: AppColors.cream),
+              style: const TextStyle(color: LightColors.cream),
               decoration: _decoration('Email'),
             ),
             const SizedBox(height: 28),
@@ -137,10 +137,10 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
               height: 52,
               child: ElevatedButton(
                 onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                 child: _saving
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg))
-                    : const Text('Save Changes', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy))
+                    : const Text('Save Changes', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
               ),
             ),
           ],

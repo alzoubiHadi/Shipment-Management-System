@@ -14,7 +14,7 @@ import 'DriverOffersPage.dart';
 import 'Driverspage.dart';
 import 'CompanyBalancePage.dart';
 import 'ShipmentOffersAdminPage.dart';
-import 'ShipmentPageAdmin.dart';
+import 'AdminShipmentsScreen.dart';
 
 /// In-app notification center — shared by every role (driver, company,
 /// admin). Always populated regardless of whether real FCM push is set up
@@ -117,7 +117,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       case 'delivery_disputed':
         target = widget.user.role.toLowerCase() == 'company'
             ? Compnayshipments(user: widget.user)
-            : Shipmentpageadmin(user: widget.user);
+            : AdminShipmentsScreen(user: widget.user);
         break;
       case 'new_registration_pending':
         target = data['type']?.toString() == 'company'
@@ -155,28 +155,28 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Notifications', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
+        title: const Text('Notifications', style: TextStyle(color: LightColors.cream)),
         actions: [
           TextButton(
             onPressed: _markAllRead,
-            child: const Text('Mark all read', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Mark all read', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<({List<AppNotification> notifications, int unreadCount})>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: CircularProgressIndicator(color: AppColors.gold),
+                child: CircularProgressIndicator(color: LightColors.gold),
               );
             }
             if (snapshot.hasError) {
@@ -186,7 +186,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   child: Text(
                     'Could not load notifications: ${snapshot.error}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.error),
+                    style: const TextStyle(color: LightColors.error),
                   ),
                 ),
               );
@@ -222,7 +222,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       ? Center(
                           child: Text(
                             _filter == _NotifFilter.unread ? 'No unread notifications' : 'No notifications yet',
-                            style: const TextStyle(color: AppColors.muted),
+                            style: const TextStyle(color: LightColors.muted),
                           ),
                         )
                       : ListView.builder(
@@ -238,13 +238,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
                                   color: n.isUnread
-                                      ? AppColors.gold.withOpacity(0.06)
-                                      : AppColors.surface,
+                                      ? LightColors.gold.withOpacity(0.06)
+                                      : LightColors.surface,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
                                     color: n.isUnread
-                                        ? AppColors.gold.withOpacity(0.3)
-                                        : AppColors.border,
+                                        ? LightColors.gold.withOpacity(0.3)
+                                        : LightColors.border,
                                     width: 0.5,
                                   ),
                                 ),
@@ -255,11 +255,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                       width: 36,
                                       height: 36,
                                       decoration: BoxDecoration(
-                                        color: AppColors.gold.withOpacity(0.1),
+                                        color: LightColors.gold.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Icon(_iconFor(n.notificationType),
-                                          color: AppColors.gold, size: 18),
+                                          color: LightColors.gold, size: 18),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -269,7 +269,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                           Text(
                                             n.title,
                                             style: TextStyle(
-                                              color: AppColors.cream,
+                                              color: LightColors.cream,
                                               fontWeight: n.isUnread ? FontWeight.w700 : FontWeight.w500,
                                               fontSize: 14,
                                             ),
@@ -278,13 +278,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                             const SizedBox(height: 4),
                                             Text(
                                               n.body,
-                                              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                                              style: const TextStyle(color: LightColors.muted, fontSize: 12),
                                             ),
                                           ],
                                           const SizedBox(height: 6),
                                           Text(
                                             _timeAgo(n.createdAt),
-                                            style: const TextStyle(color: AppColors.mutedLight, fontSize: 10),
+                                            style: const TextStyle(color: LightColors.mutedLight, fontSize: 10),
                                           ),
                                         ],
                                       ),
@@ -295,7 +295,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                         height: 8,
                                         margin: const EdgeInsets.only(top: 4),
                                         decoration: const BoxDecoration(
-                                          color: AppColors.gold,
+                                          color: LightColors.gold,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -329,14 +329,14 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? AppColors.gold.withOpacity(0.15) : AppColors.surface,
+          color: selected ? LightColors.gold.withOpacity(0.15) : LightColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? AppColors.gold : AppColors.border, width: 0.5),
+          border: Border.all(color: selected ? LightColors.gold : LightColors.border, width: 0.5),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? AppColors.gold : AppColors.muted,
+            color: selected ? LightColors.gold : LightColors.muted,
             fontSize: 12.5,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),

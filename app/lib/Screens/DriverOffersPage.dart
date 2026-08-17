@@ -117,7 +117,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
     if (result['success'] != true) {
       setState(() => _isAvailable = !value);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']?.toString() ?? 'Could not update status'), backgroundColor: AppColors.error),
+        SnackBar(content: Text(result['message']?.toString() ?? 'Could not update status'), backgroundColor: LightColors.error),
       );
     }
   }
@@ -172,7 +172,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
   Future<void> _openFilterSheet() async {
     final choice = await showModalBottomSheet<String?>(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: LightColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -180,16 +180,16 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Align(alignment: Alignment.centerLeft, child: Text('Filter by Truck Type', style: TextStyle(color: AppColors.cream, fontWeight: FontWeight.w700))),
+              child: Align(alignment: Alignment.centerLeft, child: Text('Filter by Truck Type', style: TextStyle(color: LightColors.cream, fontWeight: FontWeight.w700))),
             ),
             ListTile(
-              title: const Text('All truck types', style: TextStyle(color: AppColors.cream)),
-              trailing: _truckTypeFilter == null ? const Icon(Icons.check, color: AppColors.gold) : null,
+              title: const Text('All truck types', style: TextStyle(color: LightColors.cream)),
+              trailing: _truckTypeFilter == null ? const Icon(Icons.check, color: LightColors.gold) : null,
               onTap: () => Navigator.pop(ctx, ''),
             ),
             ...kTruckTypes.map((t) => ListTile(
-                  title: Text(t, style: const TextStyle(color: AppColors.cream)),
-                  trailing: _truckTypeFilter == t ? const Icon(Icons.check, color: AppColors.gold) : null,
+                  title: Text(t, style: const TextStyle(color: LightColors.cream)),
+                  trailing: _truckTypeFilter == t ? const Icon(Icons.check, color: LightColors.gold) : null,
                   onTap: () => Navigator.pop(ctx, t),
                 )),
             const SizedBox(height: 8),
@@ -204,12 +204,12 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Available Shipments', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Available Shipments', style: TextStyle(color: LightColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         actions: [
           if (_isAvailable != null)
             Padding(
@@ -217,8 +217,8 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
               child: Row(
                 children: [
                   Text(_isAvailable! ? 'Available' : 'Unavailable',
-                      style: TextStyle(color: _isAvailable! ? AppColors.success : AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                  Switch(value: _isAvailable!, activeColor: AppColors.gold, onChanged: _isUpdatingAvailability ? null : _toggleAvailability),
+                      style: TextStyle(color: _isAvailable! ? LightColors.success : LightColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Switch(value: _isAvailable!, activeColor: LightColors.gold, onChanged: _isUpdatingAvailability ? null : _toggleAvailability),
                 ],
               ),
             ),
@@ -227,7 +227,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
       body: Stack(
         children: [
           RefreshIndicator(
-            color: AppColors.gold,
+            color: LightColors.gold,
             onRefresh: () async => _refresh(),
             child: CustomScrollView(
               slivers: [
@@ -239,16 +239,16 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                         Expanded(
                           child: TextField(
                             controller: _searchController,
-                            style: const TextStyle(color: AppColors.cream, fontSize: 14),
+                            style: const TextStyle(color: LightColors.cream, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: 'Search by location, load type...',
-                              hintStyle: const TextStyle(color: AppColors.muted, fontSize: 13),
-                              prefixIcon: const Icon(Icons.search, color: AppColors.muted, size: 20),
+                              hintStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
+                              prefixIcon: const Icon(Icons.search, color: LightColors.muted, size: 20),
                               filled: true,
-                              fillColor: AppColors.surface,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.border)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.gold)),
+                              fillColor: LightColors.surface,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.gold)),
                             ),
                           ),
                         ),
@@ -259,11 +259,11 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                           child: Container(
                             padding: const EdgeInsets.all(13),
                             decoration: BoxDecoration(
-                              color: AppColors.surface,
+                              color: LightColors.surface,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _truckTypeFilter != null ? AppColors.gold : AppColors.border),
+                              border: Border.all(color: _truckTypeFilter != null ? LightColors.gold : LightColors.border),
                             ),
-                            child: Icon(Icons.tune_rounded, color: _truckTypeFilter != null ? AppColors.gold : AppColors.muted, size: 20),
+                            child: Icon(Icons.tune_rounded, color: _truckTypeFilter != null ? LightColors.gold : LightColors.muted, size: 20),
                           ),
                         ),
                       ],
@@ -300,13 +300,13 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 80),
-                          child: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+                          child: Center(child: CircularProgressIndicator(color: LightColors.gold)),
                         );
                       }
                       if (snapshot.hasError) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 80),
-                          child: Center(child: Text('Could not load offers', style: TextStyle(color: AppColors.error))),
+                          child: Center(child: Text('Could not load offers', style: TextStyle(color: LightColors.error))),
                         );
                       }
 
@@ -322,7 +322,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                                 _OfferTab.all => 'No matching offers right now.',
                               },
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: AppColors.muted),
+                              style: const TextStyle(color: LightColors.muted),
                             ),
                           ),
                         );
@@ -358,7 +358,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
           if (_isAccepting)
             Container(
               color: Colors.black45,
-              child: const Center(child: CircularProgressIndicator(color: AppColors.gold)),
+              child: const Center(child: CircularProgressIndicator(color: LightColors.gold)),
             ),
         ],
       ),
@@ -396,12 +396,12 @@ class _TabChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? AppColors.gold : AppColors.surface,
+          color: active ? LightColors.gold : LightColors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: active ? AppColors.gold : AppColors.border),
+          border: Border.all(color: active ? LightColors.gold : LightColors.border),
         ),
         child: Text(label,
-            style: TextStyle(fontSize: 12.5, color: active ? AppColors.bg : AppColors.muted, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
+            style: TextStyle(fontSize: 12.5, color: active ? LightColors.deepNavy : LightColors.muted, fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
       ),
     );
   }
@@ -428,7 +428,7 @@ class _OfferCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border, width: 0.5)),
+      decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.border, width: 0.5)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -437,11 +437,11 @@ class _OfferCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text('${offer.origin} → ${offer.destination}',
-                    style: const TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600, fontSize: 15)),
+                    style: const TextStyle(color: LightColors.cream, fontWeight: FontWeight.w600, fontSize: 15)),
               ),
               InkWell(
                 onTap: onToggleSave,
-                child: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, color: AppColors.gold, size: 20),
+                child: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, color: LightColors.gold, size: 20),
               ),
             ],
           ),
@@ -452,15 +452,15 @@ class _OfferCard extends StatelessWidget {
             '${offer.isHazardous ? " · hazardous" : ""}'
             '${offer.isFragile ? " · fragile" : ""}'
             '${distanceKm != null ? " · ${distanceKm!.toStringAsFixed(0)} km away" : ""}',
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            style: const TextStyle(color: LightColors.muted, fontSize: 12),
           ),
           if (offer.description.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(offer.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+            Text(offer.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: LightColors.muted, fontSize: 12)),
           ],
           if (offer.priceToDriver.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text('Price: ${offer.priceToDriver} AED', style: const TextStyle(color: AppColors.gold, fontSize: 13, fontWeight: FontWeight.w600)),
+            Text('Price: ${offer.priceToDriver} AED', style: const TextStyle(color: LightColors.gold, fontSize: 13, fontWeight: FontWeight.w600)),
           ],
           const SizedBox(height: 10),
           Row(
@@ -470,10 +470,10 @@ class _OfferCard extends StatelessWidget {
                   onPressed: onDetails,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    side: const BorderSide(color: AppColors.border),
+                    side: const BorderSide(color: LightColors.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('Details', style: TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: const Text('Details', style: TextStyle(color: LightColors.cream, fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -482,10 +482,10 @@ class _OfferCard extends StatelessWidget {
                   onPressed: onAccept,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    backgroundColor: AppColors.gold,
+                    backgroundColor: LightColors.gold,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('Accept', style: TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: const Text('Accept', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
               ),
             ],

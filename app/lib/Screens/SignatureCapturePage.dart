@@ -73,13 +73,13 @@ class _SignatureCapturePageState extends State<SignatureCapturePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         title: const Text('Proof of Delivery',
-            style: TextStyle(color: AppColors.cream)),
+            style: TextStyle(color: LightColors.cream)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -88,30 +88,30 @@ class _SignatureCapturePageState extends State<SignatureCapturePage> {
           children: [
             TextField(
               controller: _nameController,
-              style: const TextStyle(color: AppColors.cream),
+              style: const TextStyle(color: LightColors.cream),
               decoration: InputDecoration(
                 labelText: 'Recipient name',
-                labelStyle: const TextStyle(color: AppColors.muted),
+                labelStyle: const TextStyle(color: LightColors.muted),
                 filled: true,
-                fillColor: AppColors.surface,
+                fillColor: LightColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: const BorderSide(color: LightColors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: const BorderSide(color: LightColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.gold),
+                  borderSide: const BorderSide(color: LightColors.gold),
                 ),
               ),
             ),
             const SizedBox(height: 16),
             const Text(
               'Sign below with your finger or mouse',
-              style: TextStyle(color: AppColors.muted, fontSize: 13),
+              style: TextStyle(color: LightColors.muted, fontSize: 13),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -122,7 +122,7 @@ class _SignatureCapturePageState extends State<SignatureCapturePage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: LightColors.border),
                   ),
                   child: GestureDetector(
                     onPanStart: (details) => setState(
@@ -145,11 +145,11 @@ class _SignatureCapturePageState extends State<SignatureCapturePage> {
                   child: OutlinedButton(
                     onPressed: _clear,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.border),
+                      side: const BorderSide(color: LightColors.border),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     child: const Text('Clear',
-                        style: TextStyle(color: AppColors.muted)),
+                        style: TextStyle(color: LightColors.muted)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -158,7 +158,7 @@ class _SignatureCapturePageState extends State<SignatureCapturePage> {
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _confirm,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.gold,
+                      backgroundColor: LightColors.gold,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -170,13 +170,13 @@ class _SignatureCapturePageState extends State<SignatureCapturePage> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: AppColors.bg,
+                              color: LightColors.deepNavy,
                             ),
                           )
                         : const Text(
                             'Confirm delivery',
                             style: TextStyle(
-                              color: AppColors.bg,
+                              color: LightColors.deepNavy,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

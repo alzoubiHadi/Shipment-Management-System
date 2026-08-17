@@ -159,7 +159,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
         const SnackBar(
           content: Text(
               'Delivery recorded — awaiting company confirmation before payout'),
-          backgroundColor: AppColors.success,
+          backgroundColor: LightColors.success,
         ),
       );
     } else {
@@ -170,25 +170,25 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
   }
 
   Color get _statusColor => switch (_shipment.status) {
-        0 => AppColors.gold,
-        1 => AppColors.info,
-        2 => AppColors.success,
-        3 => AppColors.success,
-        4 => AppColors.error,
-        5 => AppColors.error,
-        _ => AppColors.muted,
+        0 => LightColors.gold,
+        1 => LightColors.info,
+        2 => LightColors.success,
+        3 => LightColors.success,
+        4 => LightColors.error,
+        5 => LightColors.error,
+        _ => LightColors.muted,
       };
 
   Color _deliveryStatusColor(String status) {
     switch (status) {
       case 'awaiting_confirmation':
-        return AppColors.gold;
+        return LightColors.gold;
       case 'confirmed':
-        return AppColors.success;
+        return LightColors.success;
       case 'disputed':
-        return AppColors.error;
+        return LightColors.error;
       default:
-        return AppColors.muted;
+        return LightColors.muted;
     }
   }
 
@@ -214,26 +214,26 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     final comment = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         title: const Text('Add a comment',
-            style: TextStyle(color: AppColors.cream)),
+            style: TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
           decoration: const InputDecoration(
             hintText: 'e.g. truck breakdown, road closure...',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Save', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Save', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -267,22 +267,22 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     final current = _shipment.currentStage;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.cream),
         title: Text(
           _shipment.trackingNumber.isEmpty
               ? 'Shipment Tracking'
               : _shipment.trackingNumber,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.cream),
         ),
         actions: [
           if (!widget.readOnly)
             IconButton(
               onPressed: _addComment,
-              icon: const Icon(Icons.comment_outlined, color: AppColors.cream),
+              icon: const Icon(Icons.comment_outlined, color: LightColors.cream),
               tooltip: 'Add comment',
             ),
           if (widget.readOnly && current < _shipment.totalStages)
@@ -300,19 +300,19 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: LightColors.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border, width: 0.5),
+              border: Border.all(color: LightColors.border, width: 0.5),
             ),
             child: Row(
               children: [
-                const Icon(Icons.location_on_outlined, color: AppColors.gold),
+                const Icon(Icons.location_on_outlined, color: LightColors.gold),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     '${_shipment.origin} → ${_shipment.destination}',
                     style: const TextStyle(
-                      color: AppColors.cream,
+                      color: LightColors.cream,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -360,9 +360,9 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: LightColors.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border, width: 0.5),
+                border: Border.all(color: LightColors.border, width: 0.5),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,7 +373,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                         child: Text(
                           'Proof of delivery',
                           style: TextStyle(
-                            color: AppColors.muted,
+                            color: LightColors.muted,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -401,7 +401,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                   const SizedBox(height: 8),
                   Text(
                     'Received by: ${_shipment.podRecipientName}',
-                    style: const TextStyle(color: AppColors.cream, fontSize: 14),
+                    style: const TextStyle(color: LightColors.cream, fontSize: 14),
                   ),
                   if (_shipment.podSignature.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -441,7 +441,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                               ? _captureDelivery
                               : _advance),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.gold,
+                        backgroundColor: LightColors.gold,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -452,7 +452,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.bg,
+                                color: LightColors.deepNavy,
                               ),
                             )
                           : Text(
@@ -460,7 +460,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                                   ? 'Capture proof of delivery'
                                   : 'Mark as: ${_shipment.stageLabels[current + 1]}',
                               style: const TextStyle(
-                                color: AppColors.bg,
+                                color: LightColors.deepNavy,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -486,7 +486,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
       child: Container(
         height: 200,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(color: LightColors.border, width: 0.5),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Stack(
@@ -507,7 +507,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                         width: 40,
                         height: 40,
                         child: const Icon(Icons.local_shipping_rounded,
-                            color: AppColors.gold, size: 32),
+                            color: LightColors.gold, size: 32),
                       ),
                     ],
                   ),
@@ -525,20 +525,20 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
               )
             else
               Container(
-                color: AppColors.surface,
+                color: LightColors.surface,
                 alignment: Alignment.center,
                 padding: const EdgeInsets.all(16),
                 child: const Text(
                   'No GPS fix yet — updates automatically once the driver reports one',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  style: TextStyle(color: LightColors.muted, fontSize: 12),
                 ),
               ),
             Positioned(
               top: 8,
               right: 8,
               child: Material(
-                color: AppColors.surface.withOpacity(0.9),
+                color: LightColors.surface.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
@@ -551,7 +551,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                   child: const Padding(
                     padding: EdgeInsets.all(6),
                     child: Icon(Icons.open_in_full,
-                        color: AppColors.cream, size: 16),
+                        color: LightColors.cream, size: 16),
                   ),
                 ),
               ),
@@ -563,12 +563,12 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withOpacity(0.9),
+                    color: LightColors.surface.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     'Updated ${_timeAgo(_shipment.driverLastLocationAt)}',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 10),
+                    style: const TextStyle(color: LightColors.muted, fontSize: 10),
                   ),
                 ),
               ),
@@ -589,7 +589,7 @@ class _LiveBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.12),
+        color: LightColors.success.withOpacity(0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -599,7 +599,7 @@ class _LiveBadge extends StatelessWidget {
             width: 7,
             height: 7,
             decoration: const BoxDecoration(
-              color: AppColors.success,
+              color: LightColors.success,
               shape: BoxShape.circle,
             ),
           ),
@@ -607,7 +607,7 @@ class _LiveBadge extends StatelessWidget {
           const Text(
             'Live',
             style: TextStyle(
-              color: AppColors.success,
+              color: LightColors.success,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -638,8 +638,8 @@ class _StageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isDone
-        ? AppColors.success
-        : (isActive ? AppColors.gold : AppColors.muted);
+        ? LightColors.success
+        : (isActive ? LightColors.gold : LightColors.muted);
 
     return IntrinsicHeight(
       child: Row(
@@ -658,14 +658,14 @@ class _StageRow extends StatelessWidget {
                 child: Icon(
                   isDone ? Icons.check : Icons.circle,
                   size: isDone ? 16 : 8,
-                  color: isDone ? AppColors.bg : color,
+                  color: isDone ? Colors.white : color,
                 ),
               ),
               if (!isLast)
                 Expanded(
                   child: Container(
                     width: 2,
-                    color: isDone ? AppColors.success : AppColors.border,
+                    color: isDone ? LightColors.success : LightColors.border,
                   ),
                 ),
             ],
@@ -681,8 +681,8 @@ class _StageRow extends StatelessWidget {
                     label,
                     style: TextStyle(
                       color: isDone || isActive
-                          ? AppColors.cream
-                          : AppColors.muted,
+                          ? LightColors.cream
+                          : LightColors.muted,
                       fontWeight:
                           isActive ? FontWeight.w700 : FontWeight.w500,
                       fontSize: 14,
@@ -693,7 +693,7 @@ class _StageRow extends StatelessWidget {
                     Text(
                       timestamp!,
                       style: const TextStyle(
-                        color: AppColors.muted,
+                        color: LightColors.muted,
                         fontSize: 11,
                       ),
                     ),
