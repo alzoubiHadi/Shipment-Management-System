@@ -78,6 +78,19 @@ class _SplashPageState extends State<SplashPage>
   // straight to their home screen instead.
   bool _checkingSession = true;
 
+  // 2026-08-24 fix: fetchMyProfile() used to have every failure — expired
+  // token, weak/no internet, a Render cold-start timeout, a transient 500
+  // — funneled into one catch block that cleared the whole session
+  // (prefs.clear()). That meant an active driver losing signal mid-trip,
+  // or just hitting a slow server, got silently logged out and dropped
+  // back to Login — which is exactly what was reported as "the app logs
+  // itself out". Only an explicit AuthenticationException (server said
+  // 401 — the token itself is invalid) should ever clear the session now;
+  // every other failure sets this flag instead and keeps the token intact
+  // so the user can just hit Retry — see _checkSession()'s two catch
+  // blocks and the offline-retry branch in build().
+  bool _sessionCheckFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -108,8 +121,16 @@ class _SplashPageState extends State<SplashPage>
   /// unapproved driver/company → DriverApprovalStatusPage) so a resumed
   /// session behaves identically to a fresh login. Calls /me/profile both
   /// to fetch a live approval_status (it may have changed since the token
-  /// was issued) and to double as a token-validity check — an expired or
-  /// revoked token throws here, and that's treated as "not logged in".
+  /// was issued) and to double as a token-validity check.
+  ///
+  /// Only a 401 from that call (surfaced as AuthenticationException — see
+  /// ProfileService.dart) means the token is actually invalid and the
+  /// session should be cleared. Every other failure — no internet, a
+  /// timeout, a 5xx — is a network/server problem, not proof the user is
+  /// logged out, so the token is left alone and _sessionCheckFailed
+  /// drives a Retry UI instead (see build()). This matters even more now
+  /// that a driver mid-trip relies on background location tracking
+  /// staying authenticated — see DriverLocationReporter.dart.
   Future<void> _checkSession() async {
     final prefs = await SharedPreferences.getInstance();
     final loggedIn = prefs.getBool('loggedIn') ?? false;
@@ -119,6 +140,8 @@ class _SplashPageState extends State<SplashPage>
       _showWelcomeUi();
       return;
     }
+
+    if (mounted) setState(() => _sessionCheckFailed = false);
 
     try {
       final profile = await ProfileService().fetchMyProfile();
@@ -151,17 +174,35 @@ class _SplashPageState extends State<SplashPage>
 
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => destination));
-    } catch (_) {
-      // Expired/revoked token, or no network on a cold start — fall back to
-      // a normal manual login rather than getting stuck on a blank screen.
+    } on AuthenticationException {
+      // Server explicitly rejected the token — this IS a "you're logged
+      // out" case, so clear the stored session and fall back to a normal
+      // manual login.
       await prefs.clear();
       _showWelcomeUi();
+    } catch (_) {
+      // Network error, timeout, or a non-401 server error — do NOT touch
+      // the stored session. Show a retry state instead of silently
+      // logging the user out from underneath them.
+      if (!mounted) return;
+      setState(() {
+        _checkingSession = false;
+        _sessionCheckFailed = true;
+      });
     }
+  }
+
+  Future<void> _retrySessionCheck() async {
+    setState(() => _checkingSession = true);
+    await _checkSession();
   }
 
   void _showWelcomeUi() {
     if (!mounted) return;
-    setState(() => _checkingSession = false);
+    setState(() {
+      _checkingSession = false;
+      _sessionCheckFailed = false;
+    });
     _controller.forward();
   }
 
@@ -181,6 +222,56 @@ class _SplashPageState extends State<SplashPage>
         backgroundColor: Color(0xFF0A0A0C),
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+        ),
+      );
+    }
+
+    if (_sessionCheckFailed) {
+      // Couldn't reach the server to verify an EXISTING, still-locally-valid
+      // session (see _checkSession()'s catch block) — this is deliberately
+      // NOT the Welcome/Login screen. The token is untouched; a Retry that
+      // succeeds goes straight to Home exactly like a normal resumed
+      // session would, with no re-login required.
+      return Scaffold(
+        backgroundColor: const Color(0xFF0A0A0C),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_rounded, color: Color(0xFFD4AF37), size: 48),
+                const SizedBox(height: 20),
+                const Text(
+                  "Couldn't connect",
+                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "You're still signed in — this just couldn't reach the server. Check your connection and try again.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 13.5, height: 1.5),
+                ),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: _retrySessionCheck,
+                    icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF0A0A0C)),
+                    label: const Text(
+                      'Retry',
+                      style: TextStyle(color: Color(0xFF0A0A0C), fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4AF37),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }

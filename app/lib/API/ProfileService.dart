@@ -7,6 +7,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ProfileEditRequest.dart';
 import 'config.dart';
 
+/// Thrown by fetchMyProfile() ONLY when the server explicitly says the
+/// token itself is invalid (HTTP 401) — the ONE case that should ever
+/// clear a locally-stored session. A network error, timeout, or a 5xx/
+/// other-4xx response propagates as a different exception (or the raw
+/// underlying error) instead, so callers — SplashPage._checkSession() in
+/// particular — can tell "you're actually logged out" apart from "we
+/// just couldn't reach the server right now" and react differently (see
+/// that method's docblock for the bug this fixes: a Render cold-start,
+/// spotty connection, or transient 500 was previously wiping the
+/// driver's session mid-trip).
+class AuthenticationException implements Exception {
+  final String message;
+  const AuthenticationException([this.message = 'Session expired']);
+  @override
+  String toString() => message;
+}
+
 /// Self-service "tap your name" profile page — shared by admin, driver and
 /// company. Basic contact info (name/phone/email) and the avatar apply
 /// immediately; anything material to eligibility (driver documents/
@@ -23,15 +40,30 @@ class ProfileService {
     };
   }
 
-  Future<Map<String, dynamic>> fetchMyProfile() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/me/profile'),
-      headers: await _authHeaders(),
-    );
+  /// [timeout] defaults to 20s so a slow/cold-starting server (e.g. a
+  /// Render free-tier instance waking up) fails fast into the "network
+  /// problem, not a login problem" path below instead of leaving the
+  /// caller's spinner hanging indefinitely.
+  Future<Map<String, dynamic>> fetchMyProfile({Duration timeout = const Duration(seconds: 20)}) async {
+    final response = await http
+        .get(
+          Uri.parse('$baseUrl/me/profile'),
+          headers: await _authHeaders(),
+        )
+        .timeout(timeout);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return Map<String, dynamic>.from(data['user'] ?? {});
     }
+    if (response.statusCode == 401) {
+      // Explicit "this token is no longer valid" from the server — the
+      // only status code that should ever trigger clearing the session.
+      throw const AuthenticationException();
+    }
+    // Any other status (500, 503, malformed 4xx, etc.) is a server-side
+    // or transient problem, NOT proof the session is invalid — a plain
+    // Exception here (distinct from AuthenticationException) is treated
+    // by SplashPage as "keep the session, let the user retry".
     throw Exception('Failed to load profile (HTTP ${response.statusCode})');
   }
 
