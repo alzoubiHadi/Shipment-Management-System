@@ -6,9 +6,11 @@ import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Company.dart';
 import '../models/Shipment.dart';
+import '../widgets/FmsNotificationBell.dart';
 import 'AddShipmentOfferPage.dart';
 import 'CompanyOffersPage.dart';
 import 'CompanyProfileScreen.dart';
+import 'NotificationsPage.dart';
 import 'ShipmentDetailsPageCompany.dart';
 import 'ShipmentTrackingPage.dart';
 import 'register_shared.dart';
@@ -67,6 +69,10 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
 
   void _createShipment(BuildContext context) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const AddShipmentOfferPage()));
+  }
+
+  void _openNotifications(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(user: widget.user)));
   }
 
   String _blockedCreateShipmentMessage(String status) => switch (status) {
@@ -144,13 +150,21 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text('$_greeting, ${widget.user.name.split(' ').first}',
-                          style: const TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-                      const Text('Here\'s what\'s moving today',
-                          style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('$_greeting, ${widget.user.name.split(' ').first}',
+                                style: const TextStyle(
+                                    color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                            const Text('Here\'s what\'s moving today',
+                                style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      FmsNotificationBell(onTap: () => _openNotifications(context)),
                     ],
                   ),
                 ),

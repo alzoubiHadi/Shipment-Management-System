@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../main.dart';
+import 'NotificationBadge.dart';
 import 'NotificationService.dart';
 import 'config.dart';
 
@@ -71,6 +72,13 @@ class PushNotificationSetup {
   }
 
   static void _showForegroundBanner(RemoteMessage message) {
+    // Refresh the shared unread-count badge (bell on every dashboard +
+    // AdminDrawer's Notifications row) so a push that arrives while the
+    // app is open shows up immediately, not just after the user manually
+    // reopens Notifications. Independent of whether there's a title/body
+    // to show a banner for below.
+    NotificationBadge.refresh();
+
     final title = message.notification?.title ?? message.data['title'];
     final body = message.notification?.body ?? message.data['body'];
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../API/NotificationBadge.dart';
 import '../API/NotificationService.dart';
 import '../API/config.dart';
 import '../models/AppNotification.dart';
@@ -48,6 +49,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
     setState(() {
       _future = _service.fetchNotifications();
     });
+    // Every bell/badge on screen (dashboards, AdminDrawer) listens to this
+    // one shared value — see NotificationBadge.dart — so it updates live
+    // the moment something here is marked read, no need to wait for the
+    // user to navigate back to this page's caller.
+    _future.then((result) => NotificationBadge.set(result.unreadCount)).catchError((_) {});
   }
 
   Future<void> _markAllRead() async {

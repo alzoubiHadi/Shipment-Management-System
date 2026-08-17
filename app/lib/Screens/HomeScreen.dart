@@ -2,6 +2,7 @@ import 'package:app/Screens/AddShipmentForm.dart';
 import 'package:flutter/material.dart';
 
 import '../API/DriverLocationReporter.dart';
+import '../API/NotificationBadge.dart';
 import '../API/PushNotificationSetup.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
@@ -77,6 +78,14 @@ class _HomeScreenState extends State<HomeScreen> {
     // permission) once per authenticated session — HomeScreen is the one
     // screen every login/auto-login path always passes through.
     PushNotificationSetup.initialize();
+
+    // Notification bell/badge re-integration (2026-08-24, diagnosed by
+    // user): fetch the unread count once here for every role so the bell
+    // on Admin/Company dashboards (which don't do their own notifications
+    // fetch the way DriverDashboardScreen does) isn't stuck showing 0.
+    // See NotificationBadge.dart for how every bell + AdminDrawer's badge
+    // then all stay in sync from this one shared value.
+    NotificationBadge.refresh();
 
     // Drivers: starts a lightweight poll for an active trip (Shipment
     // status 1/2/5). While one exists, DriverLocationReporter streams GPS

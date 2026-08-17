@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/DriverLocationReporter.dart';
+import '../API/NotificationBadge.dart';
 import '../API/NotificationService.dart';
 import '../API/ReportService.dart';
 import '../API/ShipmentServices.dart';
@@ -8,6 +9,7 @@ import '../API/config.dart';
 import '../models/AppNotification.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
+import '../widgets/FmsNotificationBell.dart';
 import 'DriverDocumentsPage.dart';
 import 'NotificationsPage.dart';
 import 'ShipmentTrackingPage.dart';
@@ -69,6 +71,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     _shipmentsFuture = ShipmentService().fetchShipments();
     _reportFuture = ReportService().fetchMyDriverReport();
     _notificationsFuture = NotificationService().fetchNotifications();
+    // Sync the shared bell/badge (AdminDrawer, other dashboards) from this
+    // same fetch instead of making NotificationBadge.refresh() do a
+    // redundant second call — see NotificationBadge.dart.
+    _notificationsFuture.then((result) => NotificationBadge.set(result.unreadCount)).catchError((_) {});
   }
 
   Future<void> _refresh() async {
@@ -128,13 +134,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                           ],
                         ),
                       ),
-                      FutureBuilder<({List<AppNotification> notifications, int unreadCount})>(
-                        future: _notificationsFuture,
-                        builder: (context, snapshot) {
-                          final unread = snapshot.data?.unreadCount ?? 0;
-                          return _NotificationBell(unreadCount: unread, onTap: _openNotifications);
-                        },
-                      ),
+                      FmsNotificationBell(iconColor: LightColors.cream, onTap: _openNotifications),
                     ],
                   ),
                 ),
@@ -320,39 +320,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationBell extends StatelessWidget {
-  final int unreadCount;
-  final VoidCallback onTap;
-  const _NotificationBell({required this.unreadCount, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const Icon(Icons.notifications_outlined, color: LightColors.cream, size: 24),
-            if (unreadCount > 0)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(color: LightColors.gold, shape: BoxShape.circle),
-                ),
-              ),
-          ],
         ),
       ),
     );

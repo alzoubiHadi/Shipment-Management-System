@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../API/NotificationBadge.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../utils/logout_helper.dart';
@@ -28,7 +29,6 @@ class AdminDrawer extends StatelessWidget {
   final int currentTabIndex; // 0=Home,1=Approvals,2=Shipments,3=Finance
   final void Function(int index) onSelectTab;
   final int pendingRegistrations;
-  final int unreadNotifications;
 
   const AdminDrawer({
     super.key,
@@ -36,7 +36,6 @@ class AdminDrawer extends StatelessWidget {
     required this.currentTabIndex,
     required this.onSelectTab,
     this.pendingRegistrations = 0,
-    this.unreadNotifications = 0,
   });
 
   bool get _isSuperAdmin => user.role.toLowerCase() == 'super_admin';
@@ -157,11 +156,14 @@ class AdminDrawer extends StatelessWidget {
                     label: 'Reports',
                     onTap: () => _push(context, ReportsHomePage(user: user)),
                   ),
-                  _DrawerTile(
-                    icon: Icons.notifications_outlined,
-                    label: 'Notifications',
-                    badge: unreadNotifications,
-                    onTap: () => _push(context, NotificationsPage(user: user)),
+                  ValueListenableBuilder<int>(
+                    valueListenable: NotificationBadge.unreadCount,
+                    builder: (context, unread, _) => _DrawerTile(
+                      icon: Icons.notifications_outlined,
+                      label: 'Notifications',
+                      badge: unread,
+                      onTap: () => _push(context, NotificationsPage(user: user)),
+                    ),
                   ),
                   if (_isSuperAdmin)
                     _DrawerTile(

@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../API/AdminDashboardService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
+import '../widgets/FmsNotificationBell.dart';
 import 'ApprovalsPage.dart';
 import 'Companiespage.dart';
 import 'DocumentAlertsPage.dart';
 import 'Driverspage.dart';
+import 'NotificationsPage.dart';
 import 'ReportsHomePage.dart';
 import 'AdminShipmentsScreen.dart';
 
@@ -76,6 +78,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  void _openNotifications(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(user: widget.user)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -113,6 +119,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ],
                         ),
                       ),
+                      FmsNotificationBell(onTap: () => _openNotifications(context)),
                     ],
                   ),
                 ),
