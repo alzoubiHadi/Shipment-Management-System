@@ -12,6 +12,28 @@ import 'NotificationsPage.dart';
 import 'ShipmentTrackingPage.dart';
 import 'UserHomePage.dart';
 
+/// Blank-Home-screen bug fix (2026-08-24): Laravel's `decimal:N` Eloquent
+/// cast serializes to JSON as a STRING ("1500.00"), not a number, even
+/// though PHP-side arithmetic on it works fine — a well-known Laravel
+/// gotcha. `ReportController::driverSelf()` returns `'balance' =>
+/// $driver->balance` straight off that decimal-cast attribute, unlike
+/// `pending_amount`/`total_earnings_this_month` which are explicitly
+/// `(float)`-cast. The old `(report['balance'] as num?)?.toDouble()` used
+/// Dart's `as` cast, which THROWS (does not just return null) when the
+/// value is a non-null String — so the instant `_reportFuture` resolved,
+/// this FutureBuilder's builder() threw mid-build. Flutter's default
+/// ErrorWidget renders as a plain grey box (not the red debug screen) in
+/// release/profile mode, which is exactly what was reported: header +
+/// bottom nav fine, everything in between a blank grey rectangle. Fixed by
+/// tolerating either a String or a num here, rather than only patching the
+/// backend — any other decimal-cast field returned as a string in the
+/// future hits the same safe path instead of crashing the same way again.
+double _toDouble(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value.toDouble();
+  return double.tryParse(value.toString()) ?? 0;
+}
+
 /// Driver "Home" — driver redesign Phase 1 (2026-08-17 mockup). Dark-themed
 /// (AppColors), matching the mockup itself and the user's request to
 /// improve the existing workflow rather than re-theme it.
@@ -120,7 +142,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                   future: _reportFuture,
                   builder: (context, reportSnapshot) {
                     final report = reportSnapshot.data ?? const {};
-                    final balance = (report['balance'] as num?)?.toDouble() ?? 0;
+                    final balance = _toDouble(report['balance']);
 
                     return FutureBuilder<List<Shipment>>(
                       future: _shipmentsFuture,
@@ -151,7 +173,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                         final upcoming = shipments.where((s) => s.status == 0).length;
                         final active = shipments.where((s) => s.status == 1 || s.status == 2 || s.status == 5).length;
                         final completed = shipments.where((s) => s.status == 3).length;
-                        final pendingAmount = (report['pending_amount'] as num?)?.toDouble() ?? 0;
+                        final pendingAmount = _toDouble(report['pending_amount']);
 
                         // "Current Trip" — prefer an in-progress one; fall
                         // back to the next upcoming pickup if nothing's
@@ -181,6 +203,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 18),
+                              ],
+                              if (reportSnapshot.hasError) ...[
+                                _InlineErrorNotice(
+                                  message: 'Could not load wallet balance — showing AED 0 for now.',
+                                  onRetry: _refresh,
+                                ),
+                                const SizedBox(height: 10),
                               ],
                               _WalletCard(balance: balance, onTap: widget.onOpenWallet),
                               const SizedBox(height: 18),
@@ -363,6 +392,41 @@ class _ComplianceBanner extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small, non-blocking notice for when [_reportFuture] fails — the rest of
+/// the dashboard (Shipments, Current Trip, Notifications, which all come
+/// from separate futures) keeps rendering normally either way; only the
+/// wallet-derived numbers (balance/pending amount) fall back to 0.
+class _InlineErrorNotice extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _InlineErrorNotice({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.error.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(message, style: const TextStyle(color: AppColors.error, fontSize: 11.5))),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0)),
+            child: const Text('Retry', style: TextStyle(color: AppColors.error, fontSize: 11.5, fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
     );
   }
