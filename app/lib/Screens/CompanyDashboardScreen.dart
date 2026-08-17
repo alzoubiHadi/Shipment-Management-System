@@ -7,6 +7,7 @@ import '../models/Shipment.dart';
 import 'AddShipmentOfferPage.dart';
 import 'CompanyOffersPage.dart';
 import 'ShipmentDetailsPageCompany.dart';
+import 'ShipmentTrackingPage.dart';
 import 'register_shared.dart';
 
 /// Company "Home" landing screen — start of the company-side redesign
@@ -68,6 +69,53 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => ShipmentDetailsPageCompany(shipment: s)));
   }
 
+  // 2026-08-17 feedback: tracking/the live map was buried 3 taps deep
+  // (Shipments tab -> tap a shipment -> "View Tracking Timeline"). Home is
+  // the main screen, so a live shipment now gets one-tap access straight
+  // to ShipmentTrackingPage from here.
+  void _trackLive(BuildContext context, List<Shipment> live) {
+    if (live.length == 1) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ShipmentTrackingPage(shipment: live.first, readOnly: true)));
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: LightColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Track a Shipment', style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: live.map((s) {
+                  return ListTile(
+                    leading: const Icon(Icons.local_shipping_outlined, color: LightColors.goldMuted),
+                    title: Text('SH-${s.id}', style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
+                    subtitle: Text('${s.origin} → ${s.destination}', style: const TextStyle(color: LightColors.textSecondary)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => ShipmentTrackingPage(shipment: s, readOnly: true)));
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -120,6 +168,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                     }
 
                     final shipments = snapshot.data ?? [];
+                    final liveShipments = shipments.where((s) => s.status == 1 || s.status == 2 || s.status == 5).toList();
                     final active = shipments.where((s) => s.status == 0 || s.status == 1 || s.status == 2 || s.status == 5).length;
                     final inTransit = shipments.where((s) => s.status == 1).length;
                     final pending = shipments.where((s) => s.status == 0).length;
@@ -134,6 +183,13 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (liveShipments.isNotEmpty) ...[
+                            _LiveTrackingBanner(
+                              count: liveShipments.length,
+                              onTap: () => _trackLive(context, liveShipments),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                           GridView.count(
                             crossAxisCount: 2,
                             shrinkWrap: true,
@@ -191,6 +247,54 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                   },
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveTrackingBanner extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+  const _LiveTrackingBanner({required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: LightColors.navy,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.map_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count == 1 ? 'Track Live Shipment' : 'Track $count Live Shipments',
+                      style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text('On the road now — tap to view the live map',
+                        style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.white70),
             ],
           ),
         ),

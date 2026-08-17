@@ -4,6 +4,7 @@ import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
 import 'ShipmentDetailsPageCompany.dart';
+import 'ShipmentTrackingPage.dart';
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 // Company redesign Phase 3 (2026-08-17 mockup): "My Shipments" list,
@@ -293,6 +294,10 @@ class _ShipmentTile extends StatelessWidget {
 
   const _ShipmentTile({required this.shipment});
 
+  // Live == In Transit / Out for Delivery / Delayed — the only statuses
+  // where a map position actually exists to show.
+  bool get _isLive => shipment.status == 1 || shipment.status == 2 || shipment.status == 5;
+
   Color get _color => switch (shipment.status) {
         0 => LightColors.pending,
         1 => LightColors.navy,
@@ -363,6 +368,24 @@ class _ShipmentTile extends StatelessWidget {
                   ],
                 ],
               ),
+              if (_isLive) ...[
+                const SizedBox(width: 4),
+                Material(
+                  color: LightColors.navy,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ShipmentTrackingPage(shipment: shipment, readOnly: true)),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.map_rounded, color: Colors.white, size: 18),
+                    ),
+                  ),
+                ),
+              ],
               const Icon(Icons.chevron_right_rounded, color: LightColors.textSecondary, size: 20),
             ],
           ),
