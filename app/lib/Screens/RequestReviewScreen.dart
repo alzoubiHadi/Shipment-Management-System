@@ -8,6 +8,7 @@ import '../models/Company.dart';
 import '../models/Driver.dart';
 import '../models/DriverDocument.dart';
 import '../models/Truck.dart';
+import 'DecisionConfirmationScreen.dart';
 
 /// The tabbed request-review + decision screen (2026-08-21 mockup, Phase 3
 /// of the admin dashboard redesign) — replaces the interim link to the
@@ -110,8 +111,11 @@ class _RequestReviewScreenState extends State<RequestReviewScreen> with SingleTi
 
     final success = result is Map ? result['success'] == true : result == true;
     final message = result is Map ? (result['message']?.toString() ?? '') : (success ? 'Approved' : 'Could not approve');
-    _snack(message, isError: !success);
-    if (success && mounted) Navigator.pop(context, true);
+    if (success) {
+      _afterDecision(DecisionOutcome.approved);
+    } else {
+      _snack(message, isError: true);
+    }
   }
 
   Future<void> _reject() async {
@@ -140,8 +144,11 @@ class _RequestReviewScreenState extends State<RequestReviewScreen> with SingleTi
       message = success ? 'Company rejected' : 'Could not reject company';
     }
     setState(() => _busy = false);
-    _snack(message, isError: !success);
-    if (success && mounted) Navigator.pop(context, true);
+    if (success) {
+      _afterDecision(DecisionOutcome.rejected);
+    } else {
+      _snack(message, isError: true);
+    }
   }
 
   Future<void> _requestChanges() async {
@@ -167,8 +174,26 @@ class _RequestReviewScreenState extends State<RequestReviewScreen> with SingleTi
     setState(() => _busy = false);
 
     final success = result['success'] == true;
-    _snack(result['message']?.toString() ?? '', isError: !success);
-    if (success && mounted) Navigator.pop(context, true);
+    if (success) {
+      _afterDecision(DecisionOutcome.changesRequired);
+    } else {
+      _snack(result['message']?.toString() ?? '', isError: true);
+    }
+  }
+
+  /// Replaces this screen with the matching outcome confirmation screen
+  /// (2026-08-21 mockup's 3 outcome screens) instead of just popping with a
+  /// SnackBar. That confirmation screen's "Back to Requests" button then
+  /// pops straight back to RegistrationRequestsScreen (it now sits directly
+  /// above it in the stack) and tells it to refresh.
+  void _afterDecision(DecisionOutcome outcome) {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DecisionConfirmationScreen(outcome: outcome, name: _name, isDriver: _isDriver),
+      ),
+    );
   }
 
   @override
