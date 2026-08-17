@@ -3,6 +3,7 @@ import '../API/DriverService.dart';
 import '../API/config.dart';
 import '../models/Driver.dart';
 
+/// Admin Phase 1 (2026-08-20) redesign to LightColors.
 class AddDriverPage extends StatefulWidget {
   final Function(Driver)? onSubmit;
   final Driver? driver; // Optional driver for editing
@@ -112,7 +113,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppColors.error,
+          backgroundColor: LightColors.error,
           content: Text(e.toString()),
         ),
       );
@@ -134,11 +135,11 @@ class _AddDriverPageState extends State<AddDriverPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.gold,
-              onPrimary: AppColors.bg,
-              surface: AppColors.surface,
-              onSurface: AppColors.cream,
+            colorScheme: const ColorScheme.light(
+              primary: LightColors.gold,
+              onPrimary: LightColors.textPrimary,
+              surface: LightColors.surface,
+              onSurface: LightColors.textPrimary,
             ),
           ),
           child: child!,
@@ -159,18 +160,18 @@ class _AddDriverPageState extends State<AddDriverPage> {
     final isEditing = widget.driver != null;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.bg,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(
-          color: AppColors.cream,
+          color: LightColors.textPrimary,
         ),
         title: Text(
           isEditing ? 'Edit Driver' : 'Add Driver',
           style: const TextStyle(
-            color: AppColors.cream,
+            color: LightColors.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -182,10 +183,10 @@ class _AddDriverPageState extends State<AddDriverPage> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surfaceHigh,
+              color: LightColors.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.border,
+                color: LightColors.border,
               ),
             ),
             child: Column(
@@ -230,7 +231,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                     controller: _licenseExpiryController,
                     readOnly: true,
                     style: const TextStyle(
-                      color: AppColors.cream,
+                      color: LightColors.textPrimary,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -242,27 +243,27 @@ class _AddDriverPageState extends State<AddDriverPage> {
                     decoration: InputDecoration(
                       labelText: 'License Expiry',
                       labelStyle: const TextStyle(
-                        color: AppColors.muted,
+                        color: LightColors.textSecondary,
                       ),
                       prefixIcon: const Icon(
                         Icons.calendar_today,
-                        color: AppColors.gold,
+                        color: LightColors.gold,
                       ),
                       filled: true,
-                      fillColor: AppColors.surface,
+                      fillColor: LightColors.bg,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: AppColors.border,
+                          color: LightColors.border,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: AppColors.gold,
+                          color: LightColors.gold,
                           width: 2,
                         ),
                       ),
@@ -278,7 +279,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     style: const TextStyle(
-                      color: AppColors.cream,
+                      color: LightColors.textPrimary,
                     ),
                     validator: (value) {
                       // Only require password if creating a new driver
@@ -290,18 +291,18 @@ class _AddDriverPageState extends State<AddDriverPage> {
                     decoration: InputDecoration(
                       labelText: isEditing ? 'Password (leave blank to keep current)' : 'Password',
                       labelStyle: const TextStyle(
-                        color: AppColors.muted,
+                        color: LightColors.textSecondary,
                       ),
                       prefixIcon: const Icon(
                         Icons.lock,
-                        color: AppColors.gold,
+                        color: LightColors.gold,
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility
                               : Icons.visibility_off,
-                          color: AppColors.gold,
+                          color: LightColors.gold,
                         ),
                         onPressed: () {
                           setState(() {
@@ -310,20 +311,20 @@ class _AddDriverPageState extends State<AddDriverPage> {
                         },
                       ),
                       filled: true,
-                      fillColor: AppColors.surface,
+                      fillColor: LightColors.bg,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: AppColors.border,
+                          color: LightColors.border,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(
-                          color: AppColors.gold,
+                          color: LightColors.gold,
                           width: 2,
                         ),
                       ),
@@ -344,6 +345,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
+                        color: LightColors.textPrimary,
                       ),
                     )
                         : const Icon(Icons.save),
@@ -355,8 +357,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.gold,
-                      foregroundColor: AppColors.bg,
+                      backgroundColor: LightColors.gold,
+                      foregroundColor: LightColors.textPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -385,7 +387,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
         obscureText: obscureText,
         keyboardType: keyboardType,
         style: const TextStyle(
-          color: AppColors.cream,
+          color: LightColors.textPrimary,
         ),
         validator: (value) {
           if (value == null || value.trim().isEmpty) {
@@ -396,27 +398,27 @@ class _AddDriverPageState extends State<AddDriverPage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(
-            color: AppColors.muted,
+            color: LightColors.textSecondary,
           ),
           prefixIcon: Icon(
             icon,
-            color: AppColors.gold,
+            color: LightColors.gold,
           ),
           filled: true,
-          fillColor: AppColors.surface,
+          fillColor: LightColors.bg,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
-              color: AppColors.border,
+              color: LightColors.border,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
-              color: AppColors.gold,
+              color: LightColors.gold,
               width: 2,
             ),
           ),

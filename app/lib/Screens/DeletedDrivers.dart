@@ -1,16 +1,15 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../API/DriverService.dart';
 import '../API/config.dart';
-import '../models/Appuser.dart';
 import '../models/Driver.dart';
 import 'AddDriverPage.dart';
-import 'AppBarWidget.dart';
-import 'DriverDetails.dart';
+import 'RequestReviewScreen.dart';
 
+/// Admin Phase 1 (2026-08-20) redesign to LightColors — see Driverspage.dart
+/// for the same View → RequestReviewScreen.driver() change.
 class Deleteddrivers extends StatefulWidget {
+  const Deleteddrivers({super.key});
+
   @override
   State<Deleteddrivers> createState() => _DriverspageState();
 }
@@ -57,10 +56,16 @@ class _DriverspageState extends State<Deleteddrivers> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(
+        backgroundColor: LightColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Deleted Drivers', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+      ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.gold,
-        child: const Icon(Icons.add, color: AppColors.bg),
+        backgroundColor: LightColors.gold,
+        child: const Icon(Icons.add, color: LightColors.textPrimary),
         onPressed: () async {
           final result = await Navigator.push(
             context,
@@ -71,26 +76,35 @@ class _DriverspageState extends State<Deleteddrivers> {
         },
       ),
       body: RefreshIndicator(
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: "Search by name...",
-                    hintStyle: const TextStyle(color: AppColors.muted),
-                    prefixIcon:
-                    const Icon(Icons.search, color: AppColors.muted),
+                    hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                     filled: true,
-                    fillColor: AppColors.surface,
+                    fillColor: LightColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.gold),
                     ),
                   ),
                 ),
@@ -104,37 +118,31 @@ class _DriverspageState extends State<Deleteddrivers> {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 80),
                       child: Center(
-                        child:
-                        CircularProgressIndicator(color: AppColors.gold),
+                        child: CircularProgressIndicator(color: LightColors.gold),
                       ),
                     );
                   }
 
                   if (snapshot.hasError) {
                     return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 60),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
                       child: Column(
                         children: [
-                          const Icon(Icons.cloud_off,
-                              color: AppColors.error, size: 40),
+                          const Icon(Icons.cloud_off, color: LightColors.error, size: 40),
                           const SizedBox(height: 10),
                           Text(snapshot.error.toString(),
                               textAlign: TextAlign.center,
-                              style:
-                              const TextStyle(color: AppColors.muted)),
+                              style: const TextStyle(color: LightColors.textSecondary)),
                           TextButton(
                             onPressed: _refresh,
-                            child: const Text("Retry",
-                                style: TextStyle(color: AppColors.gold)),
+                            child: const Text("Retry", style: TextStyle(color: LightColors.gold)),
                           )
                         ],
                       ),
                     );
                   }
 
-                  final drivers =
-                  _filterdata(snapshot.data ?? []);
+                  final drivers = _filterdata(snapshot.data ?? []);
 
                   if (drivers.isEmpty) {
                     return const Padding(
@@ -142,15 +150,14 @@ class _DriverspageState extends State<Deleteddrivers> {
                       child: Center(
                         child: Text(
                           "No deleted drivers found",
-                          style: TextStyle(color: AppColors.muted),
+                          style: TextStyle(color: LightColors.textSecondary),
                         ),
                       ),
                     );
                   }
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                     child: Column(
                       children: [
                         for (final driver in drivers) ...[
@@ -201,7 +208,7 @@ class _DriverItemState extends State<DriverItem> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Driver restored successfully"),
-          backgroundColor: Colors.green,
+          backgroundColor: LightColors.success,
         ),
       );
 
@@ -214,7 +221,7 @@ class _DriverItemState extends State<DriverItem> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString()),
-          backgroundColor: Colors.red,
+          backgroundColor: LightColors.error,
         ),
       );
     } finally {
@@ -229,11 +236,11 @@ class _DriverItemState extends State<DriverItem> {
     final driver = widget.driver;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: LightColors.border),
       ),
       child: Row(
         children: [
@@ -241,12 +248,12 @@ class _DriverItemState extends State<DriverItem> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
+              color: LightColors.navy.withOpacity(0.08),
             ),
             child: const Icon(
-              Icons.person,
-              color: AppColors.cream,
+              Icons.person_outline,
+              color: LightColors.navy,
               size: 20,
             ),
           ),
@@ -259,15 +266,16 @@ class _DriverItemState extends State<DriverItem> {
                 Text(
                   driver.name ?? '',
                   style: const TextStyle(
-                    color: AppColors.cream,
-                    fontWeight: FontWeight.w500,
+                    color: LightColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   "ID: ${driver.id}",
                   style: const TextStyle(
-                    color: AppColors.muted,
+                    color: LightColors.textSecondary,
                     fontSize: 11,
                   ),
                 ),
@@ -278,30 +286,22 @@ class _DriverItemState extends State<DriverItem> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.goldMuted,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  driver.email ?? '',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.bg,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Text(
+                driver.email ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: LightColors.textSecondary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 driver.driver_license,
                 style: const TextStyle(
                   fontSize: 10,
-                  color: AppColors.muted,
+                  color: LightColors.textSecondary,
                 ),
               ),
               Row(
@@ -309,12 +309,12 @@ class _DriverItemState extends State<DriverItem> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.visibility_outlined),
-                    color: AppColors.info,
+                    color: LightColors.navy,
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => DriverDetailsPage(driver: driver),
+                          builder: (_) => RequestReviewScreen.driver(driver),
                         ),
                       );
                     },
@@ -323,11 +323,11 @@ class _DriverItemState extends State<DriverItem> {
                       ? const SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.gold),
                   )
                       : IconButton(
                     icon: const Icon(Icons.restore),
-                    color: AppColors.success,
+                    color: LightColors.success,
                     onPressed: _restoreDriver,
                   ),
                 ],

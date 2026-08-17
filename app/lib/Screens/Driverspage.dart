@@ -4,11 +4,17 @@ import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Driver.dart';
 import 'AddDriverPage.dart';
-import 'AppBarWidget.dart';
-import 'DriverDetails.dart';
+import 'RequestReviewScreen.dart';
 
-// ── Page ─────────────────────────────────────────────────────────────────────
-
+/// Admin Phase 1 (2026-08-20) redesign to LightColors, matching the
+/// Registration Requests / Request Review screens already redesigned in an
+/// earlier phase. "View" now opens RequestReviewScreen.driver(driver)
+/// instead of the old dark DriverDetailsPage — that screen already renders
+/// full driver info/documents/truck tabs for any status (its Approve/
+/// Reject/Request Changes action bar only shows itself while status is
+/// 'pending'/'changes_required'), so it doubles as a plain read-only
+/// viewer for approved/rejected drivers too. DriverDetails.dart is no
+/// longer referenced from here.
 class Driverspage extends StatefulWidget {
   final AppUser user;
   // Lets a caller (e.g. the admin drawer's "Registration Requests" shortcut)
@@ -76,9 +82,21 @@ class _DriverspageState extends State<Driverspage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
+      appBar: AppBar(
+        backgroundColor: LightColors.bg,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Drivers', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.textSecondary),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async {
           _refresh();
           await _driverFuture;
@@ -86,27 +104,31 @@ class _DriverspageState extends State<Driverspage> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            AppBarWidget(
-              user: widget.user,
-              subtitle: 'Drivers',
-            ),
-
             // SEARCH BAR
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: "Search by name...",
-                    hintStyle: const TextStyle(color: AppColors.muted),
-                    prefixIcon: const Icon(Icons.search, color: AppColors.muted),
+                    hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                     filled: true,
-                    fillColor: AppColors.surface,
+                    fillColor: LightColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: LightColors.gold),
                     ),
                   ),
                 ),
@@ -135,7 +157,7 @@ class _DriverspageState extends State<Driverspage> {
 
                 final filterBar = SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
+                    padding: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
                     child: Row(
                       children: [
                         _FilterChip(
@@ -182,7 +204,7 @@ class _DriverspageState extends State<Driverspage> {
                   slivers: [
                     filterBar,
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                               (context, index) {
@@ -219,7 +241,7 @@ class _LoadingState extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 80),
       child: Center(
-        child: CircularProgressIndicator(color: AppColors.gold),
+        child: CircularProgressIndicator(color: LightColors.gold),
       ),
     );
   }
@@ -238,23 +260,23 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 48),
+          const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 48),
           const SizedBox(height: 16),
           const Text(
             'Failed to load Drivers',
-            style: TextStyle(color: AppColors.cream, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
+            style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 20),
           TextButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.gold),
-            label: const Text('Retry', style: TextStyle(color: AppColors.gold)),
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.gold),
+            label: const Text('Retry', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -272,17 +294,17 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inventory_2_outlined, color: AppColors.muted, size: 48),
+          Icon(Icons.inventory_2_outlined, color: LightColors.textSecondary, size: 48),
           SizedBox(height: 16),
           Text(
             'No drivers yet',
-            style: TextStyle(color: AppColors.cream, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 8),
           Text(
             'Your drivers will appear here once created.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted, fontSize: 12),
+            style: TextStyle(color: LightColors.textSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -307,7 +329,7 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = highlight && !selected ? AppColors.gold : AppColors.border;
+    final borderColor = highlight && !selected ? LightColors.gold : LightColors.border;
 
     return InkWell(
       onTap: onTap,
@@ -315,7 +337,7 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppColors.gold : AppColors.surface,
+          color: selected ? LightColors.gold : LightColors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: borderColor),
         ),
@@ -324,7 +346,7 @@ class _FilterChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: selected ? AppColors.bg : AppColors.cream,
+            color: selected ? LightColors.textPrimary : LightColors.textPrimary.withOpacity(0.85),
           ),
         ),
       ),
@@ -343,11 +365,11 @@ class DriverItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border),
       ),
       child: Row(
         children: [
@@ -356,10 +378,10 @@ class DriverItem extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(10),
+              shape: BoxShape.circle,
+              color: LightColors.navy.withOpacity(0.08),
             ),
-            child: const Icon(Icons.verified_user, color: AppColors.cream, size: 20),
+            child: const Icon(Icons.person_outline, color: LightColors.navy, size: 20),
           ),
           const SizedBox(width: 12),
 
@@ -369,14 +391,14 @@ class DriverItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  driver.id.toString(),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.cream),
+                  driver.name ?? '',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LightColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  driver.name ?? '',
-                  style: const TextStyle(fontSize: 11, color: AppColors.muted),
-                  overflow: TextOverflow.ellipsis,
+                  'DR-${driver.id}',
+                  style: const TextStyle(fontSize: 11, color: LightColors.textSecondary),
                 ),
                 const SizedBox(height: 6),
                 _ApprovalBadge(status: driver.approvalStatus),
@@ -384,12 +406,12 @@ class DriverItem extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, size: 12, color: AppColors.error),
+                      const Icon(Icons.warning_amber_rounded, size: 12, color: LightColors.error),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           driver.documentIssues.join(', '),
-                          style: const TextStyle(fontSize: 10, color: AppColors.error),
+                          style: const TextStyle(fontSize: 10, color: LightColors.error),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -401,38 +423,26 @@ class DriverItem extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // Status badge + License + Actions — width-capped so a long
-          // email/license string can never squeeze the leading Expanded
-          // name column down to near-zero (that squeeze is what made the
-          // "Pending review" badge wrap one character per line).
+          // Email + license + actions — width-capped so a long email/
+          // license string can never squeeze the leading Expanded name
+          // column down to near-zero.
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 130),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.gold,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    driver.email ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.bg,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                Text(
+                  driver.email ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10.5, color: LightColors.textSecondary, fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   driver.driver_license ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                  style: const TextStyle(fontSize: 10, color: LightColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
 
@@ -440,17 +450,19 @@ class DriverItem extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 1. VIEW BUTTON
+                  // 1. VIEW BUTTON — opens the shared light-themed review
+                  // screen (Approve/Reject bar only shows for pending/
+                  // changes_required drivers; everything else is read-only).
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     icon: const Icon(Icons.visibility_outlined, size: 20),
-                    color: AppColors.gold,
+                    color: LightColors.navy,
                     onPressed: () async {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => DriverDetailsPage(driver: driver),
+                          builder: (_) => RequestReviewScreen.driver(driver),
                         ),
                       );
 
@@ -461,15 +473,13 @@ class DriverItem extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
 
-                  // 2. EDIT BUTTON (NEW)
+                  // 2. EDIT BUTTON
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     icon: const Icon(Icons.edit_outlined, size: 20),
-                    color: AppColors.info, // Blue color for edit
+                    color: LightColors.goldMuted,
                     onPressed: () async {
-                      // Navigate to AddDriverPage and pass the driver object for editing
-                      // Note: Ensure AddDriverPage accepts an optional `Driver? driver` parameter
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -477,7 +487,6 @@ class DriverItem extends StatelessWidget {
                         ),
                       );
 
-                      // Refresh the list if we returned from the edit page
                       if (result != null) {
                         onRefresh?.call();
                       }
@@ -489,26 +498,26 @@ class DriverItem extends StatelessWidget {
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.delete, size: 20),
-                    color: AppColors.error,
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    color: LightColors.error,
                     onPressed: () async {
                       bool? confirm = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          backgroundColor: AppColors.surface,
-                          title: const Text('Delete Driver', style: TextStyle(color: AppColors.cream)),
+                          backgroundColor: LightColors.surface,
+                          title: const Text('Delete Driver', style: TextStyle(color: LightColors.textPrimary)),
                           content: Text(
                             'Are you sure you want to delete ${driver.name}?',
-                            style: const TextStyle(color: AppColors.muted),
+                            style: const TextStyle(color: LightColors.textSecondary),
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+                              child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
                             ),
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+                              child: const Text('Delete', style: TextStyle(color: LightColors.error)),
                             ),
                           ],
                         ),
@@ -529,7 +538,7 @@ class DriverItem extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       icon: const Icon(Icons.check_circle_outline, size: 20),
-                      color: AppColors.success,
+                      color: LightColors.success,
                       tooltip: 'Approve',
                       onPressed: () async {
                         final result = await DriverService.approveDriver(driver.id);
@@ -548,31 +557,31 @@ class DriverItem extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       icon: const Icon(Icons.cancel_outlined, size: 20),
-                      color: AppColors.error,
+                      color: LightColors.error,
                       tooltip: 'Reject',
                       onPressed: () async {
                         final reasonCtrl = TextEditingController();
                         final confirmed = await showDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
-                            backgroundColor: AppColors.surface,
-                            title: const Text('Reject Driver', style: TextStyle(color: AppColors.cream)),
+                            backgroundColor: LightColors.surface,
+                            title: const Text('Reject Driver', style: TextStyle(color: LightColors.textPrimary)),
                             content: TextField(
                               controller: reasonCtrl,
-                              style: const TextStyle(color: AppColors.cream),
+                              style: const TextStyle(color: LightColors.textPrimary),
                               decoration: const InputDecoration(
                                 hintText: 'Reason (optional)',
-                                hintStyle: TextStyle(color: AppColors.muted),
+                                hintStyle: TextStyle(color: LightColors.textSecondary),
                               ),
                             ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+                                child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
                               ),
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+                                child: const Text('Reject', style: TextStyle(color: LightColors.error)),
                               ),
                             ],
                           ),
@@ -603,10 +612,17 @@ class _ApprovalBadge extends StatelessWidget {
   const _ApprovalBadge({required this.status});
 
   Color get _color => switch (status) {
-        'approved' => AppColors.success,
-        'rejected' => AppColors.error,
-        'changes_required' => AppColors.gold,
-        _ => AppColors.info,
+        'approved' => LightColors.success,
+        'rejected' => LightColors.error,
+        'changes_required' => LightColors.goldMuted,
+        _ => LightColors.pending,
+      };
+
+  Color get _bg => switch (status) {
+        'approved' => LightColors.successBg,
+        'rejected' => LightColors.errorBg,
+        'changes_required' => LightColors.gold.withOpacity(0.14),
+        _ => LightColors.pendingBg,
       };
 
   String get _label => switch (status) {
@@ -621,9 +637,8 @@ class _ApprovalBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: _color.withOpacity(0.12),
+        color: _bg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _color.withOpacity(0.4)),
       ),
       child: Text(
         _label,
