@@ -12,6 +12,7 @@ import 'AddShipmentOfferPage.dart';
 import 'AdminBottomNav.dart';
 import 'AdminDashboardScreen.dart';
 import 'AdminDrawer.dart';
+import 'AdminFinancePage.dart';
 import 'CelebrateBottomNav.dart';
 import 'CompanyBalancePage.dart';
 import 'CompanyBottomNav.dart';
@@ -25,7 +26,6 @@ import 'DriverOffersPage.dart';
 import 'PlaceholderPage.dart';
 import 'Profile.dart';
 import 'RegistrationRequestsScreen.dart';
-import 'SelectRequestTypeScreen.dart';
 import 'ShipmentPageAdmin.dart';
 import 'UserHomePage.dart';
 
@@ -232,6 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
             initialStatusFilter: _requestsStatusFilter,
           ),
           Shipmentpageadmin(user: widget.user),
+          const AdminFinancePage(),
         ];
 
       default:
@@ -251,11 +252,13 @@ class _HomeScreenState extends State<HomeScreen> {
       pages.length - 1,
     );
 
-    // Admins navigate via a bottom nav (Dashboard/Requests/+/Shipments/Menu)
-    // + a slide-out Drawer opened from "Menu" or the dashboard's hamburger —
-    // matches the 2026-08-21 "Registration Requests" mobile mockup, chosen
-    // over a Drawer-only nav after the user compared it against that
-    // mockup's actual bottom bar (2026-08-17).
+    // Admins navigate via a bottom nav (Dashboard/Requests/Shipments/
+    // Finance/Menu) + a slide-out Drawer opened from "Menu" or the
+    // dashboard's hamburger. The center "+" FAB shortcut into
+    // SelectRequestTypeScreen was removed 2026-08-20 (redundant with the
+    // Requests tab's own type/status filters) and replaced with a plain
+    // Finance tab — promoted out of the drawer since managing payments is
+    // as core a daily task as Requests/Shipments.
     if (_isAdmin) {
       return Scaffold(
         key: _scaffoldKey,
@@ -279,6 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedTab: switch (safeIndex) {
             1 => AdminNavTab.requests,
             2 => AdminNavTab.shipments,
+            3 => AdminNavTab.finance,
             _ => AdminNavTab.dashboard,
           },
           onSelectTab: (tab) {
@@ -292,17 +296,11 @@ class _HomeScreenState extends State<HomeScreen> {
               case AdminNavTab.shipments:
                 setState(() => _selectedIndex = 2);
                 break;
+              case AdminNavTab.finance:
+                setState(() => _selectedIndex = 3);
+                break;
             }
           },
-          onAdd: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SelectRequestTypeScreen(
-                user: widget.user,
-                onSelect: (type) => _goToRequests(type: type, status: 'pending'),
-              ),
-            ),
-          ),
           onMenu: () => _scaffoldKey.currentState?.openDrawer(),
         ),
       );

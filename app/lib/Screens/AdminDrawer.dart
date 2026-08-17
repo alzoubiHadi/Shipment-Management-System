@@ -12,19 +12,18 @@ import 'NotificationsPage.dart';
 import 'ReportsHomePage.dart';
 import 'ShipmentOffersAdminPage.dart';
 
-/// Left sidebar navigation from the 2026-08-21 admin dashboard mockup,
-/// adapted to mobile as a slide-out Drawer (2026-08-17: paired with a
-/// bottom nav per the "Registration Requests" mobile mockup — Dashboard/
-/// Requests/+/Shipments/Menu, where Menu opens this Drawer for everything
-/// else, rather than the Drawer being the only nav).
+/// Left sidebar navigation from the admin dashboard redesign, adapted to
+/// mobile as a slide-out Drawer paired with a bottom nav — Dashboard/
+/// Requests/Shipments/Finance/Menu, where Menu opens this Drawer for
+/// everything else, rather than the Drawer being the only nav.
 ///
-/// Only Home/Registration Requests/Shipments live in HomeScreen's
+/// Only Home/Registration Requests/Shipments/Finance live in HomeScreen's
 /// IndexedStack (go through [onSelectTab]); Drivers/Companies/Offers/
 /// Documents & Permissions/Reports/Notifications/Activity Log/Settings are
 /// full standalone pages reached via a normal push.
 class AdminDrawer extends StatelessWidget {
   final AppUser user;
-  final int currentTabIndex; // 0=Home,1=Registration Requests,2=Shipments
+  final int currentTabIndex; // 0=Home,1=Registration Requests,2=Shipments,3=Finance
   final void Function(int index) onSelectTab;
   final int pendingRegistrations;
   final int unreadNotifications;

@@ -2,28 +2,30 @@ import 'package:flutter/material.dart';
 
 import '../API/config.dart';
 
-/// Bottom nav for the admin dashboard redesign (2026-08-21 "Registration
-/// Requests" mockup): Dashboard / Requests / a raised "+" quick-action /
-/// Shipments / Menu (opens the AdminDrawer). Chosen over a Drawer-only nav
-/// per the user's explicit follow-up decision (2026-08-17) after seeing the
-/// mobile mockups actually show this bottom bar, not just a sidebar.
+/// Bottom nav for admin: Dashboard / Requests / Shipments / Finance / Menu
+/// (opens the AdminDrawer). Originally had a raised gold "+" FAB in the
+/// center (quick-action shortcut into SelectRequestTypeScreen) — removed
+/// 2026-08-20 on request, since it only ever duplicated filtering that's
+/// already available directly inside the Requests tab itself (type/status
+/// chips), and a plain 5-icon row reads clearer than a FAB that didn't
+/// actually add anything. Finance (top-ups/payouts/credit limits/
+/// adjustments — AdminFinancePage) was promoted from the drawer to fill
+/// the freed slot, since managing incoming/outgoing payments is a primary
+/// daily admin task, same tier as Requests/Shipments.
 ///
-/// `selectedTab` is one of [AdminNavTab] and only reflects Dashboard/
-/// Requests/Shipments — the "+" and "Menu" slots are momentary actions, not
-/// persisted selection state.
-enum AdminNavTab { dashboard, requests, shipments }
+/// `selectedTab` is one of [AdminNavTab] — "Menu" is a momentary action,
+/// not persisted selection state.
+enum AdminNavTab { dashboard, requests, shipments, finance }
 
 class AdminBottomNav extends StatelessWidget {
   final AdminNavTab selectedTab;
   final ValueChanged<AdminNavTab> onSelectTab;
-  final VoidCallback onAdd;
   final VoidCallback onMenu;
 
   const AdminBottomNav({
     super.key,
     required this.selectedTab,
     required this.onSelectTab,
-    required this.onAdd,
     required this.onMenu,
   });
 
@@ -35,80 +37,57 @@ class AdminBottomNav extends StatelessWidget {
     // icons end up under/behind the phone's system nav bar and can't be
     // tapped.
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    return SizedBox(
-      height: 74 + bottomInset,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
-        children: [
-          Positioned.fill(
-            top: 12,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: LightColors.surface,
-                border: Border(top: BorderSide(color: LightColors.border, width: 1)),
+    return Container(
+      height: 64 + bottomInset,
+      decoration: const BoxDecoration(
+        color: LightColors.surface,
+        border: Border(top: BorderSide(color: LightColors.border, width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _NavIcon(
+                icon: Icons.dashboard_outlined,
+                activeIcon: Icons.dashboard_rounded,
+                label: 'Dashboard',
+                active: selectedTab == AdminNavTab.dashboard,
+                onTap: () => onSelectTab(AdminNavTab.dashboard),
               ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _NavIcon(
-                        icon: Icons.dashboard_outlined,
-                        activeIcon: Icons.dashboard_rounded,
-                        label: 'Dashboard',
-                        active: selectedTab == AdminNavTab.dashboard,
-                        onTap: () => onSelectTab(AdminNavTab.dashboard),
-                      ),
-                      _NavIcon(
-                        icon: Icons.assignment_outlined,
-                        activeIcon: Icons.assignment_rounded,
-                        label: 'Requests',
-                        active: selectedTab == AdminNavTab.requests,
-                        onTap: () => onSelectTab(AdminNavTab.requests),
-                      ),
-                      const SizedBox(width: 56), // room for the raised FAB
-                      _NavIcon(
-                        icon: Icons.local_shipping_outlined,
-                        activeIcon: Icons.local_shipping_rounded,
-                        label: 'Shipments',
-                        active: selectedTab == AdminNavTab.shipments,
-                        onTap: () => onSelectTab(AdminNavTab.shipments),
-                      ),
-                      _NavIcon(
-                        icon: Icons.menu_rounded,
-                        activeIcon: Icons.menu_rounded,
-                        label: 'Menu',
-                        active: false,
-                        onTap: onMenu,
-                      ),
-                    ],
-                  ),
-                ),
+              _NavIcon(
+                icon: Icons.assignment_outlined,
+                activeIcon: Icons.assignment_rounded,
+                label: 'Requests',
+                active: selectedTab == AdminNavTab.requests,
+                onTap: () => onSelectTab(AdminNavTab.requests),
               ),
-            ),
+              _NavIcon(
+                icon: Icons.local_shipping_outlined,
+                activeIcon: Icons.local_shipping_rounded,
+                label: 'Shipments',
+                active: selectedTab == AdminNavTab.shipments,
+                onTap: () => onSelectTab(AdminNavTab.shipments),
+              ),
+              _NavIcon(
+                icon: Icons.account_balance_wallet_outlined,
+                activeIcon: Icons.account_balance_wallet_rounded,
+                label: 'Finance',
+                active: selectedTab == AdminNavTab.finance,
+                onTap: () => onSelectTab(AdminNavTab.finance),
+              ),
+              _NavIcon(
+                icon: Icons.menu_rounded,
+                activeIcon: Icons.menu_rounded,
+                label: 'Menu',
+                active: false,
+                onTap: onMenu,
+              ),
+            ],
           ),
-          Positioned(
-            top: 0,
-            child: GestureDetector(
-              onTap: onAdd,
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: LightColors.gold,
-                  boxShadow: [
-                    BoxShadow(color: LightColors.gold.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: const Icon(Icons.add_rounded, color: LightColors.textPrimary, size: 28),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

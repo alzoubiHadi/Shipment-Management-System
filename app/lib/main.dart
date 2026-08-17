@@ -1,8 +1,13 @@
+import 'package:app/API/ProfileService.dart';
+import 'package:app/Screens/DriverApprovalStatusPage.dart';
+import 'package:app/Screens/HomeScreen.dart';
 import 'package:app/Screens/LoginScreen.dart';
 import 'package:app/Screens/RegisterScreen.dart';
+import 'package:app/models/Appuser.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 
@@ -59,6 +64,16 @@ class _SplashPageState extends State<SplashPage>
   late Animation<double> _fadeIn;
   late Animation<Offset> _slideUp;
 
+  // 2026-08-20 fix: this screen used to show unconditionally on every cold
+  // start ("Welcome Back!" + Log In button) even for someone who was
+  // already logged in — LoggingInScreen saves a token/loggedIn flag on
+  // success (see its _run()), but nothing ever read it back on app launch,
+  // so every user was forced to log in again every single time they
+  // reopened the app. This flag gates the marketing UI below behind a
+  // quick session check so a returning, still-logged-in user skips
+  // straight to their home screen instead.
+  bool _checkingSession = true;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +97,67 @@ class _SplashPageState extends State<SplashPage>
       ),
     );
 
+    _checkSession();
+  }
+
+  /// Mirrors LoggingInScreen's post-login routing (approved → HomeScreen,
+  /// unapproved driver/company → DriverApprovalStatusPage) so a resumed
+  /// session behaves identically to a fresh login. Calls /me/profile both
+  /// to fetch a live approval_status (it may have changed since the token
+  /// was issued) and to double as a token-validity check — an expired or
+  /// revoked token throws here, and that's treated as "not logged in".
+  Future<void> _checkSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final loggedIn = prefs.getBool('loggedIn') ?? false;
+    final token = prefs.getString('token');
+
+    if (!loggedIn || token == null || token.isEmpty) {
+      _showWelcomeUi();
+      return;
+    }
+
+    try {
+      final profile = await ProfileService().fetchMyProfile();
+      final role = profile['type']?.toString() ?? prefs.getString('role') ?? '';
+      final user = AppUser(
+        id: profile['id']?.toString() ?? prefs.getString('id') ?? '',
+        name: profile['name']?.toString() ?? prefs.getString('name') ?? '',
+        email: profile['email']?.toString() ?? prefs.getString('email') ?? '',
+        role: role,
+      );
+
+      final approvalStatus = profile['approval_status']?.toString() ?? 'approved';
+      Widget destination;
+      if (role == 'driver' && approvalStatus != 'approved') {
+        final rawIssues = profile['document_issues'];
+        destination = DriverApprovalStatusPage(
+          approvalStatus: approvalStatus,
+          rejectionReason: profile['rejection_reason']?.toString(),
+          documentIssues: rawIssues is List ? List<String>.from(rawIssues.map((e) => e.toString())) : const [],
+        );
+      } else if (role == 'company' && approvalStatus != 'approved') {
+        destination = DriverApprovalStatusPage(
+          accountType: 'company',
+          approvalStatus: approvalStatus,
+          rejectionReason: profile['rejection_reason']?.toString(),
+        );
+      } else {
+        destination = HomeScreen(user: user);
+      }
+
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => destination));
+    } catch (_) {
+      // Expired/revoked token, or no network on a cold start — fall back to
+      // a normal manual login rather than getting stuck on a blank screen.
+      await prefs.clear();
+      _showWelcomeUi();
+    }
+  }
+
+  void _showWelcomeUi() {
+    if (!mounted) return;
+    setState(() => _checkingSession = false);
     _controller.forward();
   }
 
@@ -93,6 +169,18 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingSession) {
+      // Deliberately minimal (no "Welcome Back!" copy/buttons) — this is
+      // only ever on screen for as long as one local prefs read plus, for
+      // an already-logged-in user, one quick /me/profile call takes.
+      return const Scaffold(
+        backgroundColor: Color(0xFF0A0A0C),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,

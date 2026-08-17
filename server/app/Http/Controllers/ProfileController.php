@@ -40,6 +40,13 @@ class ProfileController extends Controller
             $extra = [
                 'phone' => $driver->phone,
                 'approval_status' => $driver->approval_status,
+                // Needed so a resumed session (app cold-start with a saved
+                // token — see SplashPage's session check) can route an
+                // unapproved driver to DriverApprovalStatusPage with the
+                // same detail LoggingInScreen shows right after a fresh
+                // login, instead of a generic status with no explanation.
+                'rejection_reason' => $driver->rejection_reason,
+                'document_issues' => $driver->document_issues,
                 // Full driver profile fields — needed by the self-service
                 // "Changes Required" edit screen (updateDriverInfo()) so it
                 // can pre-fill the form instead of starting blank.
@@ -73,6 +80,7 @@ class ProfileController extends Controller
                 'address' => $user->company->address,
                 'license_file_path' => $user->company->license_file_path,
                 'approval_status' => $user->company->approval_status,
+                'rejection_reason' => $user->company->rejection_reason,
                 // Company Profile screen (2026-08-17 redesign) shows an
                 // Active/Suspended badge — wasn't previously returned here.
                 'account_status' => $user->company->account_status,

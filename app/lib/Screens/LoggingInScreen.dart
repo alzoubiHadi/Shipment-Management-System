@@ -7,7 +7,6 @@ import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
 import 'HomeScreen.dart';
-import 'RoleConfirmScreen.dart';
 
 /// Login-design screen 3 ("Logging you in..."). Runs the actual
 /// ApiService.login() call and all of the post-login branching (force
@@ -113,9 +112,14 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
                 )
               : HomeScreen(user: AppUser(name: response.name, email: widget.email, role: response.role, id: response.userId));
 
+      // 2026-08-21: RoleConfirmScreen ("Welcome Back — select your role to
+      // continue") used to sit here as an unconditional extra tap for
+      // every single login regardless of role — removed on request. Each
+      // account has exactly one fixed role, so it never actually let
+      // anyone pick anything; it was just an unwanted extra screen.
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => RoleConfirmScreen(role: response.role, next: destination)),
+        MaterialPageRoute(builder: (_) => destination),
         (route) => false,
       );
     } on ApiException catch (e) {
