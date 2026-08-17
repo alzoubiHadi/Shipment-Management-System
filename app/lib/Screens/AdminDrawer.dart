@@ -183,10 +183,17 @@ class AdminDrawer extends StatelessWidget {
               label: 'Log Out',
               iconColor: LightColors.error,
               textColor: LightColors.error,
-              onTap: () {
-                Navigator.pop(context);
-                confirmAndLogout(context, light: true);
-              },
+              // 2026-08-24 fix (diagnosed by user): this used to
+              // Navigator.pop(context) the Drawer closed FIRST, then reuse
+              // that same context — now belonging to a deactivated
+              // element — to open confirmAndLogout's confirmation dialog,
+              // which could silently fail to show or not respond. No pop
+              // needed here at all: confirmAndLogout's own
+              // Navigator.pushAndRemoveUntil(..., (route) => false) once
+              // the user confirms already unwinds the entire stack,
+              // Drawer route included. If they cancel, the Drawer simply
+              // stays open, which is correct.
+              onTap: () => confirmAndLogout(context, light: true),
             ),
             const SizedBox(height: 8),
           ],
