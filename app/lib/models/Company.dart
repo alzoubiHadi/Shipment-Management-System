@@ -21,6 +21,10 @@ class Company {
   // not yet a full URL. See CompanyDetailsPage for how it's turned into a
   // viewable link.
   final String? licenseFilePath;
+  // Laravel's default Eloquent timestamp — when this company row (and thus
+  // the registration request) was created. Used by the Registration
+  // Requests screen's "Applied on" date.
+  final DateTime? createdAt;
 
   Company({
     required this.id,
@@ -36,6 +40,7 @@ class Company {
     this.approvalStatus = 'approved',
     this.rejectionReason,
     this.licenseFilePath,
+    this.createdAt,
   });
 
   factory Company.fromMap(Map<String, dynamic> map) {
@@ -53,6 +58,7 @@ class Company {
       approvalStatus: map['approval_status']?.toString() ?? 'approved',
       rejectionReason: map['rejection_reason']?.toString(),
       licenseFilePath: map['license_file_path']?.toString(),
+      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? ''),
     );
   }
 
@@ -81,6 +87,7 @@ class Company {
       rejectionReason:
           clearRejectionReason ? null : (rejectionReason ?? this.rejectionReason),
       licenseFilePath: licenseFilePath ?? this.licenseFilePath,
+      createdAt: createdAt,
     );
   }
 

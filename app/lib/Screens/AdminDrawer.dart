@@ -9,24 +9,22 @@ import 'AdminSettingsPage.dart';
 import 'Companiespage.dart';
 import 'Driverspage.dart';
 import 'NotificationsPage.dart';
+import 'ReportsHomePage.dart';
+import 'ShipmentOffersAdminPage.dart';
 
 /// Left sidebar navigation from the 2026-08-21 admin dashboard mockup,
-/// adapted to mobile as a slide-out Drawer instead of a permanently
-/// pinned desktop sidebar (agreed 2026-08-21 — a fixed sidebar would eat
-/// too much of a phone screen).
+/// adapted to mobile as a slide-out Drawer (2026-08-17: paired with a
+/// bottom nav per the "Registration Requests" mobile mockup — Dashboard/
+/// Requests/+/Shipments/Menu, where Menu opens this Drawer for everything
+/// else, rather than the Drawer being the only nav).
 ///
-/// Tabs that already live in HomeScreen's IndexedStack (Home/Drivers/
-/// Companies/Shipments/Offers/Reports) go through [onSelectTab] so the
-/// existing tab-preservation behavior keeps working; everything else
-/// (Registration Requests, Documents & Permissions, Notifications,
-/// Activity Log, Settings) is a normal push since those aren't tabs.
-///
-/// "Registration Requests" doesn't have its own unified screen yet (that's
-/// a follow-up pass) — for now it opens a quick chooser between the
-/// existing Drivers/Companies lists, pre-filtered to 'pending'.
+/// Only Home/Registration Requests/Shipments live in HomeScreen's
+/// IndexedStack (go through [onSelectTab]); Drivers/Companies/Offers/
+/// Documents & Permissions/Reports/Notifications/Activity Log/Settings are
+/// full standalone pages reached via a normal push.
 class AdminDrawer extends StatelessWidget {
   final AppUser user;
-  final int currentTabIndex; // 0=Home,1=Drivers,2=Companies,3=Shipments,4=Offers,5=Reports
+  final int currentTabIndex; // 0=Home,1=Registration Requests,2=Shipments
   final void Function(int index) onSelectTab;
   final int pendingRegistrations;
   final int unreadNotifications;
@@ -67,56 +65,6 @@ class AdminDrawer extends StatelessWidget {
   void _push(BuildContext context, Widget screen) {
     Navigator.pop(context);
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-  }
-
-  void _openRegistrationRequests(BuildContext context) {
-    Navigator.pop(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: LightColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Registration Requests',
-                      style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.local_shipping_outlined, color: LightColors.goldMuted),
-                title: const Text('Pending Drivers', style: TextStyle(color: LightColors.textPrimary)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => Driverspage(user: user, initialFilter: 'pending')),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.apartment_outlined, color: LightColors.goldMuted),
-                title: const Text('Pending Companies', style: TextStyle(color: LightColors.textPrimary)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => Companiespage(user: user, initialApprovalFilter: 'pending')),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -173,32 +121,30 @@ class AdminDrawer extends StatelessWidget {
                   _DrawerTile(
                     icon: Icons.assignment_outlined,
                     label: 'Registration Requests',
+                    selected: currentTabIndex == 1,
                     badge: pendingRegistrations,
-                    onTap: () => _openRegistrationRequests(context),
+                    onTap: () => _selectTab(context, 1),
                   ),
                   _DrawerTile(
                     icon: Icons.people_outline,
                     label: 'Drivers',
-                    selected: currentTabIndex == 1,
-                    onTap: () => _selectTab(context, 1),
+                    onTap: () => _push(context, Driverspage(user: user)),
                   ),
                   _DrawerTile(
                     icon: Icons.apartment_outlined,
                     label: 'Companies',
-                    selected: currentTabIndex == 2,
-                    onTap: () => _selectTab(context, 2),
+                    onTap: () => _push(context, Companiespage(user: user)),
                   ),
                   _DrawerTile(
                     icon: Icons.local_shipping_outlined,
                     label: 'Shipments',
-                    selected: currentTabIndex == 3,
-                    onTap: () => _selectTab(context, 3),
+                    selected: currentTabIndex == 2,
+                    onTap: () => _selectTab(context, 2),
                   ),
                   _DrawerTile(
                     icon: Icons.handshake_outlined,
                     label: 'Offers',
-                    selected: currentTabIndex == 4,
-                    onTap: () => _selectTab(context, 4),
+                    onTap: () => _push(context, const ShipmentOffersAdminPage()),
                   ),
                   _DrawerTile(
                     icon: Icons.folder_shared_outlined,
@@ -208,8 +154,7 @@ class AdminDrawer extends StatelessWidget {
                   _DrawerTile(
                     icon: Icons.bar_chart_outlined,
                     label: 'Reports',
-                    selected: currentTabIndex == 5,
-                    onTap: () => _selectTab(context, 5),
+                    onTap: () => _push(context, ReportsHomePage(user: user)),
                   ),
                   _DrawerTile(
                     icon: Icons.notifications_outlined,

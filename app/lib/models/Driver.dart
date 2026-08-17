@@ -31,6 +31,10 @@ class Driver {
   // Free-text health notes captured at registration (e.g. "Diabetic") —
   // shown to admin during join-request review, never to companies.
   final String? healthConditions;
+  // Laravel's default Eloquent timestamp — when this driver row (and thus
+  // the registration request) was created. Used by the Registration
+  // Requests screen's "Applied on" date.
+  final DateTime? createdAt;
 
   Driver({
     required this.id,
@@ -56,6 +60,7 @@ class Driver {
     this.rating = 4.50,
     this.complianceStatus = 'active',
     this.healthConditions,
+    this.createdAt,
   });
 
   factory Driver.fromMap(Map<String, dynamic> map) {
@@ -86,6 +91,7 @@ class Driver {
       rating: double.tryParse(map['rating']?.toString() ?? '') ?? 4.50,
       complianceStatus: map['compliance_status']?.toString() ?? 'active',
       healthConditions: map['health_conditions']?.toString(),
+      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? ''),
     );
   }
 
