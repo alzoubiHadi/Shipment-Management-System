@@ -13,18 +13,20 @@ import 'SubAdminsPage.dart';
 /// sub-admin account management, financial/pricing tools (moved out of
 /// the Reports tab, which now only holds actual reports), the profile
 /// edit-request review queue, and the recycle bin.
+///
+/// Admin Phase 5 (2026-08-20) redesign to LightColors.
 class AdminSettingsPage extends StatelessWidget {
   const AdminSettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Settings', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Settings', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -81,7 +83,7 @@ class AdminSettingsPage extends StatelessWidget {
             subtitle: 'Restore drivers removed from the system',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => Deleteddrivers()),
+              MaterialPageRoute(builder: (_) => const Deleteddrivers()),
             ),
           ),
           const SizedBox(height: 10),
@@ -91,7 +93,7 @@ class AdminSettingsPage extends StatelessWidget {
             subtitle: 'Restore companies removed from the system',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => Deletedcompanies()),
+              MaterialPageRoute(builder: (_) => const Deletedcompanies()),
             ),
           ),
         ],
@@ -109,7 +111,7 @@ class _SettingsSectionTitle extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        color: AppColors.muted,
+        color: LightColors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
@@ -139,9 +141,9 @@ class _SettingsTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: LightColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border, width: 0.5),
+          border: Border.all(color: LightColors.border, width: 0.5),
         ),
         child: Row(
           children: [
@@ -149,10 +151,10 @@ class _SettingsTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.gold.withOpacity(0.1),
+                color: LightColors.gold.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: AppColors.gold),
+              child: Icon(icon, color: LightColors.goldMuted),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -161,17 +163,17 @@ class _SettingsTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600, fontSize: 14),
+                    style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                    style: const TextStyle(color: LightColors.textSecondary, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.muted),
+            const Icon(Icons.chevron_right, color: LightColors.textSecondary),
           ],
         ),
       ),

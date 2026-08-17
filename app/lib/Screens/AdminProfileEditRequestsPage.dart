@@ -7,6 +7,8 @@ import '../models/ProfileEditRequest.dart';
 /// Admin review queue for self-service profile edits that are material to
 /// eligibility (driver document/destination changes, company license
 /// renewals) — see ProfileController on the backend for the approval flow.
+///
+/// Admin Phase 5 (2026-08-20) redesign to LightColors.
 class AdminProfileEditRequestsPage extends StatefulWidget {
   const AdminProfileEditRequestsPage({super.key});
 
@@ -43,24 +45,24 @@ class _AdminProfileEditRequestsPageState extends State<AdminProfileEditRequestsP
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Reject request', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Reject request', style: TextStyle(color: LightColors.textPrimary)),
         content: TextField(
           controller: reasonCtrl,
-          style: const TextStyle(color: AppColors.cream),
+          style: const TextStyle(color: LightColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Reason (optional)',
-            hintStyle: TextStyle(color: AppColors.muted),
+            hintStyle: TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject', style: TextStyle(color: AppColors.error)),
+            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -95,25 +97,25 @@ class _AdminProfileEditRequestsPageState extends State<AdminProfileEditRequestsP
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Profile Edit Requests', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Profile Edit Requests', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<ProfileEditRequest>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return const Center(
-                child: Text('Could not load requests', style: TextStyle(color: AppColors.error)),
+                child: Text('Could not load requests', style: TextStyle(color: LightColors.error)),
               );
             }
 
@@ -123,7 +125,7 @@ class _AdminProfileEditRequestsPageState extends State<AdminProfileEditRequestsP
                 children: const [
                   Padding(
                     padding: EdgeInsets.only(top: 80),
-                    child: Center(child: Text('No pending requests', style: TextStyle(color: AppColors.muted))),
+                    child: Center(child: Text('No pending requests', style: TextStyle(color: LightColors.textSecondary))),
                   ),
                 ],
               );
@@ -138,32 +140,32 @@ class _AdminProfileEditRequestsPageState extends State<AdminProfileEditRequestsP
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         r.userName ?? 'User #${r.userId}',
-                        style: const TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600, fontSize: 14),
+                        style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14),
                       ),
                       const SizedBox(height: 4),
-                      Text(r.categoryLabel, style: const TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                      Text(r.categoryLabel, style: const TextStyle(color: LightColors.goldMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
-                      Text(_payloadSummary(r), style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                      Text(_payloadSummary(r), style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                       const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
                             onPressed: _busy ? null : () => _reject(r),
-                            child: const Text('Reject', style: TextStyle(color: AppColors.error, fontSize: 12)),
+                            child: const Text('Reject', style: TextStyle(color: LightColors.error, fontSize: 12)),
                           ),
                           TextButton(
                             onPressed: _busy ? null : () => _approve(r),
-                            child: const Text('Approve', style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                            child: const Text('Approve', style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                           ),
                         ],
                       ),

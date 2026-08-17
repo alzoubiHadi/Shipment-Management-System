@@ -7,6 +7,8 @@ import '../models/SubAdmin.dart';
 /// UC-6: Super Admin creates and manages sub-admin accounts, each holding
 /// one or more composable permission groups (finance, crm, trainer,
 /// technical_check, ...). Reached from Reports ← Sub-Admins.
+///
+/// Admin Phase 5 (2026-08-20) redesign to LightColors.
 class SubAdminsPage extends StatefulWidget {
   const SubAdminsPage({super.key});
 
@@ -47,19 +49,19 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Temporary Password', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Temporary Password', style: TextStyle(color: LightColors.textPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('For $name — share this now, it will not be shown again:',
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
             const SizedBox(height: 12),
             SelectableText(
               password,
               style: const TextStyle(
-                color: AppColors.gold,
+                color: LightColors.goldMuted,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1,
@@ -70,7 +72,7 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Done', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Done', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -86,7 +88,7 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: LightColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -107,36 +109,36 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                   Text(
                     existing == null ? 'Create Sub-Admin' : 'Edit Permissions',
                     style: const TextStyle(
-                        color: AppColors.cream, fontSize: 18, fontWeight: FontWeight.w700),
+                        color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 16),
                   if (existing == null) ...[
                     TextField(
                       controller: nameCtrl,
-                      style: const TextStyle(color: AppColors.cream),
+                      style: const TextStyle(color: LightColors.textPrimary),
                       decoration: const InputDecoration(
                         labelText: 'Name',
-                        labelStyle: TextStyle(color: AppColors.muted),
+                        labelStyle: TextStyle(color: LightColors.textSecondary),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: emailCtrl,
-                      style: const TextStyle(color: AppColors.cream),
+                      style: const TextStyle(color: LightColors.textPrimary),
                       decoration: const InputDecoration(
                         labelText: 'Email',
-                        labelStyle: TextStyle(color: AppColors.muted),
+                        labelStyle: TextStyle(color: LightColors.textSecondary),
                       ),
                     ),
                     const SizedBox(height: 12),
                   ],
                   const Text('Permission groups',
-                      style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                      style: TextStyle(color: LightColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   if (!_groupsLoaded)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+                      child: Center(child: CircularProgressIndicator(color: LightColors.gold)),
                     )
                   else
                     Wrap(
@@ -147,13 +149,13 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                         return FilterChip(
                           label: Text(g.label),
                           selected: isSelected,
-                          selectedColor: AppColors.gold.withOpacity(0.2),
-                          backgroundColor: AppColors.bg,
+                          selectedColor: LightColors.gold.withOpacity(0.16),
+                          backgroundColor: LightColors.bg,
                           labelStyle: TextStyle(
-                            color: isSelected ? AppColors.gold : AppColors.muted,
+                            color: isSelected ? LightColors.goldMuted : LightColors.textSecondary,
                             fontSize: 12,
                           ),
-                          side: BorderSide(color: isSelected ? AppColors.gold : AppColors.border),
+                          side: BorderSide(color: isSelected ? LightColors.gold : LightColors.border),
                           onSelected: (v) => setSheetState(() {
                             if (v) {
                               selected.add(g.key);
@@ -168,7 +170,7 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold),
+                      style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold),
                       onPressed: saving
                           ? null
                           : () async {
@@ -216,10 +218,10 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                       child: saving
                           ? const SizedBox(
                               width: 20, height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.bg),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.textPrimary),
                             )
                           : Text(existing == null ? 'Create' : 'Save',
-                              style: const TextStyle(color: AppColors.bg, fontWeight: FontWeight.w600)),
+                              style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -235,18 +237,18 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Reset Password', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Reset Password', style: TextStyle(color: LightColors.textPrimary)),
         content: Text('Issue a new temporary password for ${admin.name}?',
-            style: const TextStyle(color: AppColors.muted)),
+            style: const TextStyle(color: LightColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reset', style: TextStyle(color: AppColors.gold)),
+            child: const Text('Reset', style: TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -268,24 +270,24 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: LightColors.surface,
         title: Text(suspending ? 'Suspend Sub-Admin' : 'Reactivate Sub-Admin',
-            style: const TextStyle(color: AppColors.cream)),
+            style: const TextStyle(color: LightColors.textPrimary)),
         content: Text(
           suspending
               ? 'Block ${admin.name} from logging in until reactivated?'
               : 'Allow ${admin.name} to log in again?',
-          style: const TextStyle(color: AppColors.muted),
+          style: const TextStyle(color: LightColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(suspending ? 'Suspend' : 'Reactivate',
-                style: TextStyle(color: suspending ? AppColors.error : AppColors.success)),
+                style: TextStyle(color: suspending ? LightColors.error : LightColors.success)),
           ),
         ],
       ),
@@ -310,18 +312,18 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Delete Sub-Admin', style: TextStyle(color: AppColors.cream)),
+        backgroundColor: LightColors.surface,
+        title: const Text('Delete Sub-Admin', style: TextStyle(color: LightColors.textPrimary)),
         content: Text('Delete ${admin.name}\'s account? This cannot be undone.',
-            style: const TextStyle(color: AppColors.muted)),
+            style: const TextStyle(color: LightColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            child: const Text('Delete', style: TextStyle(color: LightColors.error)),
           ),
         ],
       ),
@@ -341,31 +343,31 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Sub-Admins', style: TextStyle(color: AppColors.cream)),
-        iconTheme: const IconThemeData(color: AppColors.cream),
+        title: const Text('Sub-Admins', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.gold,
+        backgroundColor: LightColors.gold,
         onPressed: () => _openCreateOrEdit(),
-        child: const Icon(Icons.add, color: AppColors.bg),
+        child: const Icon(Icons.add, color: LightColors.textPrimary),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<SubAdmin>>(
           future: _adminsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return Center(
                 child: Text('Could not load sub-admins',
-                    style: const TextStyle(color: AppColors.error)),
+                    style: const TextStyle(color: LightColors.error)),
               );
             }
 
@@ -377,7 +379,7 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                     padding: EdgeInsets.only(top: 80),
                     child: Center(
                       child: Text('No sub-admins yet. Tap + to create one.',
-                          style: TextStyle(color: AppColors.muted)),
+                          style: TextStyle(color: LightColors.textSecondary)),
                     ),
                   ),
                 ],
@@ -393,9 +395,9 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                 return Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: LightColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border, width: 0.5),
+                    border: Border.all(color: LightColors.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,9 +410,9 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                               children: [
                                 Text(admin.name,
                                     style: const TextStyle(
-                                        color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w600)),
+                                        color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
                                 Text(admin.email,
-                                    style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                                    style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                               ],
                             ),
                           ),
@@ -418,21 +420,21 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppColors.error.withOpacity(0.12),
+                                color: LightColors.errorBg,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text('Suspended',
-                                  style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.w600)),
+                                  style: TextStyle(color: LightColors.error, fontSize: 10, fontWeight: FontWeight.w600)),
                             )
                           else if (admin.mustChangePassword)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppColors.gold.withOpacity(0.12),
+                                color: LightColors.gold.withOpacity(0.14),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text('First login pending',
-                                  style: TextStyle(color: AppColors.gold, fontSize: 10, fontWeight: FontWeight.w600)),
+                                  style: TextStyle(color: LightColors.goldMuted, fontSize: 10, fontWeight: FontWeight.w600)),
                             ),
                         ],
                       ),
@@ -444,11 +446,11 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: AppColors.info.withOpacity(0.1),
+                              color: LightColors.navy.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(k,
-                                style: const TextStyle(color: AppColors.info, fontSize: 10, fontWeight: FontWeight.w600)),
+                                style: const TextStyle(color: LightColors.navy, fontSize: 10, fontWeight: FontWeight.w600)),
                           );
                         }).toList(),
                       ),
@@ -458,29 +460,29 @@ class _SubAdminsPageState extends State<SubAdminsPage> {
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () => _openCreateOrEdit(existing: admin),
-                              style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.border)),
-                              icon: const Icon(Icons.tune, size: 16, color: AppColors.cream),
-                              label: const Text('Permissions', style: TextStyle(color: AppColors.cream, fontSize: 12)),
+                              style: OutlinedButton.styleFrom(side: const BorderSide(color: LightColors.border)),
+                              icon: const Icon(Icons.tune, size: 16, color: LightColors.textPrimary),
+                              label: const Text('Permissions', style: TextStyle(color: LightColors.textPrimary, fontSize: 12)),
                             ),
                           ),
                           const SizedBox(width: 8),
                           IconButton(
                             onPressed: () => _resetPassword(admin),
-                            icon: const Icon(Icons.password, color: AppColors.gold, size: 20),
+                            icon: const Icon(Icons.password, color: LightColors.goldMuted, size: 20),
                             tooltip: 'Reset password',
                           ),
                           IconButton(
                             onPressed: () => _toggleSuspend(admin),
                             icon: Icon(
                               admin.isSuspended ? Icons.play_circle_outline : Icons.pause_circle_outline,
-                              color: admin.isSuspended ? AppColors.success : AppColors.error,
+                              color: admin.isSuspended ? LightColors.success : LightColors.error,
                               size: 20,
                             ),
                             tooltip: admin.isSuspended ? 'Reactivate' : 'Suspend',
                           ),
                           IconButton(
                             onPressed: () => _delete(admin),
-                            icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+                            icon: const Icon(Icons.delete_outline, color: LightColors.error, size: 20),
                             tooltip: 'Delete',
                           ),
                         ],

@@ -6,6 +6,8 @@ import '../models/ComplianceReport.dart';
 
 /// Super Admin (UC-25/26): review compliance reports filed against
 /// drivers and decide pending appeals.
+///
+/// Admin Phase 5 (2026-08-20) redesign to LightColors.
 class AdminCompliancePage extends StatefulWidget {
   const AdminCompliancePage({super.key});
 
@@ -35,9 +37,9 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
   void _refresh() => setState(() => _future = _service.fetchAll());
 
   Color _statusColor(ComplianceReport r) {
-    if (r.status == 'dismissed') return AppColors.success;
-    if (r.status == 'upheld') return AppColors.error;
-    return AppColors.gold;
+    if (r.status == 'dismissed') return LightColors.success;
+    if (r.status == 'upheld') return LightColors.error;
+    return LightColors.goldMuted;
   }
 
   Future<void> _resolve(ComplianceReport report) async {
@@ -48,8 +50,8 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          title: const Text('Resolve report', style: TextStyle(color: AppColors.cream)),
+          backgroundColor: LightColors.surface,
+          title: const Text('Resolve report', style: TextStyle(color: LightColors.textPrimary)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,23 +59,23 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
               RadioListTile<String>(
                 value: 'dismiss',
                 groupValue: decision,
-                activeColor: AppColors.gold,
-                title: const Text('Dismiss', style: TextStyle(color: AppColors.cream)),
+                activeColor: LightColors.gold,
+                title: const Text('Dismiss', style: TextStyle(color: LightColors.textPrimary)),
                 onChanged: (v) => setDialogState(() => decision = v ?? decision),
               ),
               RadioListTile<String>(
                 value: 'uphold',
                 groupValue: decision,
-                activeColor: AppColors.gold,
-                title: const Text('Uphold', style: TextStyle(color: AppColors.cream)),
+                activeColor: LightColors.gold,
+                title: const Text('Uphold', style: TextStyle(color: LightColors.textPrimary)),
                 onChanged: (v) => setDialogState(() => decision = v ?? decision),
               ),
               if (decision == 'uphold')
                 DropdownButton<String>(
                   value: resultingAction,
-                  dropdownColor: AppColors.surface,
+                  dropdownColor: LightColors.surface,
                   isExpanded: true,
-                  style: const TextStyle(color: AppColors.cream),
+                  style: const TextStyle(color: LightColors.textPrimary),
                   items: const [
                     DropdownMenuItem(value: 'warning', child: Text('Warning')),
                     DropdownMenuItem(value: 'suspension', child: Text('Suspension')),
@@ -86,11 +88,11 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.muted)),
+              child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirm', style: TextStyle(color: AppColors.gold)),
+              child: const Text('Confirm', style: TextStyle(color: LightColors.gold)),
             ),
           ],
         ),
@@ -109,7 +111,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -125,7 +127,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['message']?.toString() ?? ''),
-        backgroundColor: result['success'] == true ? AppColors.success : AppColors.error,
+        backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
       ),
     );
     if (result['success'] == true) _refresh();
@@ -136,9 +138,9 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: LightColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 0.5),
+        border: Border.all(color: LightColors.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,7 +150,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
               Expanded(
                 child: Text(
                   r.driverName.isEmpty ? 'Driver #${r.driverId}' : r.driverName,
-                  style: const TextStyle(color: AppColors.cream, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600),
                 ),
               ),
               Container(
@@ -166,18 +168,18 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
           ),
           const SizedBox(height: 4),
           Text(r.category.replaceAll('_', ' '),
-              style: const TextStyle(color: AppColors.gold, fontSize: 12)),
+              style: const TextStyle(color: LightColors.goldMuted, fontSize: 12)),
           const SizedBox(height: 6),
-          Text(r.description, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          Text(r.description, style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
           if (showAppeal && r.appealText != null) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.info.withOpacity(0.08),
+                color: LightColors.navy.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(r.appealText!, style: const TextStyle(color: AppColors.info, fontSize: 12)),
+              child: Text(r.appealText!, style: const TextStyle(color: LightColors.navy, fontSize: 12)),
             ),
           ],
           if (showResolve) ...[
@@ -186,7 +188,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => _resolve(r),
-                child: const Text('Resolve', style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                child: const Text('Resolve', style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
               ),
             ),
           ],
@@ -198,12 +200,12 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
                 TextButton(
                   onPressed: () => _resolveAppeal(r, 'reject'),
                   child: const Text('Reject appeal',
-                      style: TextStyle(color: AppColors.error, fontSize: 12)),
+                      style: TextStyle(color: LightColors.error, fontSize: 12)),
                 ),
                 TextButton(
                   onPressed: () => _resolveAppeal(r, 'accept'),
                   child: const Text('Accept appeal',
-                      style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                      style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                 ),
               ],
             ),
@@ -216,17 +218,17 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: LightColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: LightColors.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.cream),
-        title: const Text('Compliance', style: TextStyle(color: AppColors.cream)),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
+        title: const Text('Compliance', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.gold,
-          labelColor: AppColors.gold,
-          unselectedLabelColor: AppColors.muted,
+          indicatorColor: LightColors.gold,
+          labelColor: LightColors.goldMuted,
+          unselectedLabelColor: LightColors.textSecondary,
           tabs: const [
             Tab(text: 'Reports'),
             Tab(text: 'Appeals'),
@@ -234,17 +236,17 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
         ),
       ),
       body: RefreshIndicator(
-        color: AppColors.gold,
+        color: LightColors.gold,
         onRefresh: () async => _refresh(),
         child: FutureBuilder<List<ComplianceReport>>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+              return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return const Center(
-                  child: Text('Could not load reports', style: TextStyle(color: AppColors.error)));
+                  child: Text('Could not load reports', style: TextStyle(color: LightColors.error)));
             }
 
             final all = snapshot.data ?? [];
@@ -260,7 +262,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
                           padding: EdgeInsets.only(top: 60),
                           child: Center(
                               child: Text('No reports pending review',
-                                  style: TextStyle(color: AppColors.muted))),
+                                  style: TextStyle(color: LightColors.textSecondary))),
                         ),
                       ])
                     : ListView(
@@ -273,7 +275,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
                           padding: EdgeInsets.only(top: 60),
                           child: Center(
                               child: Text('No pending appeals',
-                                  style: TextStyle(color: AppColors.muted))),
+                                  style: TextStyle(color: LightColors.textSecondary))),
                         ),
                       ])
                     : ListView(
