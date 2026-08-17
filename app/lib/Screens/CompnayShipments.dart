@@ -1,21 +1,24 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
-import 'AppBarWidget.dart';
 import 'ShipmentDetailsPageCompany.dart';
 
-
-
-
 // ── Page ─────────────────────────────────────────────────────────────────────
+// Company redesign Phase 3 (2026-08-17 mockup): "My Shipments" list,
+// light-themed with All/Pending/Live/Delivered tabs. The Tracking screen
+// itself (ShipmentTrackingPage) stays on the old dark theme for now — it's
+// shared with the driver's own in-progress advance-stage UI, which isn't
+// part of this redesign pass, so re-theming it here would change the
+// driver's screen too. Re-themed only when driver-side screens get their
+// own pass.
+
+enum _ShipmentTab { all, pending, live, delivered }
 
 class Compnayshipments extends StatefulWidget {
   final AppUser user;
-  Compnayshipments({required this.user});
+  const Compnayshipments({super.key, required this.user});
 
   @override
   State<Compnayshipments> createState() => _CompnayshipmentsState();
@@ -28,6 +31,7 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  _ShipmentTab _tab = _ShipmentTab.all;
 
   @override
   void initState() {
@@ -42,16 +46,29 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
   }
 
   void _refresh() => setState(() {
-    _shipmentsFuture = _service.fetchShipmentscompany();
-  });
+        _shipmentsFuture = _service.fetchShipmentscompany();
+      });
 
   List<Shipment> _filterShipments(List<Shipment> list) {
-    if (_searchQuery.isEmpty) return list;
+    var result = list;
 
-    return list.where((s) {
-      final tracking = (s.trackingNumber ?? '').toLowerCase();
-      return tracking.contains(_searchQuery);
-    }).toList();
+    result = switch (_tab) {
+      _ShipmentTab.all => result,
+      _ShipmentTab.pending => result.where((s) => s.status == 0).toList(),
+      _ShipmentTab.live => result.where((s) => s.status == 1 || s.status == 2 || s.status == 5).toList(),
+      _ShipmentTab.delivered => result.where((s) => s.status == 3).toList(),
+    };
+
+    if (_searchQuery.isNotEmpty) {
+      result = result.where((s) {
+        final tracking = (s.trackingNumber ?? '').toLowerCase();
+        final id = s.id.toString();
+        final route = '${s.origin} ${s.destination}'.toLowerCase();
+        return tracking.contains(_searchQuery) || id.contains(_searchQuery) || route.contains(_searchQuery);
+      }).toList();
+    }
+
+    return result;
   }
 
   @override
@@ -62,83 +79,108 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      // This tab shows real, already-accepted Shipments only. Creating a
-      // new request now happens in the separate "Offers" tab
-      // (CompanyOffersPage) via self-service shipment offers (UC-11),
-      // which only turn into a Shipment once a driver accepts.
-      body: RefreshIndicator(
-        onRefresh: () async => _refresh(),
-        child: CustomScrollView(
-          slivers: [
-            AppBarWidget(
-              user: widget.user,
-              subtitle: 'My Shipments',
-            ),
+    return Container(
+      color: LightColors.bg,
+      child: SafeArea(
+        child: RefreshIndicator(
+          color: LightColors.gold,
+          onRefresh: () async => _refresh(),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Text('My Shipments',
+                      style: TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                ),
+              ),
 
-            // 🔎 SEARCH BAR
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: AppColors.cream),
-                  decoration: InputDecoration(
-                    hintText: "Search by tracking number...",
-                    hintStyle: const TextStyle(color: AppColors.muted),
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+              // SEARCH BAR
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: "Search by tracking #, ID, or route...",
+                      hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
+                      filled: true,
+                      fillColor: LightColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: LightColors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: LightColors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: LightColors.gold),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            SliverToBoxAdapter(
-              child: FutureBuilder<List<Shipment>>(
-                future: _shipmentsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const _LoadingState();
-                  }
-
-                  if (snapshot.hasError) {
-                    return _ErrorState(
-                      message: snapshot.error.toString(),
-                      onRetry: _refresh,
-                    );
-                  }
-
-                  final shipments =
-                  _filterShipments(snapshot.data ?? []);
-
-                  if (shipments.isEmpty) {
-                    return const _EmptyState();
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    child: Column(
-                      children: [
-                        for (int i = 0; i < shipments.length; i++) ...[
-                          if (i > 0) const SizedBox(height: 10),
-                          ShipmentItem(shipment: shipments[i]),
-                        ],
-                      ],
-                    ),
-                  );
-                },
+              // TABS
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      _TabChip(label: 'All', active: _tab == _ShipmentTab.all, onTap: () => setState(() => _tab = _ShipmentTab.all)),
+                      const SizedBox(width: 8),
+                      _TabChip(label: 'Pending', active: _tab == _ShipmentTab.pending, onTap: () => setState(() => _tab = _ShipmentTab.pending)),
+                      const SizedBox(width: 8),
+                      _TabChip(label: 'Live', active: _tab == _ShipmentTab.live, onTap: () => setState(() => _tab = _ShipmentTab.live)),
+                      const SizedBox(width: 8),
+                      _TabChip(label: 'Delivered', active: _tab == _ShipmentTab.delivered, onTap: () => setState(() => _tab = _ShipmentTab.delivered)),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+
+              SliverToBoxAdapter(
+                child: FutureBuilder<List<Shipment>>(
+                  future: _shipmentsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const _LoadingState();
+                    }
+
+                    if (snapshot.hasError) {
+                      return _ErrorState(
+                        message: snapshot.error.toString(),
+                        onRetry: _refresh,
+                      );
+                    }
+
+                    final shipments = _filterShipments(snapshot.data ?? []);
+
+                    if (shipments.isEmpty) {
+                      return const _EmptyState();
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+                      child: Column(
+                        children: [
+                          for (int i = 0; i < shipments.length; i++) ...[
+                            if (i > 0) const SizedBox(height: 10),
+                            _ShipmentTile(shipment: shipments[i]),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -155,7 +197,7 @@ class _LoadingState extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 80),
       child: Center(
-        child: CircularProgressIndicator(color: AppColors.gold),
+        child: CircularProgressIndicator(color: LightColors.gold),
       ),
     );
   }
@@ -174,34 +216,17 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.cloud_off_rounded,
-            color: AppColors.error,
-            size: 48,
-          ),
+          const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 48),
           const SizedBox(height: 16),
-          const Text(
-            'Failed to load shipments',
-            style: TextStyle(
-              color: AppColors.cream,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          const Text('Failed to load shipments',
+              style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted, fontSize: 12),
-          ),
+          Text(message, textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 20),
           TextButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.gold),
-            label: const Text(
-              'Retry',
-              style: TextStyle(color: AppColors.gold),
-            ),
+            icon: const Icon(Icons.refresh_rounded, color: LightColors.goldMuted),
+            label: const Text('Retry', style: TextStyle(color: LightColors.goldMuted)),
           ),
         ],
       ),
@@ -219,132 +244,129 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            color: AppColors.muted,
-            size: 48,
-          ),
+          Icon(Icons.inventory_2_outlined, color: LightColors.textSecondary, size: 48),
           SizedBox(height: 16),
-          Text(
-            'No shipments yet',
-            style: TextStyle(
-              color: AppColors.cream,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text('No shipments here', style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
           SizedBox(height: 8),
-          Text(
-            'Your shipments will appear here once created.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.muted, fontSize: 12),
-          ),
+          Text('Shipments matching this filter will appear here.',
+              textAlign: TextAlign.center, style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
         ],
       ),
     );
   }
 }
 
-// ── ShipmentItem ─────────────────────────────────────────────────────────────
+class _TabChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
 
-class ShipmentItem extends StatelessWidget {
-  final Shipment shipment;
-
-  const ShipmentItem({required this.shipment});
+  const _TabChip({required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final color = shipment.statusColor;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? LightColors.navy : LightColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: active ? LightColors.navy : LightColors.border),
+        ),
+        child: Text(label,
+            style: TextStyle(
+              fontSize: 12.5,
+              color: active ? Colors.white : LightColors.textSecondary,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            )),
       ),
-      child: Row(
-        children: [
-          // Icon badge
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(shipment.icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
+    );
+  }
+}
 
-          // ID + route
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  shipment.id.toString(),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.cream,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${shipment.origin} · ${shipment.destination}',
-                  style:
-                  const TextStyle(fontSize: 11, color: AppColors.muted),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
+// ── ShipmentTile ─────────────────────────────────────────────────────────────
 
-          // Status badge + time
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+class _ShipmentTile extends StatelessWidget {
+  final Shipment shipment;
+
+  const _ShipmentTile({required this.shipment});
+
+  Color get _color => switch (shipment.status) {
+        0 => LightColors.pending,
+        1 => LightColors.navy,
+        2 => LightColors.goldMuted,
+        3 => LightColors.success,
+        4 => LightColors.error,
+        5 => LightColors.error,
+        _ => LightColors.textSecondary,
+      };
+
+  Color get _bg => switch (shipment.status) {
+        0 => LightColors.pendingBg,
+        3 => LightColors.successBg,
+        4 => LightColors.errorBg,
+        5 => LightColors.errorBg,
+        _ => LightColors.gold.withOpacity(0.12),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: LightColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ShipmentDetailsPageCompany(shipment: shipment)),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.border)),
+          child: Row(
             children: [
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(10)),
+                child: Icon(shipment.icon, color: _color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('SH-${shipment.id}',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LightColors.textPrimary)),
+                    const SizedBox(height: 2),
+                    Text('${shipment.origin} · ${shipment.destination}',
+                        style: const TextStyle(fontSize: 11.5, color: LightColors.textSecondary),
+                        overflow: TextOverflow.ellipsis),
+                  ],
                 ),
-                child: Text(
-                  statusLabel(shipment.status),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: color,
-                    fontWeight: FontWeight.w600,
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(8)),
+                    child: Text(statusLabel(shipment.status),
+                        style: TextStyle(fontSize: 10, color: _color, fontWeight: FontWeight.w700)),
                   ),
-                ),
+                  if (shipment.weight.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(shipment.weight, style: const TextStyle(fontSize: 10, color: LightColors.textSecondary)),
+                  ],
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                shipment.weight,
-                style:
-                const TextStyle(fontSize: 10, color: AppColors.muted),
-              ),
-              IconButton(
-                icon: const Icon(Icons.visibility_outlined),
-                color: AppColors.gold,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ShipmentDetailsPageCompany(
-                        shipment: shipment,
-                      ),
-                    ),
-                  );
-                },
-              )
+              const Icon(Icons.chevron_right_rounded, color: LightColors.textSecondary, size: 20),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
