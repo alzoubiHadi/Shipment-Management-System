@@ -157,6 +157,103 @@ class ShipmentBusinessRulesTest extends TestCase
         $this->assertDatabaseHas('shipments', ['shipment_offer_id' => $offer->id]);
     }
 
+    /**
+     * Security fix (2026-08-25, financial audit): accept() used to trust a
+     * client-supplied driver_user_id and resolve the driver from THAT
+     * instead of the authenticated request — letting any logged-in driver
+     * accept (and get charged/paid for) an offer "as" another driver simply
+     * by guessing their user id. The server must always resolve the driver
+     * from the authenticated token; driver_user_id in the request body must
+     * have no effect at all now, even if present.
+     */
+    public function test_accepting_an_offer_uses_the_authenticated_user_not_a_spoofed_driver_user_id(): void
+    {
+        [$attackerUser, $attackerDriver] = $this->makeDriver();
+        $this->makeTruck($attackerDriver);
+        [$victimUser, $victimDriver] = $this->makeDriver();
+        $this->makeTruck($victimDriver);
+        $company = $this->makeCompany();
+        $offer = $this->makeOffer($company);
+
+        Sanctum::actingAs($attackerUser);
+
+        $response = $this->postJson('/api/shipment-offers/accept', [
+            'offer_id' => $offer->id,
+            // Spoofed — this is the victim's user id, not the caller's.
+            'driver_user_id' => $victimUser->id,
+        ]);
+
+        $response->assertStatus(201);
+        // Assigned to the actual authenticated driver (attacker), never the
+        // spoofed victim named in the request body.
+        $this->assertDatabaseHas('shipments', [
+            'shipment_offer_id' => $offer->id,
+            'driver_id' => $attackerDriver->id,
+        ]);
+        $this->assertDatabaseMissing('shipments', [
+            'shipment_offer_id' => $offer->id,
+            'driver_id' => $victimDriver->id,
+        ]);
+        $this->assertDatabaseHas('drivers', ['id' => $attackerDriver->id, 'status' => 'busy']);
+        $this->assertDatabaseHas('drivers', ['id' => $victimDriver->id, 'status' => 'available']);
+    }
+
+    /**
+     * Privacy fix (2026-08-25, financial audit): a driver's own list of
+     * available offers used to serialize the raw ShipmentOffer model,
+     * exposing price_to_client (what the company pays) and
+     * platform_margin_percent_snapshot (FMS's cut) — figures a driver was
+     * never meant to see. DriverFacingShipmentOfferResource now strips
+     * both, keeping only the driver's own price_to_driver.
+     */
+    public function test_available_offers_for_driver_never_expose_price_to_client_or_margin(): void
+    {
+        [$user, $driver] = $this->makeDriver();
+        $this->makeTruck($driver);
+        $company = $this->makeCompany();
+        $this->makeOffer($company, ['platform_margin_percent_snapshot' => 15]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson("/api/driver/{$user->id}/available-offers");
+
+        $response->assertStatus(200);
+        $offer = $response->json('offers.0');
+        $this->assertNotNull($offer);
+        $this->assertArrayNotHasKey('price_to_client', $offer);
+        $this->assertArrayNotHasKey('platform_margin_percent_snapshot', $offer);
+        $this->assertArrayHasKey('price_to_driver', $offer);
+    }
+
+    /**
+     * Authorization fix (2026-08-25, financial audit): this legacy endpoint
+     * had no role check at all — any authenticated user, including a plain
+     * driver, could reassign any shipment to any driver. Restricted to
+     * Super Admin; no live screen calls it (see ShipmentController's
+     * requireSuperAdmin() docblock).
+     */
+    public function test_a_non_admin_cannot_call_the_legacy_assign_driver_endpoint(): void
+    {
+        [$driverUser, $driver] = $this->makeDriver();
+        $company = $this->makeCompany();
+        $shipment = Shipment::create([
+            'company_id' => $company->id,
+            'tracking_number' => uniqid('TRK'),
+            'origin' => 'Dubai',
+            'destination' => 'Amman',
+            'status' => 0,
+        ]);
+
+        Sanctum::actingAs($driverUser);
+
+        $response = $this->postJson('/api/shipments/assign/driver', [
+            'shipmentId' => $shipment->id,
+            'driverId' => $driver->id,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
     // ── Truck / cargo matching ───────────────────────────────────────────
 
     public function test_truck_type_mismatch_rejects_offer_acceptance(): void

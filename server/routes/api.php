@@ -213,7 +213,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/company/{company_id}/shipments', [ShipmentController::class, 'companygetShipments']);
     Route::post('/shipments/status/change', [ShipmentController::class, 'updateshipmentstatus']);
     Route::post('/shipments/refuse', [ShipmentController::class, 'refuse']);
-    Route::post('/shipments/accept', [ShipmentController::class, 'accept']);
+    // 2026-08-25 (financial audit): removed a dead '/shipments/accept'
+    // route that pointed at ShipmentController::accept(), a method that
+    // doesn't exist on this controller — it would have thrown a fatal
+    // error if ever actually called. No live screen calls it (the real
+    // driver-accept flow is ShipmentOfferController::accept()).
     Route::post('/shipments/{shipment}/advance-stage', [ShipmentController::class, 'advanceStage']);
     Route::post('/shipments/{shipment}/deliver', [ShipmentController::class, 'deliver']);
     // UC-20: company confirms/disputes a delivered shipment; Super/CRM Admin
@@ -240,6 +244,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payment-orders', [PaymentOrderController::class, 'index'])->middleware('permission:finance');
     Route::post('/payment-orders/{order}/approve', [PaymentOrderController::class, 'approve'])->middleware('permission:finance');
     Route::post('/payment-orders/{order}/reject', [PaymentOrderController::class, 'reject'])->middleware('permission:finance');
+    // 2026-08-25 (financial audit): receipt now lives on the private disk —
+    // ownership/permission check happens inside the controller itself
+    // (owning company OR finance permission), same as every other
+    // company-scoped endpoint in this file, so no ->middleware() here.
+    Route::get('/payment-orders/{order}/receipt', [PaymentOrderController::class, 'downloadReceipt']);
 
     // Payout requests — driver withdrawals (UC-30/31/32).
     Route::post('/payout-requests', [PayoutRequestController::class, 'create']);
@@ -247,6 +256,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/payout-requests/{payout}/cancel', [PayoutRequestController::class, 'cancel']);
     Route::post('/payout-requests/{payout}/confirm', [PayoutRequestController::class, 'confirmReceipt']);
     Route::post('/payout-requests/{payout}/dispute', [PayoutRequestController::class, 'disputeReceipt']);
+    // 2026-08-25 (financial audit): same private-disk pattern as the
+    // payment-order receipt above.
+    Route::get('/payout-requests/{payout}/receipt', [PayoutRequestController::class, 'downloadReceipt']);
     Route::get('/payout-requests', [PayoutRequestController::class, 'index'])->middleware('permission:finance');
     Route::post('/payout-requests/{payout}/mark-paid', [PayoutRequestController::class, 'markPaid'])->middleware('permission:finance');
     Route::post('/payout-requests/{payout}/reject', [PayoutRequestController::class, 'reject'])->middleware('permission:finance');

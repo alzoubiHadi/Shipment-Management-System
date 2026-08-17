@@ -218,4 +218,38 @@ class DeliveryConfirmationTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    /**
+     * Regression test for the double-credit race fixed 2026-08-25
+     * (financial audit): confirmDelivery() used to check delivery_status
+     * BEFORE opening its DB transaction, then never re-check it after
+     * locking the shipment row — so two near-simultaneous "Confirm
+     * delivery" taps could both pass the check and both post a
+     * DRIVER_EARNING credit for the same shipment. A sequential double-call
+     * here can't reproduce the exact timing of two simultaneous requests,
+     * but it does prove the fix's actual guarantee: the second call, once
+     * the first has already moved delivery_status off 'awaiting_confirmation',
+     * must be rejected and must NOT credit the driver again.
+     */
+    public function test_confirming_delivery_twice_only_pays_the_driver_once(): void
+    {
+        [$companyUser, $company] = $this->makeCompanyWithUser();
+        [, $driver] = $this->makeDriverWithUser();
+        $shipment = $this->makeAwaitingConfirmationShipment($company, $driver);
+
+        Sanctum::actingAs($companyUser);
+
+        $first = $this->postJson("/api/shipments/{$shipment->id}/confirm-delivery");
+        $first->assertStatus(200);
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'balance' => 500]);
+
+        $second = $this->postJson("/api/shipments/{$shipment->id}/confirm-delivery");
+        $second->assertStatus(409);
+        // Still 500, not 1000 — the second call did not pay the driver again.
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'balance' => 500]);
+        $this->assertSame(1, \App\Models\FinancialTransaction::where('reference_type', 'Shipment')
+            ->where('reference_id', $shipment->id)
+            ->where('transaction_type', 'DRIVER_EARNING')
+            ->count());
+    }
 }

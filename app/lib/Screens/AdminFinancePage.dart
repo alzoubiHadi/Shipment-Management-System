@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/CompanyService.dart';
 import '../API/PaymentOrderService.dart';
@@ -218,13 +219,27 @@ class _PaymentOrdersTabState extends State<_PaymentOrdersTab> {
                     if (o.receiptFilePath.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       InkWell(
-                        onTap: () => showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            backgroundColor: LightColors.surface,
-                            content: Image.network(storageUrl(o.receiptFilePath)),
-                          ),
-                        ),
+                        // 2026-08-25 (financial audit): the receipt moved to
+                        // the backend's private disk — plain storageUrl()
+                        // no longer resolves to a public file. It's now
+                        // fetched from the authenticated /payment-orders/
+                        // {id}/receipt endpoint, so the request needs this
+                        // admin's own bearer token attached.
+                        onTap: () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          final token = prefs.getString('token');
+                          if (!context.mounted) return;
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              backgroundColor: LightColors.surface,
+                              content: Image.network(
+                                '$baseUrl/payment-orders/${o.id}/receipt',
+                                headers: {'Authorization': 'Bearer $token'},
+                              ),
+                            ),
+                          );
+                        },
                         child: const Text('View receipt',
                             style: TextStyle(color: LightColors.navy, fontSize: 12)),
                       ),

@@ -109,7 +109,10 @@ class FinancialSystemTest extends TestCase
 
     public function test_approving_a_payment_order_credits_the_companys_balance(): void
     {
-        Storage::fake('public');
+        // 2026-08-25 (financial audit): receipts moved from the 'public'
+        // disk to the private 'local' disk — see PaymentOrderController::
+        // create() / PayoutRequestController::markPaid().
+        Storage::fake('local');
 
         [$companyUser, $company] = $this->makeCompanyWithUser();
         Sanctum::actingAs($companyUser);
@@ -133,7 +136,10 @@ class FinancialSystemTest extends TestCase
 
     public function test_rejecting_a_payment_order_leaves_balance_untouched(): void
     {
-        Storage::fake('public');
+        // 2026-08-25 (financial audit): receipts moved from the 'public'
+        // disk to the private 'local' disk — see PaymentOrderController::
+        // create() / PayoutRequestController::markPaid().
+        Storage::fake('local');
 
         [$companyUser, $company] = $this->makeCompanyWithUser();
         Sanctum::actingAs($companyUser);
@@ -181,7 +187,10 @@ class FinancialSystemTest extends TestCase
 
     public function test_full_payout_lifecycle_decrements_balance_and_unblocks_new_jobs(): void
     {
-        Storage::fake('public');
+        // 2026-08-25 (financial audit): receipts moved from the 'public'
+        // disk to the private 'local' disk — see PaymentOrderController::
+        // create() / PayoutRequestController::markPaid().
+        Storage::fake('local');
 
         [$driverUser, $driver] = $this->makeDriverWithUser(['balance' => 1000]);
         Sanctum::actingAs($driverUser);
@@ -214,7 +223,10 @@ class FinancialSystemTest extends TestCase
 
     public function test_disputing_a_payout_keeps_the_new_job_lock_until_resolved(): void
     {
-        Storage::fake('public');
+        // 2026-08-25 (financial audit): receipts moved from the 'public'
+        // disk to the private 'local' disk — see PaymentOrderController::
+        // create() / PayoutRequestController::markPaid().
+        Storage::fake('local');
 
         [$driverUser, $driver] = $this->makeDriverWithUser(['balance' => 1000]);
         Sanctum::actingAs($driverUser);
@@ -250,5 +262,124 @@ class FinancialSystemTest extends TestCase
         [, $driver] = $this->makeDriverWithUser(['compliance_status' => 'suspended']);
 
         $this->assertFalse($driver->isEligibleForNewJob());
+    }
+
+    // ── Concurrency / idempotency regression tests (2026-08-25 audit) ──────
+    //
+    // PHPUnit runs single-threaded, so none of these reproduce the exact
+    // timing of two simultaneous HTTP requests hitting the database at the
+    // same instant — that would need real parallel connections, which this
+    // test suite's sqlite :memory: setup can't do anyway. What they DO
+    // prove is the actual guarantee each fix provides: a second call,
+    // arriving right after the first has committed, must be rejected and
+    // must NOT move money again. That's the same outcome the row-lock +
+    // re-check pattern guarantees for two calls that arrive genuinely
+    // concurrently — the second one always ends up behind the first's
+    // commit, lock or no lock, timing or no timing.
+
+    public function test_confirming_a_payout_receipt_twice_only_debits_the_balance_once(): void
+    {
+        [$driverUser, $driver] = $this->makeDriverWithUser(['balance' => 1000]);
+        Sanctum::actingAs($driverUser);
+
+        $create = $this->postJson('/api/payout-requests', ['amount' => 400]);
+        $payoutId = $create->json('payout.id');
+
+        $admin = $this->makeAdmin();
+        Sanctum::actingAs($admin);
+        $this->post("/api/payout-requests/{$payoutId}/mark-paid", [
+            'transfer_receipt_file' => UploadedFile::fake()->create('transfer.pdf', 100),
+        ]);
+
+        Sanctum::actingAs($driverUser);
+
+        $first = $this->postJson("/api/payout-requests/{$payoutId}/confirm");
+        $first->assertStatus(200);
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'balance' => 600]);
+
+        $second = $this->postJson("/api/payout-requests/{$payoutId}/confirm");
+        $second->assertStatus(409);
+        // Still 600, not 200 — the second call did not debit again.
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'balance' => 600]);
+        $this->assertSame(1, \App\Models\FinancialTransaction::where('reference_type', 'PayoutRequest')
+            ->where('reference_id', $payoutId)
+            ->where('transaction_type', 'DRIVER_PAYOUT')
+            ->count());
+    }
+
+    public function test_approving_a_payment_order_twice_only_credits_the_balance_once(): void
+    {
+        [$companyUser, $company] = $this->makeCompanyWithUser();
+        Sanctum::actingAs($companyUser);
+
+        $create = $this->post('/api/payment-orders', [
+            'amount' => 1000,
+            'receipt_file' => UploadedFile::fake()->create('receipt.pdf', 100),
+        ]);
+        $orderId = $create->json('order.id');
+
+        $admin = $this->makeAdmin();
+        Sanctum::actingAs($admin);
+
+        $first = $this->postJson("/api/payment-orders/{$orderId}/approve");
+        $first->assertStatus(200);
+        $this->assertDatabaseHas('companies', ['id' => $company->id, 'balance' => 1000]);
+
+        $second = $this->postJson("/api/payment-orders/{$orderId}/approve");
+        $second->assertStatus(409);
+        // Still 1000, not 2000 — the second call did not credit again.
+        $this->assertDatabaseHas('companies', ['id' => $company->id, 'balance' => 1000]);
+        $this->assertSame(1, \App\Models\FinancialTransaction::where('reference_type', 'PaymentOrder')
+            ->where('reference_id', $orderId)
+            ->where('transaction_type', 'COMPANY_DEPOSIT')
+            ->count());
+    }
+
+    public function test_approving_a_manual_adjustment_twice_only_applies_it_once(): void
+    {
+        [, $driver] = $this->makeDriverWithUser(['balance' => 100]);
+        $financeAdmin = $this->makeAdmin();
+        Sanctum::actingAs($financeAdmin);
+
+        $propose = $this->postJson('/api/financial-adjustments', [
+            'account_type' => 'driver',
+            'account_id' => $driver->id,
+            'amount' => 50,
+            'reason' => 'Goodwill credit',
+        ]);
+        $propose->assertStatus(201);
+        $adjustmentId = $propose->json('adjustment.id');
+
+        $first = $this->putJson("/api/financial-adjustments/{$adjustmentId}/approve");
+        $first->assertStatus(200);
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'balance' => 150]);
+
+        $second = $this->putJson("/api/financial-adjustments/{$adjustmentId}/approve");
+        $second->assertStatus(409);
+        // Still 150, not 200 — the second approve did not apply again.
+        $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'balance' => 150]);
+    }
+
+    /**
+     * Defense-in-depth check for the partial unique index added alongside
+     * the row-lock fixes (migration
+     * 2026_08_25_000001_add_idempotency_unique_index_to_financial_transactions).
+     * Calls LedgerService directly, bypassing every controller-level
+     * lock/recheck, to prove the database itself — not just the app code —
+     * refuses a second DRIVER_PAYOUT row for the same PayoutRequest.
+     */
+    public function test_the_database_itself_rejects_a_duplicate_ledger_entry_for_the_same_reference(): void
+    {
+        [, $driver] = $this->makeDriverWithUser(['balance' => 100]);
+        $payout = PayoutRequest::create([
+            'driver_id' => $driver->id,
+            'amount' => 50,
+            'status' => 'paid',
+        ]);
+
+        app(\App\Services\LedgerService::class)->record($driver, 'DRIVER_PAYOUT', -50, $payout, 'first debit');
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        app(\App\Services\LedgerService::class)->record($driver, 'DRIVER_PAYOUT', -50, $payout, 'duplicate debit');
     }
 }

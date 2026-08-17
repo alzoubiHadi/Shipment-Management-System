@@ -297,8 +297,12 @@ class ShipmentOfferService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      final userId = prefs.getString('id');
 
+      // 2026-08-25 security fix: driver_user_id used to be sent from here,
+      // but the server now always resolves the driver from the
+      // authenticated token instead (see ShipmentOfferController::accept)
+      // — sending it was pointless at best and, before the server-side
+      // fix, let a malicious client accept on another driver's behalf.
       final response = await http.post(
         Uri.parse('$baseUrl/shipment-offers/accept'),
         headers: {
@@ -308,7 +312,6 @@ class ShipmentOfferService {
         },
         body: jsonEncode({
           'offer_id': offerId,
-          'driver_user_id': userId,
         }),
       );
 

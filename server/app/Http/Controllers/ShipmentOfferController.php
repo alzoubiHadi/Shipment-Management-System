@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CompanyFacingShipmentOfferResource;
+use App\Http\Resources\DriverFacingShipmentOfferResource;
 use App\Models\Company;
 use App\Models\Driver;
 use App\Models\Shipment;
@@ -134,12 +136,6 @@ class ShipmentOfferController extends Controller
             $validated['price_to_client'] = $pricing['base_price'];
             $validated['platform_margin_percent_snapshot'] = $pricing['margin_percent'];
 
-            if (! $company->canAffordOffer((float) $validated['price_to_client'])) {
-                return response()->json([
-                    'message' => "This shipment would exceed your company's credit limit",
-                ], 422);
-            }
-
             // Reserve the price against the company's available balance the
             // moment it's known, so a second offer created a second later
             // can't also spend this same headroom before either is
@@ -147,7 +143,31 @@ class ShipmentOfferController extends Controller
             $validated['financial_status'] = 'reserved';
         }
 
-        $offer = ShipmentOffer::create($validated);
+        // Concurrency fix (2026-08-25, financial audit): canAffordOffer()
+        // was a plain read with no lock, and the offer (with its
+        // reservation) was created afterward with no lock either. Two
+        // offers created back to back for the same company could both read
+        // the same available balance and both pass the credit-limit check,
+        // together reserving more than the company's actual headroom. Fix:
+        // lock the Company row as a per-company mutex before checking
+        // affordability and creating the offer — manualPrice() and
+        // raisePrice() below take this same lock, so any two of these three
+        // actions for the same company now serialize instead of racing.
+        try {
+            $offer = $pricing
+                ? DB::transaction(function () use ($company, $validated) {
+                    $lockedCompany = Company::where('id', $company->id)->lockForUpdate()->firstOrFail();
+
+                    if (! $lockedCompany->canAffordOffer((float) $validated['price_to_client'])) {
+                        throw new \RuntimeException("This shipment would exceed your company's credit limit");
+                    }
+
+                    return ShipmentOffer::create($validated);
+                })
+                : ShipmentOffer::create($validated);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         if ($pricing) {
             app(MatchingService::class)->matchNextBatch($offer);
@@ -177,22 +197,29 @@ class ShipmentOfferController extends Controller
             'price_to_client' => ['required', 'numeric', 'min:0', 'gte:price_to_driver'],
         ]);
 
-        $company = $offer->company;
+        // Same per-company lock as create() above — this also creates a
+        // fresh reservation, so it has to serialize against any other
+        // in-flight offer creation/pricing/raise for this same company.
+        try {
+            DB::transaction(function () use ($offer, $validated, $request) {
+                $lockedCompany = Company::where('id', $offer->company_id)->lockForUpdate()->firstOrFail();
 
-        if (! $company->canAffordOffer((float) $validated['price_to_client'])) {
-            return response()->json([
-                'message' => "This price would exceed the company's credit limit",
-            ], 422);
+                if (! $lockedCompany->canAffordOffer((float) $validated['price_to_client'])) {
+                    throw new \RuntimeException("This price would exceed the company's credit limit");
+                }
+
+                $offer->update([
+                    'price_to_driver' => $validated['price_to_driver'],
+                    'price_to_client' => $validated['price_to_client'],
+                    'pricing_mode' => 'manual',
+                    'priced_by_user_id' => $request->user()->id,
+                    'status' => 'pending',
+                    'financial_status' => 'reserved',
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-
-        $offer->update([
-            'price_to_driver' => $validated['price_to_driver'],
-            'price_to_client' => $validated['price_to_client'],
-            'pricing_mode' => 'manual',
-            'priced_by_user_id' => $request->user()->id,
-            'status' => 'pending',
-            'financial_status' => 'reserved',
-        ]);
 
         app(MatchingService::class)->matchNextBatch($offer);
 
@@ -214,10 +241,6 @@ class ShipmentOfferController extends Controller
             return response()->json(['message' => 'This is not your offer'], 403);
         }
 
-        if ($offer->status !== 'pending') {
-            return response()->json(['message' => 'This offer can no longer be modified'], 409);
-        }
-
         $validated = $request->validate([
             'price_to_client' => ['required', 'numeric'],
         ]);
@@ -226,21 +249,35 @@ class ShipmentOfferController extends Controller
             return response()->json(['message' => 'The price can only be raised, not lowered'], 422);
         }
 
-        // Exclude this offer's own existing reservation from the check —
-        // otherwise its old (lower) price would be double-counted: once as
-        // part of the current reservation total, and again as the new
-        // price being tested against it.
-        if (! $company->canAffordOffer((float) $validated['price_to_client'], $offer->id)) {
-            return response()->json([
-                'message' => "This price would exceed your company's credit limit",
-            ], 422);
-        }
+        // Same per-company lock as create()/manualPrice() above.
+        try {
+            DB::transaction(function () use ($offer, $validated) {
+                $lockedOffer = ShipmentOffer::where('id', $offer->id)->lockForUpdate()->firstOrFail();
 
-        $offer->update(['price_to_client' => $validated['price_to_client']]);
+                if ($lockedOffer->status !== 'pending') {
+                    throw new \RuntimeException('This offer can no longer be modified');
+                }
+
+                $lockedCompany = Company::where('id', $lockedOffer->company_id)->lockForUpdate()->firstOrFail();
+
+                // Exclude this offer's own existing reservation from the
+                // check — otherwise its old (lower) price would be
+                // double-counted: once as part of the current reservation
+                // total, and again as the new price being tested against it.
+                if (! $lockedCompany->canAffordOffer((float) $validated['price_to_client'], $lockedOffer->id)) {
+                    throw new \RuntimeException("This price would exceed your company's credit limit");
+                }
+
+                $lockedOffer->update(['price_to_client' => $validated['price_to_client']]);
+            });
+        } catch (\RuntimeException $e) {
+            $status = $e->getMessage() === 'This offer can no longer be modified' ? 409 : 422;
+            return response()->json(['message' => $e->getMessage()], $status);
+        }
 
         return response()->json([
             'message' => 'Price updated successfully',
-            'offer' => $offer,
+            'offer' => $offer->fresh(),
         ], 200);
     }
 
@@ -334,16 +371,29 @@ class ShipmentOfferController extends Controller
 
         return response()->json([
             'message' => 'Offers retrieved successfully',
-            'offers' => $offers,
+            // Financial audit (2026-08-25): CompanyFacingShipmentOfferResource
+            // shows this company its own price_to_client, but never
+            // price_to_driver or platform_margin_percent_snapshot.
+            'offers' => CompanyFacingShipmentOfferResource::collection($offers),
         ], 200);
     }
 
     /**
      * Admin: list every offer, with how many eligible drivers currently
      * match it (helps show why an offer might be stuck unmatched).
+     *
+     * Authorization fix (2026-08-25, financial audit): this only sat behind
+     * auth:sanctum with no role check, so any authenticated driver or
+     * company could call it directly and read every offer's
+     * price_to_client / platform_margin_percent_snapshot for every other
+     * company. Restricted to admin/sub-admin — the real audience.
      */
-    public function index()
+    public function index(Request $request)
     {
+        if (! $request->user()->isSuperAdmin() && ! $request->user()->isSubAdmin()) {
+            return response()->json(['message' => 'You are not authorized to view all offers'], 403);
+        }
+
         $offers = ShipmentOffer::with(['company', 'acceptedByDriver', 'acceptedTruck'])
             ->orderByDesc('created_at')
             ->get()
@@ -413,7 +463,12 @@ class ShipmentOfferController extends Controller
 
         return response()->json([
             'message' => 'Available offers retrieved successfully',
-            'offers' => $offers,
+            // Financial audit (2026-08-25): DriverFacingShipmentOfferResource
+            // shows this driver their own price_to_driver, but never
+            // price_to_client or platform_margin_percent_snapshot — the
+            // driver was never meant to see what the company pays or FMS's
+            // margin.
+            'offers' => DriverFacingShipmentOfferResource::collection($offers),
         ], 200);
     }
 
@@ -434,13 +489,20 @@ class ShipmentOfferController extends Controller
     {
         $validated = $request->validate([
             'offer_id' => ['required', 'exists:shipment_offers,id'],
-            // the app only knows the logged-in user's id, not the internal
-            // drivers.id, so we resolve the driver from that (same pattern
-            // as the trucks endpoints)
-            'driver_user_id' => ['required', 'exists:users,id'],
         ]);
 
-        return DB::transaction(function () use ($validated) {
+        // Security fix (2026-08-25, financial audit): this used to trust a
+        // client-supplied driver_user_id and resolve the driver from THAT,
+        // instead of from the authenticated request. Any logged-in user who
+        // knew (or guessed) another driver's user id could accept an offer
+        // on that driver's behalf — which immediately posts a real
+        // SHIPMENT_CHARGE against the company and later a DRIVER_EARNING
+        // for a driver who never actually agreed to the job. The server
+        // already knows who is calling; it must never take that identity
+        // from the request body.
+        $authenticatedDriverUserId = $request->user()->id;
+
+        return DB::transaction(function () use ($validated, $authenticatedDriverUserId) {
             $offer = ShipmentOffer::lockForUpdate()->findOrFail($validated['offer_id']);
 
             if ($offer->status !== 'pending') {
@@ -449,7 +511,7 @@ class ShipmentOfferController extends Controller
                 ], 409);
             }
 
-            $driver = Driver::where('user_id', $validated['driver_user_id'])->first();
+            $driver = Driver::where('user_id', $authenticatedDriverUserId)->first();
 
             if (! $driver) {
                 return response()->json(['message' => 'Driver not found'], 404);
@@ -500,7 +562,12 @@ class ShipmentOfferController extends Controller
 
             return response()->json([
                 'message' => 'Offer accepted, shipment created successfully',
-                'shipment' => $shipment,
+                // Financial audit (2026-08-25): price_to_client (what the
+                // company pays) and the platform margin were never meant to
+                // reach the driver — same rule as the offer resources
+                // above, applied here since accept() returns a real
+                // Shipment record, not a ShipmentOffer.
+                'shipment' => $shipment->makeHidden('price_to_client'),
             ], 201);
         });
     }

@@ -16,9 +16,36 @@ use Illuminate\Support\Facades\DB;
 
 class ShipmentController extends Controller
 {
-    //
+    /**
+     * Authorization fix (2026-08-25, financial audit): assignDriver,
+     * refuse, index, delete, update, and restore below had NO role or
+     * ownership check at all — any authenticated user of any role (driver,
+     * company, or admin) could call them directly (they only sat behind the
+     * blanket auth:sanctum middleware). None of them are reachable from any
+     * live screen anymore — the real flows today are
+     * ShipmentOfferController::accept/finalizeAcceptance, advanceStage(),
+     * deliver(), confirmDelivery(), and AdminShipmentController for
+     * listing — the only live callers of these legacy endpoints traced back
+     * to screens already confirmed dead code elsewhere in this codebase
+     * (ShipmentPageAdmin.dart, ShipmentDetailsPage.dart). Restricting them
+     * to Super Admin closes the hole with zero effect on the running app,
+     * without deleting routes something unknown might still depend on.
+     */
+    private function requireSuperAdmin(Request $request)
+    {
+        if (! $request->user()->isSuperAdmin()) {
+            return response()->json(['message' => 'You are not authorized to perform this action'], 403);
+        }
+
+        return null;
+    }
+
     public function assignDriver(Request $request)
     {
+        if ($guard = $this->requireSuperAdmin($request)) {
+            return $guard;
+        }
+
         $shipment = Shipment::findOrFail($request->shipmentId);
         $driver = Driver::findOrFail($request->driverId);
 
@@ -34,6 +61,10 @@ class ShipmentController extends Controller
     }
     public function refuse(Request $request)
     {
+        if ($guard = $this->requireSuperAdmin($request)) {
+            return $guard;
+        }
+
         $shipment = Shipment::findOrFail($request->shipment_id);
         $shipment->update([
             'status' => 0, // refused
@@ -44,24 +75,39 @@ class ShipmentController extends Controller
             'shipment' => $shipment,
         ], 200);
     }
-    public function index()
+    public function index(Request $request)
     {
-        // List all shipments
+        if ($guard = $this->requireSuperAdmin($request)) {
+            return $guard;
+        }
+
+        // List all shipments — Super Admin only; a driver/company must go
+        // through drivergetShipments()/companygetShipments() instead, which
+        // are scoped to their own records only.
         $shipments = Shipment::all();
         return response()->json([
             'message' => 'shipments Displayed successfully',
             'shipments' => $shipments,
         ], 200);
     }
-    public function delete(Shipment $shipment)
-    {        // Soft delete a shipment
+    public function delete(Request $request, Shipment $shipment)
+    {
+        if ($guard = $this->requireSuperAdmin($request)) {
+            return $guard;
+        }
+
+        // Soft delete a shipment
         $shipment->delete();
         return response()->json([
             'message' => 'Shipment deleted successfully',
         ], 200);
     }
-    public function restore($id)
+    public function restore(Request $request, $id)
     {
+        if ($guard = $this->requireSuperAdmin($request)) {
+            return $guard;
+        }
+
         // Restore a soft-deleted shipment
         $shipment = Shipment::withTrashed()->findOrFail($id);
         $shipment->restore();
@@ -110,7 +156,9 @@ class ShipmentController extends Controller
     }
     public function update(Request $request, Shipment $shipment)
     {
-
+        if ($guard = $this->requireSuperAdmin($request)) {
+            return $guard;
+        }
 
         $shipment->update([
             'driver_id' => $request->driver_id ?? $shipment->driver_id,
@@ -161,7 +209,10 @@ class ShipmentController extends Controller
 
         return response()->json([
             'message' => 'Shipments retrieved successfully',
-            'shipments' => $shipments,
+            // Financial audit (2026-08-25): price_to_client (what the
+            // company pays) and the platform margin were never meant to
+            // reach the driver — only their own price_to_driver.
+            'shipments' => $shipments->makeHidden('price_to_client'),
         ], 200);
     }
 
@@ -260,7 +311,9 @@ class ShipmentController extends Controller
 
         return response()->json([
             'message' => 'Shipment stage updated successfully',
-            'shipment' => $shipment,
+            // Financial audit (2026-08-25): driver-facing response — hide
+            // price_to_client, same rule as drivergetShipments() above.
+            'shipment' => $shipment->makeHidden('price_to_client'),
         ], 200);
     }
 
@@ -320,7 +373,9 @@ class ShipmentController extends Controller
 
         return response()->json([
             'message' => 'Delivery recorded — awaiting company confirmation',
-            'shipment' => $shipment->fresh(),
+            // Financial audit (2026-08-25): driver-facing response — hide
+            // price_to_client, same rule as drivergetShipments() above.
+            'shipment' => $shipment->fresh()->makeHidden('price_to_client'),
         ], 200);
     }
 
@@ -338,49 +393,59 @@ class ShipmentController extends Controller
             return response()->json(['message' => 'This is not your shipment'], 403);
         }
 
-        if ($shipment->delivery_status !== 'awaiting_confirmation') {
-            return response()->json([
-                'message' => 'This shipment is not currently awaiting your confirmation',
-            ], 409);
+        // Concurrency fix (2026-08-25, financial audit): the delivery_status
+        // check used to run BEFORE the transaction opened, then re-lock the
+        // shipment WITHOUT re-checking its status again. Two near-
+        // simultaneous "Confirm delivery" taps could both read
+        // 'awaiting_confirmation', both pass, and both post a DRIVER_EARNING
+        // credit for the same shipment — the driver paid twice for one trip.
+        // Fix: lock the shipment row first and re-check delivery_status only
+        // once that lock is held.
+        try {
+            DB::transaction(function () use ($shipment, $request) {
+                $lockedShipment = Shipment::where('id', $shipment->id)->lockForUpdate()->firstOrFail();
+
+                if ($lockedShipment->delivery_status !== 'awaiting_confirmation') {
+                    throw new \RuntimeException('This shipment is not currently awaiting your confirmation');
+                }
+
+                $lockedShipment->confirmByCompany($request->user());
+                // "Completed" is the final tracking stage and only the
+                // company's own confirmation may reach it — never the driver.
+                $lockedShipment->update([
+                    'status' => 3, // delivered
+                    'current_stage' => Shipment::totalStagesFor($lockedShipment->order_type ?? 'internal'),
+                ]);
+
+                $driver = Driver::lockForUpdate()->find($lockedShipment->driver_id);
+                if ($driver) {
+                    app(LedgerService::class)->record(
+                        $driver,
+                        'DRIVER_EARNING',
+                        (float) $lockedShipment->price_to_driver,
+                        $lockedShipment,
+                        "Earning for shipment {$lockedShipment->tracking_number}",
+                    );
+                    $driver->update(['status' => 'available']);
+
+                    ActivityLog::record(
+                        'shipment.delivery_confirmed',
+                        $lockedShipment,
+                        "Company confirmed receipt of shipment {$lockedShipment->tracking_number} — driver credited {$lockedShipment->price_to_driver} AED",
+                        ['shipment_id' => $lockedShipment->id, 'amount' => $lockedShipment->price_to_driver]
+                    );
+
+                    $driver->user?->notify(new AppPushNotification(
+                        'balance_credited',
+                        'Payment received',
+                        sprintf('Your balance was credited %s AED for shipment %s.', $lockedShipment->price_to_driver, $lockedShipment->tracking_number),
+                        ['shipment_id' => $lockedShipment->id],
+                    ));
+                }
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         }
-
-        DB::transaction(function () use ($shipment, $request) {
-            $shipment = Shipment::lockForUpdate()->findOrFail($shipment->id);
-
-            $shipment->confirmByCompany($request->user());
-            // "Completed" is the final tracking stage and only the
-            // company's own confirmation may reach it — never the driver.
-            $shipment->update([
-                'status' => 3, // delivered
-                'current_stage' => Shipment::totalStagesFor($shipment->order_type ?? 'internal'),
-            ]);
-
-            $driver = Driver::lockForUpdate()->find($shipment->driver_id);
-            if ($driver) {
-                app(LedgerService::class)->record(
-                    $driver,
-                    'DRIVER_EARNING',
-                    (float) $shipment->price_to_driver,
-                    $shipment,
-                    "Earning for shipment {$shipment->tracking_number}",
-                );
-                $driver->update(['status' => 'available']);
-
-                ActivityLog::record(
-                    'shipment.delivery_confirmed',
-                    $shipment,
-                    "Company confirmed receipt of shipment {$shipment->tracking_number} — driver credited {$shipment->price_to_driver} AED",
-                    ['shipment_id' => $shipment->id, 'amount' => $shipment->price_to_driver]
-                );
-
-                $driver->user?->notify(new AppPushNotification(
-                    'balance_credited',
-                    'Payment received',
-                    sprintf('Your balance was credited %s AED for shipment %s.', $shipment->price_to_driver, $shipment->tracking_number),
-                    ['shipment_id' => $shipment->id],
-                ));
-            }
-        });
 
         return response()->json([
             'message' => 'Delivery confirmed — driver has been paid',
@@ -435,57 +500,65 @@ class ShipmentController extends Controller
             return response()->json(['message' => 'You are not authorized to resolve delivery disputes'], 403);
         }
 
-        if ($shipment->delivery_status !== 'disputed') {
-            return response()->json(['message' => 'This shipment is not currently disputed'], 409);
-        }
-
         $validated = $request->validate([
             'resolution' => ['required', 'in:confirm,reject'],
         ]);
 
-        DB::transaction(function () use ($shipment, $validated, $request) {
-            $shipment = Shipment::lockForUpdate()->findOrFail($shipment->id);
-            $driver = Driver::lockForUpdate()->find($shipment->driver_id);
+        // Same lock-then-recheck pattern as confirmDelivery() above — closes
+        // the identical double-credit race for the dispute-resolution path
+        // (two admins resolving the same disputed delivery at once).
+        try {
+            DB::transaction(function () use ($shipment, $validated, $request) {
+                $shipment = Shipment::where('id', $shipment->id)->lockForUpdate()->firstOrFail();
 
-            if ($validated['resolution'] === 'confirm') {
-                $shipment->confirmByCompany($request->user());
-                $shipment->update(['status' => 3]);
+                if ($shipment->delivery_status !== 'disputed') {
+                    throw new \RuntimeException('This shipment is not currently disputed');
+                }
 
-                if ($driver) {
-                    app(LedgerService::class)->record(
-                        $driver,
-                        'DRIVER_EARNING',
-                        (float) $shipment->price_to_driver,
-                        $shipment,
-                        "Earning for shipment {$shipment->tracking_number} (dispute resolved in driver's favor)",
-                    );
-                    $driver->user?->notify(new AppPushNotification(
-                        'balance_credited',
-                        'Payment received',
-                        sprintf('Your balance was credited %s AED for shipment %s (dispute resolved in your favor).', $shipment->price_to_driver, $shipment->tracking_number),
+                $driver = Driver::lockForUpdate()->find($shipment->driver_id);
+
+                if ($validated['resolution'] === 'confirm') {
+                    $shipment->confirmByCompany($request->user());
+                    $shipment->update(['status' => 3]);
+
+                    if ($driver) {
+                        app(LedgerService::class)->record(
+                            $driver,
+                            'DRIVER_EARNING',
+                            (float) $shipment->price_to_driver,
+                            $shipment,
+                            "Earning for shipment {$shipment->tracking_number} (dispute resolved in driver's favor)",
+                        );
+                        $driver->user?->notify(new AppPushNotification(
+                            'balance_credited',
+                            'Payment received',
+                            sprintf('Your balance was credited %s AED for shipment %s (dispute resolved in your favor).', $shipment->price_to_driver, $shipment->tracking_number),
+                            ['shipment_id' => $shipment->id],
+                        ));
+                    }
+                } else {
+                    $shipment->update(['delivery_status' => 'confirmed', 'status' => 3]);
+
+                    $driver?->user?->notify(new AppPushNotification(
+                        'dispute_resolved_against_driver',
+                        'Delivery dispute resolved',
+                        sprintf('The dispute for shipment %s was resolved without payment.', $shipment->tracking_number),
                         ['shipment_id' => $shipment->id],
                     ));
                 }
-            } else {
-                $shipment->update(['delivery_status' => 'confirmed', 'status' => 3]);
 
-                $driver?->user?->notify(new AppPushNotification(
-                    'dispute_resolved_against_driver',
-                    'Delivery dispute resolved',
-                    sprintf('The dispute for shipment %s was resolved without payment.', $shipment->tracking_number),
-                    ['shipment_id' => $shipment->id],
-                ));
-            }
+                ActivityLog::record(
+                    'shipment.dispute_resolved',
+                    $shipment,
+                    "Resolved delivery dispute for shipment {$shipment->tracking_number}: {$validated['resolution']}",
+                    ['resolution' => $validated['resolution']]
+                );
 
-            ActivityLog::record(
-                'shipment.dispute_resolved',
-                $shipment,
-                "Resolved delivery dispute for shipment {$shipment->tracking_number}: {$validated['resolution']}",
-                ['resolution' => $validated['resolution']]
-            );
-
-            $driver?->update(['status' => 'available']);
-        });
+                $driver?->update(['status' => 'available']);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
+        }
 
         return response()->json([
             'message' => 'Dispute resolved',
@@ -575,6 +648,10 @@ class ShipmentController extends Controller
 
     public function updateshipmentstatus(Request $request)
     {
+        if ($guard = $this->requireSuperAdmin($request)) {
+            return $guard;
+        }
+
         $shipment = Shipment::findOrFail($request->shipment_id);
         $newStatus = $request->status ?? $shipment->status;
 

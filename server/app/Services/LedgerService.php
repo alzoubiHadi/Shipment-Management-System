@@ -49,13 +49,23 @@ class LedgerService
             /** @var Company|Driver $locked */
             $locked = $accountClass::lockForUpdate()->findOrFail($account->id);
 
-            $balanceBefore = (float) $locked->balance;
-            $balanceAfter = $balanceBefore + $amount;
+            // Money math fix (2026-08-25, financial audit): balances are
+            // decimal(14,2) in the database, and 'balance' already casts to
+            // a decimal:2 STRING on the model for exactly this reason — a
+            // PHP float is an IEEE 754 binary double and cannot represent
+            // every 2-decimal amount exactly, and every DRIVER_EARNING/
+            // SHIPMENT_CHARGE/etc this account ever receives keeps adding
+            // onto the same running balance, so any per-entry epsilon error
+            // would compound over the account's lifetime. bcadd() does the
+            // addition as exact string decimal arithmetic instead.
+            $balanceBeforeStr = (string) $locked->balance;
+            $amountStr = number_format($amount, 2, '.', '');
+            $balanceAfterStr = bcadd($balanceBeforeStr, $amountStr, 2);
 
             // Drivers can never go negative — a payout can only ever be for
             // an amount already validated against their available balance,
             // so hitting this means a race condition slipped through.
-            if ($accountType === FinancialTransaction::ACCOUNT_DRIVER && $balanceAfter < -0.01) {
+            if ($accountType === FinancialTransaction::ACCOUNT_DRIVER && bccomp($balanceAfterStr, '-0.01', 2) < 0) {
                 throw new RuntimeException('This would take the driver balance negative — aborting.');
             }
 
@@ -63,10 +73,10 @@ class LedgerService
                 'account_type' => $accountType,
                 'account_id' => $locked->id,
                 'transaction_type' => $type,
-                'amount' => $amount,
+                'amount' => $amountStr,
                 'currency' => 'AED',
-                'balance_before' => $balanceBefore,
-                'balance_after' => $balanceAfter,
+                'balance_before' => $balanceBeforeStr,
+                'balance_after' => $balanceAfterStr,
                 'reference_type' => $reference ? class_basename($reference) : null,
                 'reference_id' => $reference?->id,
                 'status' => FinancialTransaction::STATUS_POSTED,
@@ -75,7 +85,7 @@ class LedgerService
                 'created_at' => now(),
             ]);
 
-            $locked->update(['balance' => $balanceAfter]);
+            $locked->update(['balance' => $balanceAfterStr]);
 
             return $transaction;
         });
@@ -93,18 +103,19 @@ class LedgerService
         int $createdByUserId,
     ): FinancialTransaction {
         $accountType = $this->accountTypeFor($account);
-        $balanceBefore = (float) $account->balance;
+        $balanceBeforeStr = (string) $account->balance;
+        $amountStr = number_format($amount, 2, '.', '');
 
         return FinancialTransaction::create([
             'account_type' => $accountType,
             'account_id' => $account->id,
             'transaction_type' => 'ADJUSTMENT',
-            'amount' => $amount,
+            'amount' => $amountStr,
             'currency' => 'AED',
             // Provisional preview only — recomputed for real at approval
             // time in case other transactions land on this account first.
-            'balance_before' => $balanceBefore,
-            'balance_after' => $balanceBefore + $amount,
+            'balance_before' => $balanceBeforeStr,
+            'balance_after' => bcadd($balanceBeforeStr, $amountStr, 2),
             'status' => FinancialTransaction::STATUS_PENDING,
             'description' => $description,
             'created_by' => $createdByUserId,
@@ -116,48 +127,72 @@ class LedgerService
      * Super Admin approves a pending ADJUSTMENT — only now does it actually
      * touch the balance, recomputed fresh under a row lock (the preview
      * values written at proposal time may be stale by now).
+     *
+     * Concurrency fix (2026-08-25, financial audit): the pending/status
+     * check used to run BEFORE the transaction opened, against a possibly
+     * stale in-memory $adjustment. Two Super Admin clicks (or two concurrent
+     * requests) could both read status=='pending', both pass the check, and
+     * both then apply +amount to the balance for what the Ledger shows as a
+     * single adjustment row — a real double-credit with no matching audit
+     * trail. The fix: lock the FinancialTransaction row itself FIRST, and
+     * only re-check its status once that lock is held. The two calls now
+     * serialize on this lock; the second one to get it sees status=='posted'
+     * already and aborts cleanly instead of re-applying the amount.
      */
     public function approveAdjustment(FinancialTransaction $adjustment, int $approvedByUserId): FinancialTransaction
     {
-        if ($adjustment->transaction_type !== 'ADJUSTMENT' || $adjustment->status !== FinancialTransaction::STATUS_PENDING) {
-            throw new RuntimeException('This is not a pending adjustment.');
-        }
+        return DB::transaction(function () use ($adjustment, $approvedByUserId) {
+            $lockedAdjustment = FinancialTransaction::where('id', $adjustment->id)->lockForUpdate()->firstOrFail();
 
-        $accountClass = $adjustment->account_type === FinancialTransaction::ACCOUNT_COMPANY ? Company::class : Driver::class;
+            if ($lockedAdjustment->transaction_type !== 'ADJUSTMENT' || $lockedAdjustment->status !== FinancialTransaction::STATUS_PENDING) {
+                throw new RuntimeException('This is not a pending adjustment.');
+            }
 
-        return DB::transaction(function () use ($adjustment, $accountClass, $approvedByUserId) {
-            $locked = $accountClass::lockForUpdate()->findOrFail($adjustment->account_id);
+            $accountClass = $lockedAdjustment->account_type === FinancialTransaction::ACCOUNT_COMPANY ? Company::class : Driver::class;
+            $lockedAccount = $accountClass::lockForUpdate()->findOrFail($lockedAdjustment->account_id);
 
-            $balanceBefore = (float) $locked->balance;
-            $balanceAfter = $balanceBefore + (float) $adjustment->amount;
+            // Exact string decimal arithmetic — see the note in record()
+            // above for why plain float + is unsafe here.
+            $balanceBeforeStr = (string) $lockedAccount->balance;
+            $balanceAfterStr = bcadd($balanceBeforeStr, (string) $lockedAdjustment->amount, 2);
 
-            $adjustment->update([
-                'balance_before' => $balanceBefore,
-                'balance_after' => $balanceAfter,
+            $lockedAdjustment->update([
+                'balance_before' => $balanceBeforeStr,
+                'balance_after' => $balanceAfterStr,
                 'status' => FinancialTransaction::STATUS_POSTED,
                 'approved_by' => $approvedByUserId,
                 'approved_at' => now(),
             ]);
 
-            $locked->update(['balance' => $balanceAfter]);
+            $lockedAccount->update(['balance' => $balanceAfterStr]);
 
-            return $adjustment;
+            return $lockedAdjustment;
         });
     }
 
+    /**
+     * Same lock-then-recheck pattern as approveAdjustment() above — a
+     * concurrent reject doesn't move money, but without the lock it could
+     * silently overwrite approved_by/approved_at set by a reject or approve
+     * that already ran, corrupting the audit trail of who actually decided.
+     */
     public function rejectAdjustment(FinancialTransaction $adjustment, int $rejectedByUserId): FinancialTransaction
     {
-        if ($adjustment->transaction_type !== 'ADJUSTMENT' || $adjustment->status !== FinancialTransaction::STATUS_PENDING) {
-            throw new RuntimeException('This is not a pending adjustment.');
-        }
+        return DB::transaction(function () use ($adjustment, $rejectedByUserId) {
+            $lockedAdjustment = FinancialTransaction::where('id', $adjustment->id)->lockForUpdate()->firstOrFail();
 
-        $adjustment->update([
-            'status' => FinancialTransaction::STATUS_REJECTED,
-            'approved_by' => $rejectedByUserId,
-            'approved_at' => now(),
-        ]);
+            if ($lockedAdjustment->transaction_type !== 'ADJUSTMENT' || $lockedAdjustment->status !== FinancialTransaction::STATUS_PENDING) {
+                throw new RuntimeException('This is not a pending adjustment.');
+            }
 
-        return $adjustment;
+            $lockedAdjustment->update([
+                'status' => FinancialTransaction::STATUS_REJECTED,
+                'approved_by' => $rejectedByUserId,
+                'approved_at' => now(),
+            ]);
+
+            return $lockedAdjustment;
+        });
     }
 
     private function accountTypeFor(Model $account): string
