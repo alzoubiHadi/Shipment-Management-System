@@ -120,6 +120,28 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
     }
   }
 
+  /// Compliance/Approval separation feature (2026-08-23): (label, color)
+  /// for the Trade License status chip — mirrors the driver My Documents
+  /// screen's status display, driven by Company.compliance_status.
+  (String, Color) _licenseStatusDisplay(String complianceStatus) => switch (complianceStatus) {
+        'action_required' => ('Expired', LightColors.error),
+        'expiring_soon' => ('Expiring Soon', LightColors.gold),
+        'pending_review' => ('Pending Review', LightColors.navy),
+        _ => ('Valid', LightColors.success),
+      };
+
+  /// "12d left" / "Expires today" / "3d overdue" — null with no expiry date.
+  String? _daysRemainingLabel(DateTime? expiry) {
+    if (expiry == null) return null;
+    final today = DateTime.now();
+    final t = DateTime(today.year, today.month, today.day);
+    final e = DateTime(expiry.year, expiry.month, expiry.day);
+    final days = e.difference(t).inDays;
+    if (days < 0) return '${-days}d overdue';
+    if (days == 0) return 'Expires today';
+    return '${days}d left';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -143,6 +165,10 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
               final phone = data['phone']?.toString() ?? '';
               final licensePath = data['license_file_path']?.toString();
               final accountStatus = data['account_status']?.toString() ?? 'active';
+              final licenseExpiry = data['license_expiry'] != null ? DateTime.tryParse(data['license_expiry'].toString()) : null;
+              final complianceStatus = data['compliance_status']?.toString() ?? 'active';
+              final (licenseStatusLabel, licenseStatusColor) = _licenseStatusDisplay(complianceStatus);
+              final daysLabel = _daysRemainingLabel(licenseExpiry);
 
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -194,14 +220,45 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                         Container(
                           width: 36,
                           height: 36,
-                          decoration: BoxDecoration(color: LightColors.gold.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                          child: const Icon(Icons.description_outlined, color: LightColors.goldMuted, size: 18),
+                          decoration: BoxDecoration(color: licenseStatusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                          child: Icon(Icons.description_outlined, color: licenseStatusColor, size: 18),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
-                            (licensePath ?? '').isEmpty ? 'Not uploaded yet' : 'Trade license on file',
-                            style: const TextStyle(color: LightColors.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                (licensePath ?? '').isEmpty ? 'Not uploaded yet' : 'Trade license on file',
+                                style: const TextStyle(color: LightColors.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
+                              ),
+                              if ((licensePath ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(color: licenseStatusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                                      child: Text(licenseStatusLabel,
+                                          style: TextStyle(color: licenseStatusColor, fontSize: 10, fontWeight: FontWeight.w600)),
+                                    ),
+                                    if (licenseExpiry != null)
+                                      Text('exp. ${licenseExpiry.year}-${licenseExpiry.month.toString().padLeft(2, '0')}-${licenseExpiry.day.toString().padLeft(2, '0')}',
+                                          style: const TextStyle(color: LightColors.textSecondary, fontSize: 11)),
+                                    if (daysLabel != null)
+                                      Text(daysLabel,
+                                          style: TextStyle(
+                                            color: licenseExpiry != null && licenseExpiry.isBefore(DateTime.now()) ? LightColors.error : LightColors.textSecondary,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          )),
+                                  ],
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         if ((licensePath ?? '').isNotEmpty)

@@ -21,7 +21,7 @@ enum DriverDocTab { driver, truck }
 /// Unified Approvals redesign (2026-08-22): Truck Documents is no longer
 /// read-only — TruckController::uploadMyTruckDocument now gives trucks the
 /// same always-available renewal path driver documents already had,
-/// creating a real TruckDocument row (status='under_review') plus a
+/// creating a real TruckDocument row (status='pending_review') plus a
 /// ProfileEditRequest that shows up in Admin > Approvals > Document
 /// Renewals. (The older `updateMyTruck` edit-during-changes_required path
 /// is untouched and still used by ChangesRequiredEditScreen.)
@@ -77,6 +77,51 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
       if (d.isCurrent) map[d.type] = d;
     }
     return map;
+  }
+
+  /// Compliance/Approval separation feature (2026-08-23): the NOT-current
+  /// row (if any) representing a renewal already submitted for this type —
+  /// 'pending_review' (awaiting admin) or 'changes_required' (admin asked
+  /// for a re-upload). Prefers 'changes_required' if somehow both exist,
+  /// since that's the more actionable state.
+  Map<String, DriverDocument?> _pendingByType(List<DriverDocument> docs) {
+    final map = <String, DriverDocument?>{
+      for (final t in kDriverDocumentTypes) t.key: null,
+    };
+    for (final d in docs) {
+      if (d.isCurrent) continue;
+      if (d.status != 'pending_review' && d.status != 'changes_required') continue;
+      final existing = map[d.type];
+      if (existing == null || d.status == 'changes_required') {
+        map[d.type] = d;
+      }
+    }
+    return map;
+  }
+
+  /// (label, color) for the status chip — pending/changes-required (a
+  /// separate, not-current row) takes priority over the current row's own
+  /// valid/expiring_soon/expired status, since it's the more actionable
+  /// thing to tell the driver about.
+  (String, Color) _documentStatusDisplay(DriverDocument? current, DriverDocument? pending) {
+    if (pending?.status == 'changes_required') return ('Changes Required', AppColors.error);
+    if (pending?.status == 'pending_review') return ('Pending Review', AppColors.info);
+    if (current == null) return ('Not Uploaded', AppColors.muted);
+    return switch (current.status) {
+      'expired' => ('Expired', AppColors.error),
+      'expiring_soon' => ('Expiring Soon', AppColors.gold),
+      _ => ('Valid', AppColors.success),
+    };
+  }
+
+  /// "12d left" / "Expires today" / "3d overdue" — null when there's no
+  /// expiry date to compute from at all.
+  String? _daysRemainingLabel(DriverDocument? doc) {
+    final days = doc?.daysRemaining;
+    if (days == null) return null;
+    if (days < 0) return '${-days}d overdue';
+    if (days == 0) return 'Expires today';
+    return '${days}d left';
   }
 
   Future<void> _openUploadSheet(String type) async {
@@ -542,7 +587,9 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
               );
             }
 
-            final currentByType = _currentByType(snapshot.data ?? []);
+            final docs = snapshot.data ?? [];
+            final currentByType = _currentByType(docs);
+            final pendingByType = _pendingByType(docs);
 
             return ListView(
               padding: const EdgeInsets.all(16),
@@ -550,19 +597,25 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Missing or expired mandatory documents (license, passport, residency) will block your account from being matched with shipments.',
+                    'Missing, expired, or expiring-soon mandatory documents (license, passport, residency) will block your account from being matched with shipments until renewed and approved.',
                     style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
                 ),
                 ...kDriverDocumentTypes.map((docType) {
                   final current = currentByType[docType.key];
-                  final isExpired = current?.isExpired ?? false;
-                  final statusColor = current == null
-                      ? AppColors.muted
-                      : (isExpired ? AppColors.error : AppColors.success);
-                  final statusLabel = current == null
-                      ? 'Not uploaded'
-                      : (isExpired ? 'Expired' : 'On file');
+                  final pending = pendingByType[docType.key];
+                  final (statusLabel, statusColor) = _documentStatusDisplay(current, pending);
+                  final daysLabel = _daysRemainingLabel(current);
+
+                  // Renew is shown for a never-uploaded type (as "Upload"),
+                  // an expiring/expired current document, or when an admin
+                  // has asked for changes on a submitted renewal — not
+                  // while a renewal is simply pending_review (nothing to
+                  // do until the admin decides) or already valid.
+                  final showActionButton = current == null ||
+                      current.status == 'expiring_soon' ||
+                      current.status == 'expired' ||
+                      pending?.status == 'changes_required';
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
@@ -594,7 +647,10 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                                     color: AppColors.cream, fontSize: 14, fontWeight: FontWeight.w600),
                               ),
                               const SizedBox(height: 3),
-                              Row(
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 6,
+                                runSpacing: 4,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -607,25 +663,33 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                                       style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w600),
                                     ),
                                   ),
-                                  if (current?.expiryDate != null) ...[
-                                    const SizedBox(width: 6),
+                                  if (current?.expiryDate != null)
                                     Text(
-                                      'exp. ${current!.expiryDate!.year}-${current.expiryDate!.month.toString().padLeft(2, '0')}-${current.expiryDate!.day.toString().padLeft(2, '0')}',
+                                      'exp. ${_fmt(current!.expiryDate)}',
                                       style: const TextStyle(color: AppColors.muted, fontSize: 11),
                                     ),
-                                  ],
+                                  if (daysLabel != null)
+                                    Text(
+                                      daysLabel,
+                                      style: TextStyle(
+                                        color: (current?.daysRemaining ?? 1) < 0 ? AppColors.error : AppColors.muted,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                        TextButton(
-                          onPressed: () => _openUploadSheet(docType.key),
-                          child: Text(
-                            current == null ? 'Upload' : 'Renew',
-                            style: const TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600),
+                        if (showActionButton)
+                          TextButton(
+                            onPressed: () => _openUploadSheet(docType.key),
+                            child: Text(
+                              current == null ? 'Upload' : 'Renew',
+                              style: const TextStyle(color: AppColors.gold, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   );

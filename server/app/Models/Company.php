@@ -111,16 +111,14 @@ class Company extends Model
     }
 
     /**
-     * Unified Approvals / document-expiry feature (2026-08-22): the trade
-     * license is the only compliance-relevant company document today.
-     * Expired -> 'action_required' (blocks ShipmentOfferController::create()
-     * only — approval_status and account_status are untouched, existing
-     * shipments/tracking/finance/documents/profile all stay reachable).
-     * Missing entirely (license_expiry null, e.g. never renewed with a
-     * dated document yet) is treated as fine here, not blocking — unlike a
-     * driver's documents, a company's trade license predates this feature
-     * for most existing accounts and there's no guarantee every approved
-     * company has a dated CompanyDocument row yet.
+     * Compliance/Approval separation feature (2026-08-23): thin wrapper —
+     * see ComplianceService::recalculate() for the actual logic, which now
+     * resolves compliance_status to one of 'active'/'action_required'/
+     * 'pending_review'/'expiring_soon' from the real CompanyDocument rows
+     * (trade_license is the only compliance-relevant company document
+     * today). Blocks ShipmentOfferController::create() only —
+     * approval_status and account_status are untouched, existing
+     * shipments/tracking/finance/documents/profile all stay reachable.
      *
      * Called after every trade-license renewal approval (see
      * ProfileController::applyCompanyLicense()) and by the daily
@@ -129,12 +127,6 @@ class Company extends Model
      */
     public function recomputeComplianceStatus(): void
     {
-        $expired = $this->license_expiry !== null && $this->license_expiry->isPast();
-
-        $newStatus = $expired ? 'action_required' : 'active';
-
-        if ($this->compliance_status !== $newStatus) {
-            $this->update(['compliance_status' => $newStatus]);
-        }
+        \App\Services\ComplianceService::recalculate($this);
     }
 }

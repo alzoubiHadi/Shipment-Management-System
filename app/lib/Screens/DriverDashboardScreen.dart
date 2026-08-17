@@ -172,8 +172,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (complianceStatus == 'action_required') ...[
+                              if (complianceStatus != 'active') ...[
                                 _ComplianceBanner(
+                                  status: complianceStatus,
                                   onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(builder: (_) => const DriverDocumentsPage()),
@@ -296,39 +297,65 @@ class _NotificationBell extends StatelessWidget {
   }
 }
 
-/// Shown when Driver.compliance_status == 'action_required' — a critical
-/// document (license/passport/residency, or the linked truck's own
-/// license/insurance/inspection) has expired. Per spec the driver can still
-/// log in and use everything except Matching/accepting new shipments, so
-/// this is a dismissible-feeling nudge rather than a blocking screen —
-/// tapping goes straight to My Documents to renew.
+/// Shown whenever Driver.compliance_status != 'active' — per the 2026-08-23
+/// Compliance/Approval separation spec, matching/accepting a new shipment
+/// strictly requires compliance_status === 'active', so any of the other
+/// three values (action_required/expiring_soon/pending_review) already
+/// blocks new jobs and deserves a heads-up here, with copy/urgency tuned
+/// per state. The driver can still log in and use everything else — this
+/// is a nudge, not a blocking screen — tapping goes straight to My
+/// Documents to renew.
 class _ComplianceBanner extends StatelessWidget {
+  final String status;
   final VoidCallback onTap;
-  const _ComplianceBanner({required this.onTap});
+  const _ComplianceBanner({required this.status, required this.onTap});
+
+  Color get _color => switch (status) {
+        'expiring_soon' => AppColors.gold,
+        'pending_review' => AppColors.info,
+        _ => AppColors.error,
+      };
+
+  IconData get _icon => switch (status) {
+        'expiring_soon' => Icons.schedule_rounded,
+        'pending_review' => Icons.hourglass_top_rounded,
+        _ => Icons.warning_amber_rounded,
+      };
+
+  String get _title => switch (status) {
+        'expiring_soon' => 'Document expiring soon',
+        'pending_review' => 'Renewal under review',
+        _ => 'Action needed',
+      };
+
+  String get _body => switch (status) {
+        'expiring_soon' => 'A document is expiring soon — renew it now to avoid losing new shipment offers.',
+        'pending_review' => 'Your renewal was submitted and is awaiting admin approval — you won\'t receive new shipment offers until it\'s approved.',
+        _ => 'A document has expired — renew it now to keep receiving new shipment offers.',
+      };
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.error.withOpacity(0.08),
+      color: _color.withOpacity(0.08),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.error.withOpacity(0.4))),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: _color.withOpacity(0.4))),
           child: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 22),
+              Icon(_icon, color: _color, size: 22),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Action needed', style: TextStyle(color: AppColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
-                    SizedBox(height: 2),
-                    Text('A document has expired — renew it now to keep receiving new shipment offers.',
-                        style: TextStyle(color: AppColors.muted, fontSize: 11.5)),
+                    Text(_title, style: const TextStyle(color: AppColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(_body, style: const TextStyle(color: AppColors.muted, fontSize: 11.5)),
                   ],
                 ),
               ),

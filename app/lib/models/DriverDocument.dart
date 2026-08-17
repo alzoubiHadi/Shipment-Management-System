@@ -7,6 +7,13 @@ class DriverDocument {
   final String filePath;
   final DateTime? expiryDate;
   final bool isCurrent;
+  // Compliance/Approval separation feature (2026-08-23): the real,
+  // backend-tracked lifecycle status — 'valid' | 'expiring_soon' |
+  // 'expired' | 'pending_review' | 'changes_required' | 'superseded' — see
+  // DriverDocument::STATUSES on the server. Previously the app derived its
+  // own expired/valid label purely from expiryDate; this is now the
+  // source of truth so pending/changes-required states can be shown too.
+  final String status;
   final DateTime? createdAt;
 
   DriverDocument({
@@ -15,10 +22,20 @@ class DriverDocument {
     required this.filePath,
     this.expiryDate,
     this.isCurrent = false,
+    this.status = 'valid',
     this.createdAt,
   });
 
   bool get isExpired => expiryDate != null && expiryDate!.isBefore(DateTime.now());
+
+  /// Whole days left until expiry — negative once expired. Null when
+  /// there's no expiry date at all (e.g. a non-dated document type).
+  int? get daysRemaining {
+    if (expiryDate == null) return null;
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final expiry = DateTime(expiryDate!.year, expiryDate!.month, expiryDate!.day);
+    return expiry.difference(today).inDays;
+  }
 
   factory DriverDocument.fromJson(Map<String, dynamic> json) {
     return DriverDocument(
@@ -29,6 +46,7 @@ class DriverDocument {
           ? DateTime.tryParse(json['expiry_date'].toString())
           : null,
       isCurrent: json['is_current'] == true,
+      status: json['status']?.toString() ?? 'valid',
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,

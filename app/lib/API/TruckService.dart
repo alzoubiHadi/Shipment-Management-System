@@ -126,7 +126,7 @@ class TruckService {
   /// upload (only editable during an admin-flagged 'changes_required'
   /// window), this always-available renewal path goes through
   /// TruckController::uploadMyTruckDocument — creates a real
-  /// TruckDocument row (status='under_review') plus a ProfileEditRequest
+  /// TruckDocument row (status='pending_review') plus a ProfileEditRequest
   /// (category 'truck_document') for the new Approvals > Document Renewals
   /// queue, exactly mirroring DriverService.uploadMyDocument.
   static Future<Map<String, dynamic>> uploadMyTruckDocument({

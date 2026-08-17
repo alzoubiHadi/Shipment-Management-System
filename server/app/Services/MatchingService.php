@@ -7,6 +7,7 @@ use App\Models\PayoutRequest;
 use App\Models\PlatformSetting;
 use App\Models\ShipmentOffer;
 use App\Notifications\AppPushNotification;
+use App\Services\ComplianceService;
 use App\Support\Destinations;
 
 /**
@@ -27,7 +28,15 @@ class MatchingService
     /**
      * Step 1 — Hard Eligibility. A driver only appears in this query if
      * ALL of the following hold:
-     *   - Approved, available, compliance-active.
+     *   - Approved, available, and in good compliance standing —
+     *     compliance_status 'active' always qualifies; 'expiring_soon'
+     *     also qualifies as long as no critical document (the driver's own,
+     *     or their truck's) expires within an order-type-based grace
+     *     window: 3 days for an internal offer, 3 months for an external
+     *     one (2026-08-24 grace-period follow-up — see
+     *     ComplianceService::isEligibleForShipment(), the same rule
+     *     re-applied at accept-time). 'action_required'/'pending_review'
+     *     always disqualify.
      *   - No blocking financial/payout issue (UC-30).
      *   - Every required driver document (license/passport/residency) is
      *     present AND not expired — missing counts the same as expired
@@ -54,11 +63,31 @@ class MatchingService
     {
         $today = now()->toDateString();
         $requiredCountries = $this->requiredCountriesFor($offer);
+        $graceCutoff = ComplianceService::graceCutoffDate($offer->order_type ?? 'internal')->toDateString();
 
         $query = Driver::query()
             ->where('status', 'available')
             ->where('approval_status', 'approved')
-            ->where('compliance_status', 'active')
+            ->where(function ($q) use ($graceCutoff) {
+                $q->where('compliance_status', 'active')
+                    ->orWhere(function ($q2) use ($graceCutoff) {
+                        // 'expiring_soon' still counts as eligible as long as
+                        // no critical document (driver's own, or their
+                        // truck's) expires within the grace window — mirrors
+                        // ComplianceService::isEligibleForShipment(), which
+                        // re-checks this same rule at accept-time in PHP.
+                        $q2->where('compliance_status', 'expiring_soon')
+                            ->whereDoesntHave('documents', fn ($d) => $d
+                                ->whereIn('type', ComplianceService::DRIVER_CRITICAL_TYPES)
+                                ->where('is_current', true)
+                                ->where('expiry_date', '<=', $graceCutoff))
+                            ->whereHas('trucks', fn ($t) => $t
+                                ->whereDoesntHave('documents', fn ($d) => $d
+                                    ->whereIn('type', ComplianceService::TRUCK_CRITICAL_TYPES)
+                                    ->where('is_current', true)
+                                    ->where('expiry_date', '<=', $graceCutoff)));
+                    });
+            })
             ->whereDoesntHave('payoutRequests', fn ($q) => $q->whereIn('status', PayoutRequest::BLOCKING_STATUSES))
             // All required driver documents present AND valid.
             ->whereNotNull('license_expiry')

@@ -11,12 +11,12 @@ import '../models/ProfileEditRequest.dart';
 /// Approve | Request Changes.
 ///
 /// Approve calls ProfileController::approve(), which re-evaluates the
-/// owner's full document set server-side and only clears
-/// compliance_status back to 'active' if every document is valid — see
-/// Driver::recomputeComplianceStatus()/Company::recomputeComplianceStatus().
+/// owner's full compliance server-side via ComplianceService and only
+/// clears compliance_status back to 'active' if every document is valid —
+/// see Driver::recomputeComplianceStatus()/Company::recomputeComplianceStatus().
 /// Request Changes calls reject(), which marks the newly-uploaded document
-/// row 'rejected' without deleting the file, so the owner can see why and
-/// re-upload.
+/// row 'changes_required' without deleting the file, so the owner can see
+/// why and re-upload.
 class DocumentRenewalReviewScreen extends StatefulWidget {
   final ProfileEditRequest request;
 
@@ -133,7 +133,7 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
               rows: [
                 MapEntry('New Expiry Date', _fmt(newExpiry)),
                 MapEntry('Submitted', _fmt(r.createdAt?.toIso8601String())),
-                const MapEntry('Status', 'Under Review'),
+                const MapEntry('Status', 'Pending Review'),
               ],
               onPreview: newFile != null ? () => _openFile(newFile) : null,
             ),

@@ -14,7 +14,7 @@ class TruckDocument extends Model
 {
     const TYPES = ['license', 'insurance', 'technical_inspection'];
 
-    const STATUSES = ['valid', 'expiring_soon', 'expired', 'under_review', 'rejected', 'superseded'];
+    const STATUSES = ['valid', 'expiring_soon', 'expired', 'pending_review', 'changes_required', 'superseded'];
 
     protected $fillable = [
         'truck_id',
@@ -22,6 +22,7 @@ class TruckDocument extends Model
         'file_path',
         'expiry_date',
         'is_current',
+        'previous_document_id',
         'status',
         'uploaded_by_user_id',
     ];
@@ -39,6 +40,11 @@ class TruckDocument extends Model
     public function uploadedBy()
     {
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    public function previousDocument()
+    {
+        return $this->belongsTo(self::class, 'previous_document_id');
     }
 
     public function isExpired(): bool

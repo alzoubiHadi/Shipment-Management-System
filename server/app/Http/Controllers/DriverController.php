@@ -446,6 +446,8 @@ public function restore( $id)
 
         $path = $request->file('file')->store('driver_documents', 'public');
 
+        $currentDoc = $driver->documents()->where('type', $validated['type'])->where('is_current', true)->first();
+
         // While the admin has explicitly asked for changes, applying
         // directly is safe and correct — resubmit() is what puts the
         // application back in front of an admin, so there's nothing to
@@ -458,6 +460,7 @@ public function restore( $id)
                 'file_path' => $path,
                 'expiry_date' => $validated['expiry_date'] ?? null,
                 'is_current' => true,
+                'previous_document_id' => $currentDoc?->id,
                 'status' => 'valid',
                 'uploaded_by_user_id' => $driver_user_id,
             ]);
@@ -478,12 +481,24 @@ public function restore( $id)
             ], 201);
         }
 
+        // Compliance/Approval separation feature (2026-08-23): a
+        // resubmission after an admin previously requested changes on this
+        // exact document type gets its own notification wording
+        // (renewal_resubmitted) instead of a fresh new_document_renewal —
+        // and the stale 'changes_required' row is superseded now that a
+        // new attempt has replaced it.
+        $isResubmission = $driver->documents()->where('type', $validated['type'])->where('status', 'changes_required')->exists();
+        if ($isResubmission) {
+            $driver->documents()->where('type', $validated['type'])->where('status', 'changes_required')->update(['status' => 'superseded']);
+        }
+
         $document = $driver->documents()->create([
             'type' => $validated['type'],
             'file_path' => $path,
             'expiry_date' => $validated['expiry_date'] ?? null,
             'is_current' => false,
-            'status' => 'under_review',
+            'previous_document_id' => $currentDoc?->id,
+            'status' => 'pending_review',
             'uploaded_by_user_id' => $driver_user_id,
         ]);
 
@@ -499,11 +514,24 @@ public function restore( $id)
             'status' => 'pending',
         ]);
 
+        // Recompute now, not just at approval time — a document that was
+        // 'action_required' (expired) or 'expiring_soon' should read as
+        // 'pending_review' the moment the renewal lands, per
+        // ComplianceService's priority order.
+        $driver->recomputeComplianceStatus();
+
+        $driver->user?->notify(new AppPushNotification(
+            'renewal_submitted',
+            'Renewal submitted',
+            sprintf('Your %s renewal was submitted and is now pending admin review.', $validated['type']),
+            ['document_id' => $document->id],
+        ));
+
         foreach (User::whereIn('type', ['admin', 'super_admin', 'sub_admin'])->get() as $admin) {
             $admin->notify(new AppPushNotification(
-                'profile_edit_pending',
-                'Driver document awaiting review',
-                sprintf('%s submitted a %s renewal for review.', $driver->name, $validated['type']),
+                $isResubmission ? 'renewal_resubmitted' : 'new_document_renewal',
+                $isResubmission ? 'Document renewal resubmitted' : 'Driver document awaiting review',
+                sprintf('%s %s a %s renewal for review.', $driver->name, $isResubmission ? 're-submitted' : 'submitted', $validated['type']),
                 ['request_id' => $editRequest->id],
             ));
         }

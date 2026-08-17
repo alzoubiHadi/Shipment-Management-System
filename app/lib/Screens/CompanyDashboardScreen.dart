@@ -69,6 +69,12 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const AddShipmentOfferPage()));
   }
 
+  String _blockedCreateShipmentMessage(String status) => switch (status) {
+        'expiring_soon' => 'Your trade license is expiring soon — renew it to avoid losing the ability to create shipments.',
+        'pending_review' => 'Your trade license renewal is still pending admin review.',
+        _ => 'Your trade license has expired — renew it to create new shipments.',
+      };
+
   void _openOffers(BuildContext context) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyOffersPage(user: widget.user)));
   }
@@ -195,8 +201,9 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (complianceStatus == 'action_required') ...[
+                          if (complianceStatus != 'active') ...[
                             _ComplianceBanner(
+                              status: complianceStatus,
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (_) => CompanyProfileScreen(user: widget.user)),
@@ -227,11 +234,11 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                           ),
                           const SizedBox(height: 18),
                           LightPrimaryButton(
-                            label: complianceStatus == 'action_required' ? 'Create Shipment (Blocked)' : 'Create Shipment',
+                            label: complianceStatus != 'active' ? 'Create Shipment (Blocked)' : 'Create Shipment',
                             icon: Icons.add_rounded,
-                            onPressed: complianceStatus == 'action_required'
+                            onPressed: complianceStatus != 'active'
                                 ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Your trade license has expired — renew it to create new shipments.')),
+                                      SnackBar(content: Text(_blockedCreateShipmentMessage(complianceStatus))),
                                     )
                                 : () => _createShipment(context),
                           ),
@@ -282,38 +289,72 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
   }
 }
 
-/// Shown when Company.compliance_status == 'action_required' (trade
-/// license expired) — per spec the company keeps full access to existing
-/// shipments/tracking/finance/documents/profile, only Create Shipment is
+/// Shown whenever Company.compliance_status != 'active' — per the
+/// 2026-08-23 spec Create Shipment strictly requires 'active', so
+/// 'expiring_soon'/'pending_review' block it too, not only an outright-
+/// expired license. The company keeps full access to existing shipments/
+/// tracking/finance/documents/profile either way — only Create Shipment is
 /// blocked (see the gated LightPrimaryButton above and
-/// ShipmentOfferController::create()'s matching 403 on the backend).
+/// ShipmentOfferController::create()'s matching 403 on the backend). Copy
+/// for 'action_required' is the exact spec wording: "Action Required —
+/// Renew your Trade License to create new shipments."
 class _ComplianceBanner extends StatelessWidget {
+  final String status;
   final VoidCallback onTap;
-  const _ComplianceBanner({required this.onTap});
+  const _ComplianceBanner({required this.status, required this.onTap});
+
+  Color get _color => switch (status) {
+        'expiring_soon' => LightColors.gold,
+        'pending_review' => LightColors.navy,
+        _ => LightColors.error,
+      };
+
+  Color get _bg => switch (status) {
+        'expiring_soon' => LightColors.gold.withOpacity(0.12),
+        'pending_review' => LightColors.navy.withOpacity(0.08),
+        _ => LightColors.errorBg,
+      };
+
+  IconData get _icon => switch (status) {
+        'expiring_soon' => Icons.schedule_rounded,
+        'pending_review' => Icons.hourglass_top_rounded,
+        _ => Icons.warning_amber_rounded,
+      };
+
+  String get _title => switch (status) {
+        'expiring_soon' => 'Trade license expiring soon',
+        'pending_review' => 'Renewal under review',
+        _ => 'Action Required',
+      };
+
+  String get _body => switch (status) {
+        'expiring_soon' => 'Renew it before it expires to avoid losing the ability to create new shipments.',
+        'pending_review' => 'Your renewed trade license was submitted and is awaiting admin approval.',
+        _ => 'Renew your Trade License to create new shipments.',
+      };
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: LightColors.errorBg,
+      color: _bg,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.error.withOpacity(0.4))),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: _color.withOpacity(0.4))),
           child: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: LightColors.error, size: 22),
+              Icon(_icon, color: _color, size: 22),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Trade license expired', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-                    SizedBox(height: 2),
-                    Text('Renew it to keep creating new shipments — existing shipments are unaffected.',
-                        style: TextStyle(color: LightColors.textSecondary, fontSize: 11.5)),
+                    Text(_title, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(_body, style: const TextStyle(color: LightColors.textSecondary, fontSize: 11.5)),
                   ],
                 ),
               ),

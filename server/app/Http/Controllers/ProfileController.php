@@ -31,6 +31,9 @@ use Illuminate\Validation\ValidationException;
  */
 class ProfileController extends Controller
 {
+    /** ProfileEditRequest categories that represent a document renewal (as opposed to 'destinations'). */
+    const RENEWAL_CATEGORIES = ['document', 'truck_document', 'company_license'];
+
     public function show(Request $request)
     {
         $user = $request->user();
@@ -87,6 +90,13 @@ class ProfileController extends Controller
                 // Company Profile screen (2026-08-17 redesign) shows an
                 // Active/Suspended badge — wasn't previously returned here.
                 'account_status' => $user->company->account_status,
+                // Compliance/Approval separation feature (2026-08-23): the
+                // Trade License card now shows Status + Days Remaining, same
+                // pattern as the driver My Documents screen — needs the
+                // license's own expiry_date and compliance_status, neither
+                // of which was returned here before.
+                'license_expiry' => optional($user->company->license_expiry)->format('Y-m-d'),
+                'compliance_status' => $user->company->compliance_status,
             ];
         }
 
@@ -241,11 +251,13 @@ class ProfileController extends Controller
 
         $path = $request->file('license_file')->store('company_licenses', 'public');
 
+        $company = $user->company;
+        $currentDoc = $company->documents()->where('type', 'trade_license')->where('is_current', true)->first();
+
         // While the admin has explicitly asked for changes, applying
         // directly is safe — resubmit() is what triggers a fresh admin
         // review, so a second gate here would be redundant.
-        if ($user->company->approval_status === 'changes_required') {
-            $company = $user->company;
+        if ($company->approval_status === 'changes_required') {
             $oldPath = $company->license_file_path;
 
             $company->documents()->update(['is_current' => false, 'status' => 'superseded']);
@@ -254,6 +266,7 @@ class ProfileController extends Controller
                 'file_path' => $path,
                 'expiry_date' => $validated['expiry_date'],
                 'is_current' => true,
+                'previous_document_id' => $currentDoc?->id,
                 'status' => 'valid',
                 'uploaded_by_user_id' => $user->id,
             ]);
@@ -270,12 +283,20 @@ class ProfileController extends Controller
             ], 200);
         }
 
-        $document = $user->company->documents()->create([
+        // Compliance/Approval separation feature (2026-08-23): same
+        // resubmission detection as DriverController::uploadDocument().
+        $isResubmission = $company->documents()->where('type', 'trade_license')->where('status', 'changes_required')->exists();
+        if ($isResubmission) {
+            $company->documents()->where('type', 'trade_license')->where('status', 'changes_required')->update(['status' => 'superseded']);
+        }
+
+        $document = $company->documents()->create([
             'type' => 'trade_license',
             'file_path' => $path,
             'expiry_date' => $validated['expiry_date'],
             'is_current' => false,
-            'status' => 'under_review',
+            'previous_document_id' => $currentDoc?->id,
+            'status' => 'pending_review',
             'uploaded_by_user_id' => $user->id,
         ]);
 
@@ -290,11 +311,20 @@ class ProfileController extends Controller
             'status' => 'pending',
         ]);
 
+        $company->recomputeComplianceStatus();
+
+        $user->notify(new AppPushNotification(
+            'renewal_submitted',
+            'Renewal submitted',
+            'Your trade license renewal was submitted and is now pending admin review.',
+            ['document_id' => $document->id],
+        ));
+
         foreach (User::whereIn('type', ['admin', 'super_admin', 'sub_admin'])->get() as $admin) {
             $admin->notify(new AppPushNotification(
-                'profile_edit_pending',
-                'Company trade license awaiting review',
-                sprintf('%s submitted a renewed trade license for review.', $user->company->name),
+                $isResubmission ? 'renewal_resubmitted' : 'new_document_renewal',
+                $isResubmission ? 'Trade license renewal resubmitted' : 'Company trade license awaiting review',
+                sprintf('%s %s a renewed trade license for review.', $company->name, $isResubmission ? 're-submitted' : 'submitted'),
                 ['request_id' => $editRequest->id],
             ));
         }
@@ -414,10 +444,14 @@ class ProfileController extends Controller
             ['category' => $profileEditRequest->category, 'target_user_id' => $profileEditRequest->user_id],
         );
 
+        $isDocumentRenewal = in_array($profileEditRequest->category, self::RENEWAL_CATEGORIES, true);
+
         $profileEditRequest->user?->notify(new AppPushNotification(
-            'profile_edit_resolved',
-            'Your profile update was approved',
-            'An admin approved your submitted change — it is now applied to your profile.',
+            $isDocumentRenewal ? 'renewal_approved' : 'profile_edit_resolved',
+            $isDocumentRenewal ? 'Renewal approved' : 'Your profile update was approved',
+            $isDocumentRenewal
+                ? 'An admin approved your document renewal — it is now your current document on file.'
+                : 'An admin approved your submitted change — it is now applied to your profile.',
             ['request_id' => $profileEditRequest->id],
         ));
 
@@ -436,16 +470,20 @@ class ProfileController extends Controller
 
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
 
-        // Unified Approvals / document-expiry feature (2026-08-22): for the
+        // Compliance/Approval separation feature (2026-08-23): for the
         // three document categories, a real driver_documents/
         // truck_documents/company_documents row was already created at
-        // submission time (status='under_review') — reject it in place
-        // (status='rejected', is_current stays false) rather than deleting
-        // the file, per the append-only "never delete a row" convention.
+        // submission time (status='pending_review') — moving it to
+        // 'changes_required' in place (is_current stays false) rather than
+        // deleting the file, per the append-only "never delete a row"
+        // convention. Per spec, the account stays operationally inactive
+        // (compliance_status recomputes back to 'action_required' — see
+        // ComplianceService::effectiveState()) until the owner resubmits.
         // 'destinations' has no associated document row, so this is a
         // no-op for that category.
         $documentId = $profileEditRequest->payload['document_id'] ?? null;
-        if ($documentId) {
+        $isDocumentRenewal = in_array($profileEditRequest->category, self::RENEWAL_CATEGORIES, true);
+        if ($documentId && $isDocumentRenewal) {
             $documentModel = match ($profileEditRequest->category) {
                 'document' => DriverDocument::class,
                 'truck_document' => TruckDocument::class,
@@ -453,8 +491,20 @@ class ProfileController extends Controller
                 default => null,
             };
             if ($documentModel) {
-                $documentModel::where('id', $documentId)->update(['status' => 'rejected']);
+                $documentModel::where('id', $documentId)->update(['status' => 'changes_required']);
             }
+
+            // Re-evaluate compliance now, not just on the next daily run —
+            // a 'pending_review' document reverting to 'changes_required'
+            // means the account is (still) 'action_required'. Both
+            // 'document' and 'truck_document' resolve to the same Driver
+            // via user_id (a truck document renewal is submitted by its
+            // owning driver — see TruckController::uploadMyTruckDocument()).
+            match ($profileEditRequest->category) {
+                'document', 'truck_document' => Driver::where('user_id', $profileEditRequest->user_id)->first()?->recomputeComplianceStatus(),
+                'company_license' => Company::where('user_id', $profileEditRequest->user_id)->first()?->recomputeComplianceStatus(),
+                default => null,
+            };
         }
 
         $profileEditRequest->update([
@@ -472,11 +522,11 @@ class ProfileController extends Controller
         );
 
         $profileEditRequest->user?->notify(new AppPushNotification(
-            'profile_edit_resolved',
-            'Your profile update was declined',
+            $isDocumentRenewal ? 'renewal_changes_required' : 'profile_edit_resolved',
+            $isDocumentRenewal ? 'Changes required on your renewal' : 'Your profile update was declined',
             $validated['reason']
-                ? "An admin declined your submitted change: {$validated['reason']}"
-                : 'An admin declined your submitted change.',
+                ? "An admin requested changes on your submission: {$validated['reason']}"
+                : 'An admin requested changes on your submitted document — please re-upload it.',
             ['request_id' => $profileEditRequest->id],
         ));
 

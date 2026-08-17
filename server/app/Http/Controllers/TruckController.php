@@ -334,12 +334,22 @@ class TruckController extends Controller
         };
         $path = $request->file('file')->store($folder, 'public');
 
+        $currentDoc = $truck->documents()->where('type', $validated['type'])->where('is_current', true)->first();
+
+        // Compliance/Approval separation feature (2026-08-23): same
+        // resubmission detection as DriverController::uploadDocument().
+        $isResubmission = $truck->documents()->where('type', $validated['type'])->where('status', 'changes_required')->exists();
+        if ($isResubmission) {
+            $truck->documents()->where('type', $validated['type'])->where('status', 'changes_required')->update(['status' => 'superseded']);
+        }
+
         $document = $truck->documents()->create([
             'type' => $validated['type'],
             'file_path' => $path,
             'expiry_date' => $validated['expiry_date'] ?? null,
             'is_current' => false,
-            'status' => 'under_review',
+            'previous_document_id' => $currentDoc?->id,
+            'status' => 'pending_review',
             'uploaded_by_user_id' => $driver_user_id,
         ]);
 
@@ -355,11 +365,20 @@ class TruckController extends Controller
             'status' => 'pending',
         ]);
 
+        $driver->recomputeComplianceStatus();
+
+        $driver->user?->notify(new AppPushNotification(
+            'renewal_submitted',
+            'Renewal submitted',
+            sprintf('Your truck %s renewal was submitted and is now pending admin review.', str_replace('_', ' ', $validated['type'])),
+            ['document_id' => $document->id],
+        ));
+
         foreach (User::whereIn('type', ['admin', 'super_admin', 'sub_admin'])->get() as $admin) {
             $admin->notify(new AppPushNotification(
-                'profile_edit_pending',
-                'Truck document awaiting review',
-                sprintf('%s submitted a truck %s renewal for review.', $driver->name, str_replace('_', ' ', $validated['type'])),
+                $isResubmission ? 'renewal_resubmitted' : 'new_document_renewal',
+                $isResubmission ? 'Truck document renewal resubmitted' : 'Truck document awaiting review',
+                sprintf('%s %s a truck %s renewal for review.', $driver->name, $isResubmission ? 're-submitted' : 'submitted', str_replace('_', ' ', $validated['type'])),
                 ['request_id' => $editRequest->id],
             ));
         }

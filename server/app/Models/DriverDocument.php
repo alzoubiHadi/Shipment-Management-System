@@ -13,17 +13,21 @@ class DriverDocument extends Model
     const TYPES = ['license', 'license_back', 'passport', 'residency', 'id_card', 'driver_photo', 'medical_certificate', 'other'];
 
     /**
-     * Unified Approvals / document-expiry feature (2026-08-22): a real
-     * stored lifecycle per row instead of derived-at-read-time. 'valid' and
+     * Compliance/Approval separation feature (2026-08-23): a real stored
+     * lifecycle per row instead of derived-at-read-time. 'valid' and
      * 'expiring_soon'/'expired' only ever apply to the is_current row for
-     * that type; 'under_review'/'rejected' only ever apply to a NOT-current
-     * row created by a pending renewal upload; 'superseded' is the
-     * terminal state an old row moves to once its replacement is approved.
-     * See CheckDocumentExpiry (the daily command) for valid<->expiring_soon
+     * that type; 'pending_review' (renamed from 'under_review') only ever
+     * applies to a NOT-current row created by a pending renewal upload;
+     * 'changes_required' (renamed from 'rejected') is what an admin
+     * requesting changes moves it to instead of a dead-end rejection —
+     * the owner is expected to re-upload; 'superseded' is the terminal
+     * state an old row moves to once its replacement is approved. See
+     * CheckDocumentExpiry (the daily command) for valid<->expiring_soon
      * <->expired transitions, and ProfileController::applyDocument()/
-     * reject() for the under_review->valid/rejected/superseded transitions.
+     * reject() for the pending_review->valid/changes_required/superseded
+     * transitions.
      */
-    const STATUSES = ['valid', 'expiring_soon', 'expired', 'under_review', 'rejected', 'superseded'];
+    const STATUSES = ['valid', 'expiring_soon', 'expired', 'pending_review', 'changes_required', 'superseded'];
 
     protected $fillable = [
         'driver_id',
@@ -31,6 +35,7 @@ class DriverDocument extends Model
         'file_path',
         'expiry_date',
         'is_current',
+        'previous_document_id',
         'status',
         'uploaded_by_user_id',
     ];
@@ -52,6 +57,12 @@ class DriverDocument extends Model
     public function uploadedBy()
     {
         return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    /** The document this row is a renewal of, if any — see previous_document_id's migration docblock. */
+    public function previousDocument()
+    {
+        return $this->belongsTo(self::class, 'previous_document_id');
     }
 
     public function isExpired(): bool

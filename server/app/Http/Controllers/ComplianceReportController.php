@@ -135,10 +135,15 @@ class ComplianceReportController extends Controller
                 'resolved_at' => now(),
             ]);
 
-            // Lifts an immediate-freeze suspension if nothing else is
-            // currently holding this driver back.
+            // Lifts an immediate-freeze suspension, then lets
+            // ComplianceService re-evaluate documents — a driver with an
+            // actually-expired document should land back on
+            // 'action_required'/'expiring_soon'/'pending_review', not be
+            // unconditionally forced to 'active' just because the
+            // misconduct freeze cleared.
             if ($driver && $driver->compliance_status === 'suspended') {
                 $driver->update(['compliance_status' => 'active']);
+                $driver->recomputeComplianceStatus();
             }
         } else {
             $action = $validated['resulting_action'];
@@ -250,6 +255,7 @@ class ComplianceReportController extends Controller
 
         if ($accepted && $driver) {
             $driver->update(['compliance_status' => 'active']);
+            $driver->recomputeComplianceStatus();
         }
 
         $driver?->user?->notify(new AppPushNotification(

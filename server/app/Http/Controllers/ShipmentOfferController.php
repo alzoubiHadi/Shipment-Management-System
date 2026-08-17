@@ -9,6 +9,7 @@ use App\Models\ShipmentOffer;
 use App\Models\Truck;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
+use App\Services\ComplianceService;
 use App\Services\LedgerService;
 use App\Services\MatchingService;
 use App\Services\PricingService;
@@ -41,15 +42,32 @@ class ShipmentOfferController extends Controller
             ], 403);
         }
 
-        // Unified Approvals / document-expiry feature (2026-08-22): an
-        // expired trade license blocks creating a NEW shipment only —
-        // approval_status/account_status are untouched, so the company can
+        // Compliance/Approval separation feature (2026-08-23), grace-period
+        // follow-up (2026-08-24): 'action_required'/'pending_review' always
+        // block; 'expiring_soon' is allowed as long as the trade license
+        // doesn't expire within the order-type-based grace window (3 days
+        // for an internal shipment, 3 months for an external one) — see
+        // ComplianceService::isEligibleForShipment(). approval_status/
+        // account_status stay untouched either way, so the company can
         // still log in and view existing shipments/tracking/finance/
         // documents/profile (see Company::recomputeComplianceStatus()).
-        if ($company->compliance_status === 'action_required') {
-            return response()->json([
-                'message' => 'Your trade license has expired — renew it before creating a new shipment',
-            ], 403);
+        // order_type isn't validated yet at this point in the method, so a
+        // lightweight peek at the raw input (defaulting to 'internal', same
+        // default applied below after full validation) is enough here.
+        $orderTypeForComplianceCheck = in_array($request->input('order_type'), ['internal', 'external'], true)
+            ? $request->input('order_type')
+            : 'internal';
+
+        if (! ComplianceService::isEligibleForShipment($company, $orderTypeForComplianceCheck)) {
+            $message = match ($company->compliance_status) {
+                'expiring_soon' => $orderTypeForComplianceCheck === 'external'
+                    ? 'Your trade license expires within 3 months — renew it before creating a new external shipment'
+                    : 'Your trade license expires within 3 days — renew it before creating a new shipment',
+                'pending_review' => 'Your trade license renewal is still pending admin review',
+                default => 'Your trade license has expired — renew it before creating a new shipment',
+            };
+
+            return response()->json(['message' => $message], 403);
         }
 
         try {
@@ -419,7 +437,7 @@ class ShipmentOfferController extends Controller
                 return response()->json(['message' => 'Driver not found'], 404);
             }
 
-            if (! $driver->isEligibleForNewJob()) {
+            if (! $driver->isEligibleForNewJob($offer->order_type)) {
                 return response()->json([
                     'message' => 'Driver is not eligible for this job (unavailable, non-compliant, a payout is pending, or a required document is missing/expired)',
                 ], 422);

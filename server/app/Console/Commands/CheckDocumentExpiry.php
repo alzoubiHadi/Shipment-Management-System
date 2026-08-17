@@ -97,7 +97,7 @@ class CheckDocumentExpiry extends Command
 
             if (DocumentExpiryAlert::shouldNotify('driver', $driver->id, "{$document->type}_expiry", $result['threshold']) && $driver->user) {
                 $driver->user->notify(new AppPushNotification(
-                    'document_expiring',
+                    $this->notificationTypeFor($result),
                     $this->titleFor($result['threshold']),
                     sprintf('Your %s %s.', $this->labelFor($document->type), $this->phraseFor($result, $document->expiry_date)),
                     ['document_type' => $document->type, 'expiry_date' => $document->expiry_date->toDateString()],
@@ -131,7 +131,7 @@ class CheckDocumentExpiry extends Command
 
             if (DocumentExpiryAlert::shouldNotify('truck', $truck->id, "{$document->type}_expiry", $result['threshold']) && $driver->user) {
                 $driver->user->notify(new AppPushNotification(
-                    'document_expiring',
+                    $this->notificationTypeFor($result),
                     $this->titleFor($result['threshold']),
                     sprintf('Your truck\'s %s %s.', $this->truckLabelFor($document->type), $this->phraseFor($result, $document->expiry_date)),
                     ['document_type' => $document->type, 'expiry_date' => $document->expiry_date->toDateString()],
@@ -164,7 +164,7 @@ class CheckDocumentExpiry extends Command
 
             if (DocumentExpiryAlert::shouldNotify('company', $company->id, "{$document->type}_expiry", $result['threshold']) && $company->user) {
                 $company->user->notify(new AppPushNotification(
-                    'document_expiring',
+                    $this->notificationTypeFor($result),
                     $this->titleFor($result['threshold']),
                     sprintf('Your %s %s.', $this->labelFor($document->type), $this->phraseFor($result, $document->expiry_date)),
                     ['document_type' => $document->type, 'expiry_date' => $document->expiry_date->toDateString()],
@@ -199,6 +199,12 @@ class CheckDocumentExpiry extends Command
     private function titleFor(?int $threshold): string
     {
         return $threshold === -1 ? 'Document expired' : 'Document expiring soon';
+    }
+
+    /** Distinct notification type strings for the two owner-facing expiry events (2026-08-23 spec). */
+    private function notificationTypeFor(array $result): string
+    {
+        return $result['status'] === 'expired' ? 'document_expired' : 'document_expiring_soon';
     }
 
     private function phraseFor(array $result, Carbon $expiryDate): string
