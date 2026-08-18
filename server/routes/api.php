@@ -265,9 +265,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payout-requests/{payout}/resolve-dispute', [PayoutRequestController::class, 'resolveDispute'])->middleware('permission:finance');
 
     // Reports
+    // Admin-only (isSuperAdmin/isSubAdmin — see ReportController::requireAdmin());
+    // authorization is enforced inside the controller rather than route
+    // middleware since it also needs to allow a driver to read their own
+    // report via driverSelf() below.
     Route::get('/reports/drivers', [ReportController::class, 'drivers']);
     Route::get('/reports/companies', [ReportController::class, 'companies']);
     Route::get('/reports/summary', [ReportController::class, 'summary']);
+    // IDOR fix (2026-08-26): prefer this over the id-based route below —
+    // it resolves the driver from the authenticated user, not a
+    // client-supplied id, so there's nothing to forge.
+    Route::get('/my-driver-report', [ReportController::class, 'myReport']);
+    // Kept for backward compatibility; now checks the caller owns this id
+    // (or is an admin) — see ReportController::driverSelf().
     Route::get('/driver/{driver_user_id}/report', [ReportController::class, 'driverSelf']);
 
 });

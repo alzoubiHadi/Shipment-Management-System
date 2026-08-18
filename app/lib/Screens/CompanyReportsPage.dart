@@ -83,6 +83,9 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                 final c = companies[index];
                 final byStatus = _asStringMap(c['by_status']);
                 final topDestinations = _asStringMap(c['top_destinations']);
+                final totalShipments = (c['total_shipments'] as num?)?.toInt() ?? 0;
+                final delivered = (byStatus['Delivered'] as num?)?.toInt() ?? 0;
+                final completionRate = totalShipments > 0 ? (delivered / totalShipments * 100) : null;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -134,6 +137,30 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
                               ),
                             );
                           }).toList(),
+                        ),
+                      ],
+                      if (completionRate != null) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Completion Rate',
+                                style: TextStyle(color: LightColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                            Text('${completionRate.toStringAsFixed(1)}%',
+                                style: const TextStyle(color: LightColors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: completionRate / 100,
+                            minHeight: 5,
+                            backgroundColor: LightColors.border,
+                            valueColor: AlwaysStoppedAnimation(
+                              completionRate >= 70 ? LightColors.success : (completionRate >= 40 ? LightColors.pending : LightColors.error),
+                            ),
+                          ),
                         ),
                       ],
                       if (topDestinations.isNotEmpty) ...[

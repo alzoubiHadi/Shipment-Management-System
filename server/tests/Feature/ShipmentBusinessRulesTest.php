@@ -492,25 +492,41 @@ class ShipmentBusinessRulesTest extends TestCase
         $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'status' => 'available']);
     }
 
-    // ── Commission summary report ─────────────────────────────────────────
+    // ── Reports ──────────────────────────────────────────────────────────
+    // 2026-08-26 reports hardening: permission gate on the admin
+    // endpoints, IDOR fix on the driver-self endpoint, and the
+    // pending_amount/disputed_amount fix. See ReportController.php's
+    // docblocks for the full reasoning behind each fix.
 
-    public function test_commission_summary_only_counts_delivered_shipments(): void
+    private function makeAdmin(string $type = 'super_admin'): User
     {
-        [$user] = $this->makeDriver();
+        return User::create([
+            'name' => 'Admin',
+            'email' => uniqid('admin').'@example.com',
+            'password' => Hash::make('password'),
+            'type' => $type,
+        ]);
+    }
+
+    public function test_commission_summary_only_counts_delivered_and_confirmed_shipments(): void
+    {
+        $admin = $this->makeAdmin();
         $company = $this->makeCompany();
 
-        // Two delivered shipments that should count.
+        // Two delivered-and-confirmed shipments that should count.
         Shipment::create([
             'company_id' => $company->id,
             'tracking_number' => uniqid('TRK'),
             'origin' => 'A', 'destination' => 'B',
-            'status' => 3, 'price_to_client' => 700, 'price_to_driver' => 500,
+            'status' => 3, 'delivery_status' => 'confirmed',
+            'price_to_client' => 700, 'price_to_driver' => 500,
         ]);
         Shipment::create([
             'company_id' => $company->id,
             'tracking_number' => uniqid('TRK'),
             'origin' => 'A', 'destination' => 'B',
-            'status' => 3, 'price_to_client' => 1000, 'price_to_driver' => 650,
+            'status' => 3, 'delivery_status' => 'confirmed',
+            'price_to_client' => 1000, 'price_to_driver' => 650,
         ]);
 
         // A pending shipment that should NOT count toward commission.
@@ -521,7 +537,7 @@ class ShipmentBusinessRulesTest extends TestCase
             'status' => 0, 'price_to_client' => 2000, 'price_to_driver' => 100,
         ]);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($admin);
 
         $response = $this->getJson('/api/reports/summary');
 
@@ -531,5 +547,109 @@ class ShipmentBusinessRulesTest extends TestCase
             (700 - 500) + (1000 - 650), // = 550
             (float) $response->json('total_commission')
         );
+    }
+
+    public function test_reports_endpoints_reject_non_admin_users(): void
+    {
+        [$user] = $this->makeDriver();
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/reports/summary')->assertStatus(403);
+        $this->getJson('/api/reports/drivers')->assertStatus(403);
+        $this->getJson('/api/reports/companies')->assertStatus(403);
+    }
+
+    public function test_reports_endpoints_allow_admin_and_sub_admin(): void
+    {
+        Sanctum::actingAs($this->makeAdmin('super_admin'));
+        $this->getJson('/api/reports/summary')->assertStatus(200);
+
+        Sanctum::actingAs($this->makeAdmin('sub_admin'));
+        $this->getJson('/api/reports/summary')->assertStatus(200);
+    }
+
+    public function test_driver_cannot_view_another_drivers_report_via_legacy_route(): void
+    {
+        [$userA] = $this->makeDriver();
+        [$userB] = $this->makeDriver();
+
+        Sanctum::actingAs($userA);
+
+        // Own report via the legacy id-based route still works...
+        $this->getJson("/api/driver/{$userA->id}/report")->assertStatus(200);
+
+        // ...but another driver's does not (IDOR fix).
+        $this->getJson("/api/driver/{$userB->id}/report")->assertStatus(403);
+    }
+
+    public function test_admin_can_view_any_drivers_report_via_legacy_route(): void
+    {
+        [$driverUser] = $this->makeDriver();
+        Sanctum::actingAs($this->makeAdmin());
+
+        $this->getJson("/api/driver/{$driverUser->id}/report")->assertStatus(200);
+    }
+
+    public function test_my_driver_report_endpoint_returns_own_data(): void
+    {
+        [$user, $driver] = $this->makeDriver();
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/my-driver-report');
+
+        $response->assertStatus(200);
+        $this->assertEquals((float) $driver->balance, (float) $response->json('balance'));
+    }
+
+    public function test_pending_amount_counts_awaiting_confirmation_regardless_of_status(): void
+    {
+        [$user, $driver] = $this->makeDriver();
+        $company = $this->makeCompany();
+
+        // Bug-fix regression test: this shipment has been delivered by the
+        // driver (POD uploaded) but the company hasn't confirmed yet, so
+        // `status` is still whatever it was pre-delivery — NOT 3 — while
+        // delivery_status is 'awaiting_confirmation'. The old query
+        // required status=3 AND delivery_status='awaiting_confirmation', a
+        // combination that never actually occurs in this state machine
+        // (see ReportController::buildDriverReport()'s docblock), so
+        // pending_amount was permanently stuck at 0.
+        Shipment::create([
+            'company_id' => $company->id,
+            'driver_id' => $driver->id,
+            'tracking_number' => uniqid('TRK'),
+            'origin' => 'A', 'destination' => 'B',
+            'status' => 2, 'delivery_status' => 'awaiting_confirmation',
+            'price_to_client' => 900, 'price_to_driver' => 600,
+        ]);
+
+        Sanctum::actingAs($user);
+        $response = $this->getJson('/api/my-driver-report');
+
+        $response->assertStatus(200);
+        $this->assertEquals(600, (float) $response->json('pending_amount'));
+        $this->assertEquals(0, (float) $response->json('disputed_amount'));
+    }
+
+    public function test_disputed_amount_counts_disputed_shipments_separately(): void
+    {
+        [$user, $driver] = $this->makeDriver();
+        $company = $this->makeCompany();
+
+        Shipment::create([
+            'company_id' => $company->id,
+            'driver_id' => $driver->id,
+            'tracking_number' => uniqid('TRK'),
+            'origin' => 'A', 'destination' => 'B',
+            'status' => 2, 'delivery_status' => 'disputed',
+            'price_to_client' => 900, 'price_to_driver' => 600,
+        ]);
+
+        Sanctum::actingAs($user);
+        $response = $this->getJson('/api/my-driver-report');
+
+        $response->assertStatus(200);
+        $this->assertEquals(0, (float) $response->json('pending_amount'));
+        $this->assertEquals(600, (float) $response->json('disputed_amount'));
     }
 }

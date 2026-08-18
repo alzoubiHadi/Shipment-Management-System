@@ -232,6 +232,13 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                         double.tryParse(snapshot.data?['total_earnings_this_month']?.toString() ?? '') ?? 0;
                     final pendingAmount =
                         double.tryParse(snapshot.data?['pending_amount']?.toString() ?? '') ?? 0;
+                    // New (2026-08-26): money tied up in a shipment the
+                    // company disputed instead of confirmed — see
+                    // ReportController::buildDriverReport(). Only shown
+                    // when non-zero so most drivers never see an empty
+                    // "0 AED" card for something that doesn't apply to them.
+                    final disputedAmount =
+                        double.tryParse(snapshot.data?['disputed_amount']?.toString() ?? '') ?? 0;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,6 +271,15 @@ class _DriverBalancePageState extends State<DriverBalancePage> {
                             ),
                           ],
                         ),
+                        if (disputedAmount > 0) ...[
+                          const SizedBox(height: 12),
+                          _MiniStat(
+                            label: 'Disputed Amount',
+                            sublabel: 'Under admin review',
+                            value: '${disputedAmount.toStringAsFixed(0)} AED',
+                            color: LightColors.error,
+                          ),
+                        ],
                       ],
                     );
                   },
