@@ -67,12 +67,14 @@ class AppColors {
 /// introduced 2026-08-21 for just the auth/onboarding screens while the
 /// rest of the app (dashboard, shipments, driver module) stayed on the dark
 /// [AppColors] palette; as of this pass it is the single palette for the
-/// WHOLE app — Admin, Company, and Driver all read from here now. The only
-/// intentionally-dark surface left is the Welcome/Splash screen
-/// (main.dart's SplashPage) and specific "hero" cards called out in
-/// individual screens (e.g. the driver Wallet balance card, Current Trip
-/// card) — those use [navy]/[deepNavy] as an accent background on an
-/// otherwise light screen, not a parallel dark theme.
+/// WHOLE app — Admin, Company, and Driver all read from here now. As of the
+/// 2026-08-18 Welcome/Login redesign (LoginScreen.dart), even the former
+/// dark Splash/Welcome hero is light now; the only remaining dark surfaces
+/// are brief transient states (main.dart's session-checking spinner and
+/// offline-retry screen) and specific "hero" cards called out in individual
+/// screens (e.g. the driver Wallet balance card, Current Trip card) — those
+/// use [navy]/[deepNavy] as an accent background on an otherwise light
+/// screen, not a parallel dark theme.
 ///
 /// Kept the class name `LightColors` rather than introducing a separate
 /// `FmsColors` — every already-migrated screen (57 of 87 as of this pass)

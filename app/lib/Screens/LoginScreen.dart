@@ -5,17 +5,19 @@ import 'LoggingInScreen.dart';
 import 'RegisterScreen.dart';
 import 'register_shared.dart';
 
-/// Login-design screen 2 ("Log In"). Light theme, matching the mockup:
-/// white background, back arrow, black bold heading, email/password
-/// fields with icons, gold "Forgot password?" link, gold "Log In" button,
-/// gold "Sign Up" link. The actual API call and all of the post-login
-/// routing now lives in LoggingInScreen (design screen 3, "Logging you
-/// in...").
+/// Combined Welcome + Login screen (2026-08-18 redesign, per user-provided
+/// mockup): replaces the old two-step flow where main.dart's SplashPage
+/// showed a dark "Welcome Back!" hero with just a "Log In" button that
+/// pushed this screen. Now SplashPage renders this screen directly once the
+/// session check finishes (see SplashPage.build()) and the email/password
+/// form lives right here under the branding — no extra tap needed.
 ///
-/// No Google/Apple sign-in here (2026-08-21: removed on request — not
-/// wired up and not wanted right now). Re-add later behind the same
-/// "coming soon" pattern once there's an actual backend for it (see task
-/// #51/#52).
+/// Light theme, matching the mockup: hero image (world map + road + truck)
+/// with the FMS logo overlaid, "Welcome to FMS" headline, a white card with
+/// email/password fields + Remember me + Forgot password, a gold Log In
+/// button, a 3-item feature strip, and a Sign Up link at the bottom (not in
+/// the mockup screenshot itself, presumably below the fold — kept so the
+/// registration flow stays reachable).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -27,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
+  bool _rememberMe = true;
   bool _loading = false;
   String? _errorMessage;
 
@@ -42,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passCtrl.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Please fill in all fields');
+      setState(() => _errorMessage = 'الرجاء تعبئة جميع الحقول');
       return;
     }
 
@@ -71,111 +74,271 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: LightColors.bg,
-      appBar: AppBar(
-        backgroundColor: LightColors.bg,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: LightColors.textPrimary),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Log In',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: LightColors.textPrimary),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Welcome back! Please enter your credentials to access your account.',
-                style: TextStyle(fontSize: 13, color: LightColors.textSecondary, height: 1.5),
-              ),
-              const SizedBox(height: 28),
-              buildLightTextField(
-                controller: _emailCtrl,
-                label: 'Email',
-                hint: 'you@example.com',
-                keyboardType: TextInputType.emailAddress,
-                prefixIcon: const Icon(Icons.mail_outline, color: LightColors.textMuted, size: 20),
-              ),
-              const SizedBox(height: 16),
-              buildLightTextField(
-                controller: _passCtrl,
-                label: 'Password',
-                hint: '••••••••••',
-                obscure: _obscure,
-                prefixIcon: const Icon(Icons.lock_outline, color: LightColors.textMuted, size: 20),
-                suffix: IconButton(
-                  onPressed: () => setState(() => _obscure = !_obscure),
-                  icon: Icon(
-                    _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: LightColors.textMuted,
-                    size: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Contact your admin to reset your password')),
-                      );
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                      child: Text('Forgot Password?', style: TextStyle(fontSize: 13, color: LightColors.gold, fontWeight: FontWeight.w600)),
+              const _HeroHeader(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+                child: Column(
+                  children: [
+                    const Text(
+                      'مرحباً بك في FMS',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: LightColors.textPrimary),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (_errorMessage != null) ...[
-                LightErrorBanner(message: _errorMessage!),
-                const SizedBox(height: 12),
-              ],
-              LightPrimaryButton(
-                label: 'Log In',
-                icon: Icons.login_rounded,
-                color: LightColors.gold,
-                textColor: LightColors.textPrimary,
-                loading: _loading,
-                onPressed: _handleLogin,
-              ),
-              const SizedBox(height: 24),
-              Center(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
-                    },
-                    child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 14, color: LightColors.textSecondary),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'سجل الدخول للوصول إلى حسابك',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: LightColors.surface,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: LightColors.border),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 18, offset: const Offset(0, 8)),
+                        ],
+                      ),
+                      child: Column(
                         children: [
-                          TextSpan(text: "Don't have an account? "),
-                          TextSpan(
-                            text: 'Sign Up',
-                            style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w700),
+                          buildLightTextField(
+                            controller: _emailCtrl,
+                            label: 'البريد الإلكتروني',
+                            hint: 'أدخل بريدك الإلكتروني',
+                            keyboardType: TextInputType.emailAddress,
+                            prefixIcon: const Icon(Icons.mail_outline, color: LightColors.textMuted, size: 20),
+                          ),
+                          const SizedBox(height: 16),
+                          buildLightTextField(
+                            controller: _passCtrl,
+                            label: 'كلمة المرور',
+                            hint: 'أدخل كلمة المرور',
+                            obscure: _obscure,
+                            prefixIcon: const Icon(Icons.lock_outline, color: LightColors.textMuted, size: 20),
+                            suffix: IconButton(
+                              onPressed: () => setState(() => _obscure = !_obscure),
+                              icon: Icon(
+                                _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                color: LightColors.textMuted,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: Checkbox(
+                                      value: _rememberMe,
+                                      onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('تذكرني', style: TextStyle(fontSize: 12.5, color: LightColors.textSecondary)),
+                                ],
+                              ),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(6),
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('تواصل مع الأدمن لإعادة تعيين كلمة المرور')),
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                                    child: Text('نسيت كلمة المرور؟',
+                                        style: TextStyle(fontSize: 12.5, color: LightColors.gold, fontWeight: FontWeight.w600)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          if (_errorMessage != null) ...[
+                            LightErrorBanner(message: _errorMessage!),
+                            const SizedBox(height: 12),
+                          ],
+                          LightPrimaryButton(
+                            label: 'تسجيل الدخول',
+                            icon: Icons.login_rounded,
+                            color: LightColors.gold,
+                            textColor: LightColors.textPrimary,
+                            loading: _loading,
+                            onPressed: _handleLogin,
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 28),
+                    const Row(
+                      children: [
+                        Expanded(
+                          child: _FeatureItem(
+                            icon: Icons.verified_user_rounded,
+                            title: 'آمن وموثوق',
+                            description: 'حماية بياناتك على أعلى مستوى',
+                          ),
+                        ),
+                        Expanded(
+                          child: _FeatureItem(
+                            icon: Icons.access_time_filled_rounded,
+                            title: 'إدارة سهلة',
+                            description: 'تابع شحناتك في الوقت الحقيقي',
+                          ),
+                        ),
+                        Expanded(
+                          child: _FeatureItem(
+                            icon: Icons.bar_chart_rounded,
+                            title: 'تقارير ذكية',
+                            description: 'تحليلات وتقارير دقيقة',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    Center(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                          },
+                          child: RichText(
+                            text: const TextSpan(
+                              style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
+                              children: [
+                                TextSpan(text: 'ليس لديك حساب؟ '),
+                                TextSpan(
+                                  text: 'سجل الآن',
+                                  style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
+              ClipPath(
+                clipper: _BottomCurveClipper(),
+                child: Container(height: 46, color: LightColors.deepNavy),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Top banner: bundled world-map/road/truck image with the FMS logo
+/// overlaid, fading into the plain page background at the bottom edge so
+/// there's no hard seam before the "Welcome to FMS" heading.
+class _HeroHeader extends StatelessWidget {
+  const _HeroHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 280,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/login_background.jpg',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 80,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, LightColors.bg],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 14,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Image.asset('assets/images/fms_logo.png', height: 148, fit: BoxFit.contain),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  const _FeatureItem({required this.icon, required this.title, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(color: LightColors.gold.withOpacity(0.14), shape: BoxShape.circle),
+          child: Icon(icon, color: LightColors.goldMuted, size: 22),
+        ),
+        const SizedBox(height: 8),
+        Text(title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: LightColors.textPrimary)),
+        const SizedBox(height: 3),
+        Text(description,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 10.5, color: LightColors.textSecondary, height: 1.3)),
+      ],
+    );
+  }
+}
+
+/// Subtle navy wave pinned to the very bottom of the screen, echoing the
+/// dark curved footer visible at the bottom edge of the mockup.
+class _BottomCurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height * 0.35);
+    path.quadraticBezierTo(size.width * 0.5, size.height, size.width, size.height * 0.35);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

@@ -2,7 +2,6 @@ import 'package:app/API/ProfileService.dart';
 import 'package:app/Screens/DriverApprovalStatusPage.dart';
 import 'package:app/Screens/HomeScreen.dart';
 import 'package:app/Screens/LoginScreen.dart';
-import 'package:app/Screens/RegisterScreen.dart';
 import 'package:app/models/Appuser.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -62,12 +61,7 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeIn;
-  late Animation<Offset> _slideUp;
-
+class _SplashPageState extends State<SplashPage> {
   // 2026-08-20 fix: this screen used to show unconditionally on every cold
   // start ("Welcome Back!" + Log In button) even for someone who was
   // already logged in — LoggingInScreen saves a token/loggedIn flag on
@@ -94,26 +88,6 @@ class _SplashPageState extends State<SplashPage>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-
-    _fadeIn = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-    );
-
-    _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.15),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
-      ),
-    );
-
     _checkSession();
   }
 
@@ -203,13 +177,6 @@ class _SplashPageState extends State<SplashPage>
       _checkingSession = false;
       _sessionCheckFailed = false;
     });
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override
@@ -276,158 +243,11 @@ class _SplashPageState extends State<SplashPage>
       );
     }
 
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background image (logistics / trucks). Switched 2026-08-18 from
-          // a live Unsplash network fetch to a bundled asset (user-provided
-          // brand image: truck on a highway with a world-map graphic) so it
-          // always loads instantly and works offline.
-          Image.asset(
-            'assets/images/login_background.jpg',
-            fit: BoxFit.cover,
-          ),
-
-          // Dark overlay
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0x33000000),
-                  Color(0x66000000),
-                  Color(0xCC000000),
-                  Color(0xF0000000),
-                ],
-                stops: [0.0, 0.3, 0.65, 1.0],
-              ),
-            ),
-          ),
-
-          // Content — matches the agreed "Welcome Screen" design
-          // (2026-08-19): centered hexagon truck mark + wordmark, "Welcome
-          // Back!" headline, Log In (filled) + Create New Account
-          // (outline) stacked buttons, version tag pinned to the bottom.
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                children: [
-                  const Spacer(flex: 3),
-                  FadeTransition(
-                    opacity: _fadeIn,
-                    child: SlideTransition(
-                      position: _slideUp,
-                      child: Column(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: Image.asset(
-                              'assets/images/fms_logo.png',
-                              width: 140,
-                              height: 140,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Spacer(flex: 2),
-                  FadeTransition(
-                    opacity: _fadeIn,
-                    child: SlideTransition(
-                      position: _slideUp,
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Welcome Back!',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            'Sign in to your account to continue managing your shipments.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.65),
-                              fontSize: 14,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 54,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                );
-                              },
-                              icon: const Icon(Icons.login_rounded, size: 18, color: Color(0xFF0A0A0C)),
-                              label: const Text(
-                                'Log In',
-                                style: TextStyle(
-                                  color: Color(0xFF0A0A0C),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD4AF37),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 54,
-                            child: OutlinedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                                );
-                              },
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.white30),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              ),
-                              child: const Text(
-                                'Create New Account',
-                                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  FadeTransition(
-                    opacity: _fadeIn,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        'v1.0.0',
-                        style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 11),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    // Welcome/Login redesign (2026-08-18, per user-provided mockup): the
+    // dark "Welcome Back!" hero + separate Log In tap-through used to live
+    // here. It's replaced by LoginScreen itself, which now carries the
+    // hero image + branding + the email/password form directly — see
+    // LoginScreen.dart's docblock.
+    return const LoginScreen();
   }
 }
