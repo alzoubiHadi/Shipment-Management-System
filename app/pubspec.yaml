@@ -38,6 +38,10 @@ dependencies:
   shared_preferences: ^2.5.5
   uuid: ^4.0.0
   file_picker: ^8.1.2
+  # 2026-08-25: proof-of-delivery photo capture (SignatureCapturePage's
+  # replacement) — file_picker alone can't open the live camera, only the
+  # file system/gallery.
+  image_picker: ^1.1.2
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
   url_launcher: ^6.3.1

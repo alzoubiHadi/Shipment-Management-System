@@ -9,8 +9,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
 import '../models/Shipment.dart';
+import 'PodAttachmentPage.dart';
 import 'ShipmentTrackingMapPage.dart';
-import 'SignatureCapturePage.dart';
 
 /// Shows the tracking timeline for a shipment — the stage list depends on
 /// [Shipment.orderType] (agreed 2026-08-16): internal (domestic) shipments
@@ -139,7 +139,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
   Future<void> _captureDelivery() async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
-      MaterialPageRoute(builder: (_) => const SignatureCapturePage()),
+      MaterialPageRoute(builder: (_) => const PodAttachmentPage()),
     );
 
     if (result == null) return;
@@ -147,7 +147,8 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     setState(() => _isUpdating = true);
     final response = await _service.deliverShipment(
       shipmentId: _shipment.id,
-      podSignatureBase64: result['signature'],
+      podFileBytes: result['fileBytes'],
+      podFileName: result['fileName'],
       recipientName: result['recipientName'],
     );
     if (!mounted) return;

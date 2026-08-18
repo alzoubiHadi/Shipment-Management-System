@@ -49,6 +49,14 @@
 	<array>
 		<string>location</string>
 	</array>
+	<!-- Proof-of-delivery photo capture (2026-08-25, PodAttachmentPage.dart,
+	     image_picker). Like the location keys above, iOS crashes the app
+	     outright if camera/photo-library access is requested with no
+	     matching usage-description key present. -->
+	<key>NSCameraUsageDescription</key>
+	<string>FMS uses your camera to photograph the proof-of-delivery document when you complete a delivery.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FMS needs access to your photos to attach an existing proof-of-delivery photo when you complete a delivery.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

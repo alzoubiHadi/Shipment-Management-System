@@ -343,19 +343,28 @@ class ShipmentController extends Controller
 
         if ($shipment->current_stage < $maxAdvance) {
             return response()->json([
-                'message' => 'Complete unloading before capturing the delivery signature',
+                'message' => 'Complete unloading before attaching the delivery document',
             ], 422);
         }
 
+        // Feature (2026-08-25): the driver now attaches a proof-of-delivery
+        // document (a photo taken on the spot, or any file — e.g. a scanned
+        // delivery note) instead of drawing a signature on-screen.
+        // pod_signature/its validation are gone for new deliveries; the
+        // column itself is untouched so already-delivered shipments still
+        // show their original signature (see AdminShipmentController::show()
+        // and ProofOfDeliveryPage.dart, both of which fall back to it).
         $validated = $request->validate([
-            'pod_signature' => ['required', 'string'],
+            'pod_document' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
             'pod_recipient_name' => ['required', 'string'],
         ]);
+
+        $podDocumentPath = $request->file('pod_document')->store('pod_documents', 'public');
 
         $shipment->update([
             'current_stage' => $maxAdvance + 1,
             'delivered_at' => now(),
-            'pod_signature' => $validated['pod_signature'],
+            'pod_document_path' => $podDocumentPath,
             'pod_recipient_name' => $validated['pod_recipient_name'],
         ]);
 

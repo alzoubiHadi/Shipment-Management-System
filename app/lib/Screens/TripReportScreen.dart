@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../API/AdminShipmentService.dart';
 import '../API/config.dart';
@@ -233,7 +234,12 @@ class _PodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final documentPath = pod['pod_document_path']?.toString();
     final signature = pod['pod_signature']?.toString();
+    final hasDocument = documentPath != null && documentPath.isNotEmpty;
+    final ext = hasDocument ? documentPath.split('.').last.toLowerCase() : '';
+    final isImageDoc = ext == 'jpg' || ext == 'jpeg' || ext == 'png';
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.border)),
@@ -243,7 +249,36 @@ class _PodCard extends StatelessWidget {
           const Text('Proof of Delivery', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text('Receiver: ${pod['recipient_name'] ?? '—'}', style: const TextStyle(color: LightColors.textSecondary, fontSize: 12.5)),
-          if (signature != null && signature.isNotEmpty) ...[
+          if (hasDocument && isImageDoc) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 160,
+                width: double.infinity,
+                color: Colors.white,
+                child: Image.network(
+                  storageUrl(documentPath),
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Text('Document unavailable', style: TextStyle(color: LightColors.textSecondary, fontSize: 11)),
+                  ),
+                ),
+              ),
+            ),
+          ] else if (hasDocument) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => launchUrl(Uri.parse(storageUrl(documentPath)), mode: LaunchMode.externalApplication),
+              child: const Row(
+                children: [
+                  Icon(Icons.picture_as_pdf_outlined, color: LightColors.gold, size: 20),
+                  SizedBox(width: 6),
+                  Text('View delivery document', style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w600, fontSize: 12.5)),
+                ],
+              ),
+            ),
+          ] else if (signature != null && signature.isNotEmpty) ...[
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),

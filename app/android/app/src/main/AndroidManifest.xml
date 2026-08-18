@@ -26,6 +26,14 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <!-- Proof-of-delivery photo capture (2026-08-25, PodAttachmentPage.dart,
+         image_picker): most devices launch the system camera app via an
+         implicit intent with no permission needed, but some OEM builds
+         still require CAMERA declared to grant that intent. Not
+         "required" so the app still installs on a device with no camera —
+         file upload remains available as the other attachment option. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="FMS"
         android:name="${applicationName}"

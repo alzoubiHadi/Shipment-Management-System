@@ -265,7 +265,12 @@ class AdminShipmentController extends Controller
                     : null,
             ],
             'delivery_status' => $shipment->delivery_status,
+            // 2026-08-25: pod_document_path (photo/file) is the current
+            // capture method — pod_signature is kept only for shipments
+            // delivered before this change, so old trip reports still show
+            // what was actually captured at the time.
             'pod' => [
+                'pod_document_path' => $shipment->pod_document_path,
                 'signature_present' => ! empty($shipment->pod_signature),
                 'pod_signature' => $shipment->pod_signature,
                 'recipient_name' => $shipment->pod_recipient_name,

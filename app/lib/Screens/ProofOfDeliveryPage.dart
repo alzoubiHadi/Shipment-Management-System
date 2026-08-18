@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
@@ -8,15 +9,16 @@ import '../models/Shipment.dart';
 import 'register_shared.dart';
 
 /// Company redesign Phase 4 (2026-08-17 mockup): the "Proof of Delivery"
-/// review screen — shows the driver's captured signature + recipient name,
-/// and lets the company confirm receipt (pays the driver) or report a
+/// review screen — shows the driver's captured delivery document + recipient
+/// name, and lets the company confirm receipt (pays the driver) or report a
 /// problem instead, replacing the plain AlertDialog
 /// ShipmentDetailsPageCompany used before.
 ///
-/// Scope note: the mockup also shows an uploaded delivery photo (boxes in
-/// the truck) — there's no such field in this data model (only
-/// pod_signature + pod_recipient_name are captured at delivery), so this
-/// screen shows what's actually real: signature, recipient, delivered-at.
+/// Feature (2026-08-25): the driver now attaches a POD photo/file
+/// (pod_document_path) instead of drawing a signature. Older shipments
+/// delivered before this change may still only have the legacy
+/// pod_signature (base64), so this screen shows the document when present
+/// and falls back to the signature image otherwise.
 class ProofOfDeliveryPage extends StatefulWidget {
   final Shipment shipment;
   const ProofOfDeliveryPage({super.key, required this.shipment});
@@ -136,18 +138,13 @@ class _ProofOfDeliveryPageState extends State<ProofOfDeliveryPage> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Signature', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+            const Text('Delivery Document', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.border)),
-              child: s.podSignature.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(child: Text('No signature captured', style: TextStyle(color: LightColors.textSecondary))),
-                    )
-                  : Image.memory(base64Decode(s.podSignature), height: 160),
+              child: _buildPodPreview(s),
             ),
             const SizedBox(height: 28),
             if (s.isAwaitingCompanyConfirmation) ...[
@@ -161,6 +158,52 @@ class _ProofOfDeliveryPageState extends State<ProofOfDeliveryPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPodPreview(Shipment s) {
+    if (s.podDocumentPath.isNotEmpty) {
+      final ext = s.podDocumentPath.split('.').last.toLowerCase();
+      final isImage = ext == 'jpg' || ext == 'jpeg' || ext == 'png';
+      final url = storageUrl(s.podDocumentPath);
+      if (isImage) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.network(
+            url,
+            height: 220,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: Text('Could not load delivery document', style: TextStyle(color: LightColors.textSecondary))),
+            ),
+          ),
+        );
+      }
+      return InkWell(
+        onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.picture_as_pdf_outlined, color: LightColors.gold, size: 24),
+              SizedBox(width: 8),
+              Text('View delivery document', style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (s.podSignature.isNotEmpty) {
+      return Image.memory(base64Decode(s.podSignature), height: 160);
+    }
+
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 40),
+      child: Center(child: Text('No delivery document captured', style: TextStyle(color: LightColors.textSecondary))),
     );
   }
 

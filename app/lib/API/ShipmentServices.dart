@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -319,30 +320,32 @@ class ShipmentService {
     }
   }
 
-  /// Driver: final stage — captures the proof-of-delivery signature
-  /// (base64-encoded PNG) and the recipient's name.
+  /// Driver: final stage — attaches the proof-of-delivery document (a
+  /// photo taken on the spot, or any uploaded file) and the recipient's
+  /// name. 2026-08-25: replaces the old base64-signature JSON body with a
+  /// real multipart file upload, matching every other document upload in
+  /// this app (see DriverService.uploadMyDocument).
   Future<Map<String, dynamic>> deliverShipment({
     required int shipmentId,
-    required String podSignatureBase64,
+    required Uint8List podFileBytes,
+    required String podFileName,
     required String recipientName,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
 
-      final response = await http.post(
+      final request = http.MultipartRequest(
+        'POST',
         Uri.parse('$baseUrl/shipments/$shipmentId/deliver'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'pod_signature': podSignatureBase64,
-          'pod_recipient_name': recipientName,
-        }),
       );
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $token';
+      request.fields['pod_recipient_name'] = recipientName;
+      request.files.add(http.MultipartFile.fromBytes('pod_document', podFileBytes, filename: podFileName));
 
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -352,10 +355,14 @@ class ShipmentService {
         };
       }
 
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
-      };
+      String message = data['message'] ?? 'Server Error (${response.statusCode})';
+      if (data['errors'] != null) {
+        (data['errors'] as Map).forEach((key, value) {
+          message += '\n${(value as List).first}';
+        });
+      }
+
+      return {'success': false, 'message': message};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }

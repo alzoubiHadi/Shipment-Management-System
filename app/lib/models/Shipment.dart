@@ -35,6 +35,10 @@ class Shipment {
   final String unloadedAt;
   final String podSignature;
   final String podRecipientName;
+  // 2026-08-25: proof-of-delivery document (photo or file) — replaces
+  // podSignature for shipments delivered after this change. podSignature
+  // is kept above purely for older shipments that still only have one.
+  final String podDocumentPath;
   // Set only once the company confirms receipt (the final "Completed"
   // stage) — mirrors company_confirmed_at on the backend.
   final String companyConfirmedAt;
@@ -77,6 +81,7 @@ class Shipment {
     this.unloadedAt = '',
     this.podSignature = '',
     this.podRecipientName = '',
+    this.podDocumentPath = '',
     this.companyConfirmedAt = '',
     this.deliveryStatus = 'not_delivered',
     this.disputeReason = '',
@@ -161,6 +166,7 @@ class Shipment {
       unloadedAt: json['unloaded_at']?.toString() ?? '',
       podSignature: json['pod_signature']?.toString() ?? '',
       podRecipientName: json['pod_recipient_name']?.toString() ?? '',
+      podDocumentPath: json['pod_document_path']?.toString() ?? '',
       deliveryStatus: json['delivery_status']?.toString() ?? 'not_delivered',
       disputeReason: json['dispute_reason']?.toString() ?? '',
       companyConfirmedAt: json['company_confirmed_at']?.toString() ?? '',

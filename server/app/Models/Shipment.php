@@ -47,6 +47,10 @@ class Shipment extends Model
         'unloaded_at',
         'pod_signature',
         'pod_recipient_name',
+        // 2026-08-25: replaces the hand-drawn signature for new deliveries —
+        // see ShipmentController::deliver(). pod_signature stays fillable
+        // too, purely for already-delivered shipments that still have one.
+        'pod_document_path',
     ];
 
     protected $casts = [

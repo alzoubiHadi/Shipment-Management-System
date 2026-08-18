@@ -10,7 +10,9 @@ use App\Models\ShipmentOffer;
 use App\Models\Truck;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -354,8 +356,9 @@ class ShipmentBusinessRulesTest extends TestCase
 
         Sanctum::actingAs($user);
 
+        // Stage check runs before the pod_document/pod_recipient_name
+        // validation, so an incomplete/empty body is enough to hit it.
         $response = $this->postJson("/api/shipments/{$shipment->id}/deliver", [
-            'pod_signature' => 'data:image/png;base64,fake',
             'pod_recipient_name' => 'Ahmad',
         ]);
 
@@ -374,6 +377,8 @@ class ShipmentBusinessRulesTest extends TestCase
      */
     public function test_delivery_succeeds_after_unloading_but_does_not_pay_or_free_the_driver(): void
     {
+        Storage::fake('public');
+
         [$user, $driver] = $this->makeDriver(['status' => 'busy']);
         $company = $this->makeCompany();
         $shipment = Shipment::create([
@@ -389,8 +394,10 @@ class ShipmentBusinessRulesTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->postJson("/api/shipments/{$shipment->id}/deliver", [
-            'pod_signature' => 'data:image/png;base64,fake',
+        // 2026-08-25: deliver() now takes an attached POD document (photo
+        // or file) instead of a drawn signature.
+        $response = $this->post("/api/shipments/{$shipment->id}/deliver", [
+            'pod_document' => UploadedFile::fake()->image('pod.jpg'),
             'pod_recipient_name' => 'Ahmad',
         ]);
 
@@ -402,6 +409,7 @@ class ShipmentBusinessRulesTest extends TestCase
             'delivery_status' => 'awaiting_confirmation',
             'pod_recipient_name' => 'Ahmad',
         ]);
+        $this->assertNotNull($shipment->fresh()->pod_document_path);
         // Driver stays busy and unpaid until the company confirms.
         $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'status' => 'busy', 'balance' => 0]);
     }

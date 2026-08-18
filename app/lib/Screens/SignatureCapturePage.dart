@@ -6,6 +6,12 @@ import 'package:flutter/rendering.dart';
 
 import '../API/config.dart';
 
+/// DEAD CODE (2026-08-25): superseded by PodAttachmentPage.dart, which
+/// replaces the hand-drawn signature with a photographed/uploaded POD
+/// document. No longer referenced from ShipmentTrackingPage.dart or
+/// anywhere else. Left in place rather than deleted per this codebase's
+/// convention — safe to remove entirely in a future cleanup pass.
+///
 /// Lets the driver capture a hand-drawn signature (finger/mouse) plus the
 /// recipient's name as proof of delivery. Returns
 /// {'signature': base64Png, 'recipientName': String} via Navigator.pop, or
