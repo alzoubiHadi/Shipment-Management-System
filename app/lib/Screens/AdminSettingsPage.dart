@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/config.dart';
 import 'AdminFinancePage.dart';
+import 'AdminPlatformSettingsPage.dart';
 import 'AdminProfileEditRequestsPage.dart';
 import 'AdminZonePricingPage.dart';
 import 'DeletedDrivers.dart';
@@ -83,6 +84,16 @@ class AdminSettingsPage extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AdminZonePricingPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: Icons.tune_outlined,
+            title: 'Platform Settings',
+            subtitle: 'Profit margin, matching weights/timeout, driver-ops defaults',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminPlatformSettingsPage()),
             ),
           ),
           const SizedBox(height: 28),
