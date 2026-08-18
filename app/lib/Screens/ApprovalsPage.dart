@@ -60,10 +60,23 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // Document Renewals covers 3 categories, each now gated to a specific
+  // permission on the backend (document->trainer, truck_document->
+  // technical_check, company_license->finance — see ProfileController::
+  // reviewPermissionFor()). An admin with none of those three (e.g.
+  // crm-only) would just get a 403 hitting adminIndex(), so this tab is
+  // hidden entirely for them instead of showing a permanent error.
+  bool get _canReviewRenewals =>
+      widget.user.hasPermission('finance') ||
+      widget.user.hasPermission('trainer') ||
+      widget.user.hasPermission('technical_check');
+
   @override
   void initState() {
     super.initState();
-    _section = widget.initialSection;
+    _section = (widget.initialSection == ApprovalSection.renewals && !_canReviewRenewals)
+        ? ApprovalSection.registrations
+        : widget.initialSection;
     _registrationsFuture = _loadRegistrations();
     _renewalsFuture = _loadRenewals();
     _searchController.addListener(() {
@@ -85,6 +98,7 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
   }
 
   Future<List<ProfileEditRequest>> _loadRenewals() {
+    if (!_canReviewRenewals) return Future.value(const <ProfileEditRequest>[]);
     return _profileService.fetchEditRequests(category: 'document,truck_document,company_license');
   }
 
@@ -166,21 +180,23 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FutureBuilder<List<ProfileEditRequest>>(
-                      future: _renewalsFuture,
-                      builder: (context, snap) {
-                        final count = (snap.data ?? const []).length;
-                        return _SectionTabButton(
-                          label: 'Document\nRenewals',
-                          count: count,
-                          active: _section == ApprovalSection.renewals,
-                          onTap: () => setState(() => _section = ApprovalSection.renewals),
-                        );
-                      },
+                  if (_canReviewRenewals) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FutureBuilder<List<ProfileEditRequest>>(
+                        future: _renewalsFuture,
+                        builder: (context, snap) {
+                          final count = (snap.data ?? const []).length;
+                          return _SectionTabButton(
+                            label: 'Document\nRenewals',
+                            count: count,
+                            active: _section == ApprovalSection.renewals,
+                            onTap: () => setState(() => _section = ApprovalSection.renewals),
+                          );
+                        },
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(width: 8),
                   Expanded(
                     child: FutureBuilder<List<_RegistrationItem>>(

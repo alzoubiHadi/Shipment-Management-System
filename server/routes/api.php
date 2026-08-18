@@ -89,7 +89,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me/profile/edit-requests', [ProfileController::class, 'myEditRequests']);
     Route::post('/me/company/license', [ProfileController::class, 'submitCompanyLicense']);
     Route::put('/me/driver/bank-details', [ProfileController::class, 'updateBankDetails']);
-    Route::get('/admin/profile-edit-requests', [ProfileController::class, 'adminIndex'])->middleware('permission:finance');
+    // No route-level permission:finance middleware here anymore — trainer
+    // and technical_check admins need this endpoint too, just scoped to
+    // their category. adminIndex() does its own per-category permission
+    // filtering (see ProfileController::reviewPermissionFor()).
+    Route::get('/admin/profile-edit-requests', [ProfileController::class, 'adminIndex']);
     Route::put('/admin/profile-edit-requests/{profileEditRequest}/approve', [ProfileController::class, 'approve']);
     Route::put('/admin/profile-edit-requests/{profileEditRequest}/reject', [ProfileController::class, 'reject']);
 

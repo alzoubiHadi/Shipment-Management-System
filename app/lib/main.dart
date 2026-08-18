@@ -120,11 +120,15 @@ class _SplashPageState extends State<SplashPage> {
     try {
       final profile = await ProfileService().fetchMyProfile();
       final role = profile['type']?.toString() ?? prefs.getString('role') ?? '';
+      final rawPermissions = profile['permissions'];
       final user = AppUser(
         id: profile['id']?.toString() ?? prefs.getString('id') ?? '',
         name: profile['name']?.toString() ?? prefs.getString('name') ?? '',
         email: profile['email']?.toString() ?? prefs.getString('email') ?? '',
         role: role,
+        permissions: rawPermissions is List
+            ? List<String>.from(rawPermissions.map((e) => e.toString()))
+            : const [],
       );
 
       final approvalStatus = profile['approval_status']?.toString() ?? 'approved';

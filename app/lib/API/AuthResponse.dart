@@ -54,6 +54,11 @@ class AuthResponse {
   final String companyApprovalStatus;
   final String? companyRejectionReason;
 
+  // Only meaningful when role is one of the admin types — see AppUser's
+  // matching field for how this gets used (AdminDrawer filtering,
+  // UserProfilePage badges).
+  final List<String> permissions;
+
   AuthResponse({
     required this.token,
     required this.userId,
@@ -67,6 +72,7 @@ class AuthResponse {
     this.driverDocumentIssues = const [],
     this.companyApprovalStatus = 'approved',
     this.companyRejectionReason,
+    this.permissions = const [],
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
@@ -80,6 +86,7 @@ class AuthResponse {
         json['company'] is Map ? Map<String, dynamic>.from(json['company']) : null;
 
     final rawIssues = driver == null ? null : driver['document_issues'];
+    final rawPermissions = user['permissions'];
 
     return AuthResponse(
       token: data['access_token'] ?? '',
@@ -102,6 +109,9 @@ class AuthResponse {
           ? 'approved'
           : (company['approval_status']?.toString() ?? 'approved'),
       companyRejectionReason: company?['rejection_reason']?.toString(),
+      permissions: rawPermissions is List
+          ? List<String>.from(rawPermissions.map((e) => e.toString()))
+          : const [],
     );
   }
 

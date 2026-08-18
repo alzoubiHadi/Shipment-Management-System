@@ -8,6 +8,7 @@ use App\Models\CompanyDocument;
 use App\Models\Driver;
 use App\Models\DriverDestination;
 use App\Models\DriverDocument;
+use App\Models\Permission;
 use App\Models\ProfileEditRequest;
 use App\Models\TruckDocument;
 use App\Models\User;
@@ -97,6 +98,18 @@ class ProfileController extends Controller
                 // of which was returned here before.
                 'license_expiry' => optional($user->company->license_expiry)->format('Y-m-d'),
                 'compliance_status' => $user->company->compliance_status,
+            ];
+        } elseif ($user->isSuperAdmin() || $user->isSubAdmin()) {
+            // Needed so UserProfilePage can show permission badges and
+            // AdminDrawer can hide menu items the admin has no access to —
+            // previously this response only carried 'type', not permissions.
+            $extra = [
+                'permissions' => $user->isSuperAdmin()
+                    // Super Admin never has permission_user rows (implicit
+                    // access to everything — see User::hasPermission()), so
+                    // return the full catalog instead of an empty list.
+                    ? Permission::pluck('key')
+                    : $user->permissions()->pluck('key'),
             ];
         }
 
@@ -355,8 +368,41 @@ class ProfileController extends Controller
      * Date / Status" next to the newly-submitted one without a second
      * round-trip per request.
      */
+    /**
+     * Which permission key gates reviewing a given edit-request category.
+     * 'document' (driver document renewals) -> trainer, 'truck_document'
+     * -> technical_check, per the user's confirmed scope ("نقطة المدرب
+     * والفحص الفني فقط فحص مستندات" — trainer/technical_check are
+     * document-review-only roles). 'company_license' and 'destinations'
+     * stay under finance as before — they were never part of the
+     * trainer/technical_check scope.
+     */
+    private function reviewPermissionFor(string $category): string
+    {
+        return match ($category) {
+            'document' => 'trainer',
+            'truck_document' => 'technical_check',
+            default => 'finance',
+        };
+    }
+
     public function adminIndex(Request $request)
     {
+        $user = $request->user();
+
+        // Route no longer gates this with a single permission:finance
+        // middleware (see routes/api.php) — a trainer or technical_check
+        // admin needs to reach this endpoint too, just scoped to only the
+        // categories their permission actually covers.
+        $allowedCategories = array_values(array_filter(
+            ['document', 'truck_document', 'company_license', 'destinations'],
+            fn ($category) => $user->isSuperAdmin() || $user->hasPermission($this->reviewPermissionFor($category)),
+        ));
+
+        if (empty($allowedCategories)) {
+            return response()->json(['message' => 'You do not have permission to review profile edits'], 403);
+        }
+
         $status = $request->query('status', 'pending');
 
         $query = ProfileEditRequest::with('user:id,name,email,type')->orderByDesc('created_at');
@@ -364,9 +410,14 @@ class ProfileController extends Controller
             $query->where('status', $status);
         }
 
-        if ($category = $request->query('category')) {
-            $query->whereIn('category', explode(',', $category));
-        }
+        // Intersect whatever the client asked for with what this admin is
+        // actually allowed to see, instead of trusting the client-supplied
+        // category list outright — a trainer-only admin must never receive
+        // company_license rows even if the app requested them.
+        $requestedCategories = $request->query('category')
+            ? explode(',', $request->query('category'))
+            : $allowedCategories;
+        $query->whereIn('category', array_intersect($requestedCategories, $allowedCategories));
 
         $requests = $query->get();
 
@@ -418,7 +469,8 @@ class ProfileController extends Controller
 
     public function approve(Request $request, ProfileEditRequest $profileEditRequest)
     {
-        if (! $request->user()->hasPermission('finance') && ! $request->user()->isSuperAdmin()) {
+        $requiredPermission = $this->reviewPermissionFor($profileEditRequest->category);
+        if (! $request->user()->hasPermission($requiredPermission) && ! $request->user()->isSuperAdmin()) {
             return response()->json(['message' => 'You do not have permission to review profile edits'], 403);
         }
 
@@ -465,7 +517,8 @@ class ProfileController extends Controller
 
     public function reject(Request $request, ProfileEditRequest $profileEditRequest)
     {
-        if (! $request->user()->hasPermission('finance') && ! $request->user()->isSuperAdmin()) {
+        $requiredPermission = $this->reviewPermissionFor($profileEditRequest->category);
+        if (! $request->user()->hasPermission($requiredPermission) && ! $request->user()->isSuperAdmin()) {
             return response()->json(['message' => 'You do not have permission to review profile edits'], 403);
         }
 

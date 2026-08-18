@@ -453,6 +453,13 @@ class UserController extends Controller
                     'type' => $user->type,
                     'must_change_password' => (bool) $user->must_change_password,
                     'email_verified' => (bool) $user->email_verified_at,
+                    // Needed at login time (not just on a later /me/profile
+                    // fetch) so AdminDrawer can filter its menu on the very
+                    // first screen after sign-in — see ProfileController::
+                    // show() for the same logic reused there.
+                    'permissions' => $user->isSuperAdmin()
+                        ? \App\Models\Permission::pluck('key')
+                        : ($user->isSubAdmin() ? $user->permissions()->pluck('key') : []),
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer',

@@ -39,6 +39,22 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   bool get _isDriver => widget.user.role.toLowerCase() == 'driver';
   bool get _isCompany => widget.user.role.toLowerCase() == 'company';
+  bool get _isSuperAdmin => widget.user.role.toLowerCase() == 'super_admin' || widget.user.role.toLowerCase() == 'admin';
+  bool get _isSubAdmin => widget.user.role.toLowerCase() == 'sub_admin';
+  bool get _isAdmin => _isSuperAdmin || _isSubAdmin;
+
+  // Same simplified wording as the permissions.label seed data (see
+  // 2026_08_26_000001_simplify_permission_labels.php) — kept as a local
+  // fallback map so this page doesn't need its own network round-trip
+  // just to label a handful of fixed keys.
+  static const Map<String, String> _permissionLabels = {
+    'finance': 'Finance',
+    'trainer': 'Trainer',
+    'technical_check': 'Technical Check',
+    'crm': 'CRM',
+  };
+
+  String _permissionLabel(String key) => _permissionLabels[key] ?? key;
 
   @override
   void initState() {
@@ -221,8 +237,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 const SizedBox(height: 24),
                 _field('Name', _nameCtrl),
                 const SizedBox(height: 12),
-                _field('Phone', _phoneCtrl, keyboardType: TextInputType.phone),
-                const SizedBox(height: 12),
+                // Admin accounts have no phone column on the User model —
+                // updateBasic() silently ignores it for this role, so
+                // showing an editable field here would look like it saves
+                // when it never does. Only driver/company have somewhere
+                // for it to actually land.
+                if (!_isAdmin) ...[
+                  _field('Phone', _phoneCtrl, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 12),
+                ],
                 _field('Email', _emailCtrl, keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -238,6 +261,52 @@ class _UserProfilePageState extends State<UserProfilePage> {
                         : const Text('Save', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
                   ),
                 ),
+
+                if (_isAdmin) ...[
+                  const SizedBox(height: 28),
+                  const _SectionLabel('Role & Permissions'),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: LightColors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: LightColors.border, width: 0.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isSuperAdmin ? 'Super Admin' : 'Sub Admin',
+                          style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                        const SizedBox(height: 10),
+                        if (_isSuperAdmin)
+                          const Text('Full access — every permission', style: TextStyle(color: LightColors.textSecondary, fontSize: 12))
+                        else if (widget.user.permissions.isEmpty)
+                          const Text('No permissions assigned yet — contact the Super Admin', style: TextStyle(color: LightColors.textSecondary, fontSize: 12))
+                        else
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: widget.user.permissions.map((key) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: LightColors.navy.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _permissionLabel(key),
+                                  style: const TextStyle(color: LightColors.navy, fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 if (_isDriver) ...[
                   const SizedBox(height: 28),

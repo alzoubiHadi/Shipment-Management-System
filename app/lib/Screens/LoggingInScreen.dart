@@ -68,7 +68,13 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => ForceChangePasswordScreen(
-              user: AppUser(name: response.name, email: response.email, role: response.role, id: response.userId),
+              user: AppUser(
+                name: response.name,
+                email: response.email,
+                role: response.role,
+                id: response.userId,
+                permissions: response.permissions,
+              ),
             ),
           ),
           (route) => false,
@@ -110,7 +116,15 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
                   approvalStatus: response.companyApprovalStatus,
                   rejectionReason: response.companyRejectionReason,
                 )
-              : HomeScreen(user: AppUser(name: response.name, email: widget.email, role: response.role, id: response.userId));
+              : HomeScreen(
+                  user: AppUser(
+                    name: response.name,
+                    email: widget.email,
+                    role: response.role,
+                    id: response.userId,
+                    permissions: response.permissions,
+                  ),
+                );
 
       // 2026-08-21: RoleConfirmScreen ("Welcome Back — select your role to
       // continue") used to sit here as an unconditional extra tap for

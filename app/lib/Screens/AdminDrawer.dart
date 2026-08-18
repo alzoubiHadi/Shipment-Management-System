@@ -40,6 +40,20 @@ class AdminDrawer extends StatelessWidget {
 
   bool get _isSuperAdmin => user.role.toLowerCase() == 'super_admin';
 
+  // "Work Destinations" (AdminProfileEditRequestsPage) reviews the
+  // company_license/destinations categories, both gated to the finance
+  // permission on the backend now (see ProfileController::
+  // reviewPermissionFor()) — a trainer/technical_check-only sub-admin
+  // would otherwise land on a page that's permanently empty for them.
+  bool get _canReviewFinanceRequests => user.hasPermission('finance');
+
+  // Reports scope tightened 2026-08-27: finance and crm only (finance
+  // owns reports/financial oversight for companies and drivers; crm was
+  // confirmed to also get read access). trainer/technical_check are
+  // document-review-only and never see Reports — see ReportController::
+  // requireAdmin() on the backend for the matching 403.
+  bool get _canViewReports => user.hasPermission('finance') || user.hasPermission('crm');
+
   String get _roleLabel {
     switch (user.role.toLowerCase()) {
       case 'super_admin':
@@ -146,16 +160,18 @@ class AdminDrawer extends StatelessWidget {
                     label: 'Offers',
                     onTap: () => _push(context, const ShipmentOffersAdminPage()),
                   ),
-                  _DrawerTile(
-                    icon: Icons.public_outlined,
-                    label: 'Work Destinations',
-                    onTap: () => _push(context, const AdminProfileEditRequestsPage()),
-                  ),
-                  _DrawerTile(
-                    icon: Icons.bar_chart_outlined,
-                    label: 'Reports',
-                    onTap: () => _push(context, ReportsHomePage(user: user)),
-                  ),
+                  if (_canReviewFinanceRequests)
+                    _DrawerTile(
+                      icon: Icons.public_outlined,
+                      label: 'Work Destinations',
+                      onTap: () => _push(context, const AdminProfileEditRequestsPage()),
+                    ),
+                  if (_canViewReports)
+                    _DrawerTile(
+                      icon: Icons.bar_chart_outlined,
+                      label: 'Reports',
+                      onTap: () => _push(context, ReportsHomePage(user: user)),
+                    ),
                   ValueListenableBuilder<int>(
                     valueListenable: NotificationBadge.unreadCount,
                     builder: (context, unread, _) => _DrawerTile(
