@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\Driver;
 use App\Models\DriverDestination;
+use App\Models\Permission;
 use App\Models\Shipment;
 use App\Models\ShipmentOffer;
 use App\Models\Truck;
@@ -559,13 +560,50 @@ class ShipmentBusinessRulesTest extends TestCase
         $this->getJson('/api/reports/companies')->assertStatus(403);
     }
 
-    public function test_reports_endpoints_allow_admin_and_sub_admin(): void
+    public function test_reports_endpoints_allow_super_admin(): void
     {
         Sanctum::actingAs($this->makeAdmin('super_admin'));
         $this->getJson('/api/reports/summary')->assertStatus(200);
+    }
 
-        Sanctum::actingAs($this->makeAdmin('sub_admin'));
+    /**
+     * Scope tightened 2026-08-27: Reports is no longer "any sub admin" —
+     * only finance and crm (confirmed: crm gets read access too, since
+     * reports/financial oversight for companies and drivers is the
+     * finance admin's area). trainer and technical_check are
+     * document-review-only and must not see Reports at all. A bare
+     * sub_admin with no permission at all must also be rejected — this
+     * used to pass under the old blanket isSubAdmin() check.
+     */
+    public function test_reports_endpoints_scoped_to_finance_and_crm(): void
+    {
+        $bareSubAdmin = $this->makeAdmin('sub_admin');
+        Sanctum::actingAs($bareSubAdmin);
+        $this->getJson('/api/reports/summary')->assertStatus(403);
+
+        $trainer = $this->makeAdmin('sub_admin');
+        $trainer->permissions()->sync(Permission::where('key', 'trainer')->pluck('id'));
+        Sanctum::actingAs($trainer);
+        $this->getJson('/api/reports/summary')->assertStatus(403);
+
+        $technicalCheck = $this->makeAdmin('sub_admin');
+        $technicalCheck->permissions()->sync(Permission::where('key', 'technical_check')->pluck('id'));
+        Sanctum::actingAs($technicalCheck);
+        $this->getJson('/api/reports/summary')->assertStatus(403);
+
+        $finance = $this->makeAdmin('sub_admin');
+        $finance->permissions()->sync(Permission::where('key', 'finance')->pluck('id'));
+        Sanctum::actingAs($finance);
         $this->getJson('/api/reports/summary')->assertStatus(200);
+        $this->getJson('/api/reports/drivers')->assertStatus(200);
+        $this->getJson('/api/reports/companies')->assertStatus(200);
+
+        $crm = $this->makeAdmin('sub_admin');
+        $crm->permissions()->sync(Permission::where('key', 'crm')->pluck('id'));
+        Sanctum::actingAs($crm);
+        $this->getJson('/api/reports/summary')->assertStatus(200);
+        $this->getJson('/api/reports/drivers')->assertStatus(200);
+        $this->getJson('/api/reports/companies')->assertStatus(200);
     }
 
     public function test_driver_cannot_view_another_drivers_report_via_legacy_route(): void

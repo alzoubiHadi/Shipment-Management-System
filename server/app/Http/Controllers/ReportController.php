@@ -32,18 +32,23 @@ class ReportController extends Controller
      * behind nothing but the blanket auth:sanctum group — any logged-in
      * driver or company could request every driver's/company's report and
      * the overall commission summary straight from the API, even though
-     * the Flutter UI never exposed a Reports button to them. Reusing a
-     * brand-new `reports` permission key felt like more surface area than
-     * this fix needed right now, so this mirrors the simpler
-     * ShipmentController::requireSuperAdmin() pattern but also allows sub
-     * admins (isSubAdmin()) — Reports is read-only aggregate data, not a
-     * financial action, so it doesn't need the stricter super-admin-only
-     * bar that PayoutRequest/PaymentOrder approval uses.
+     * the Flutter UI never exposed a Reports button to them.
+     *
+     * Scope tightened again (2026-08-27): Reports moved from "any sub
+     * admin" to specifically finance and crm — reports/financial oversight
+     * (payments, receipts, commission) for companies and drivers is the
+     * finance admin's area, and crm was confirmed to also need read
+     * access (view-only; crm holds no admin/reject actions on Reports
+     * regardless, since this controller has none). trainer and
+     * technical_check are document-review-only roles (see
+     * ProfileController::reviewPermissionFor()) and do not see Reports at
+     * all. hasPermission() already returns true unconditionally for
+     * Super Admin, so no separate isSuperAdmin() check is needed here.
      */
     private function requireAdmin(Request $request)
     {
         $user = $request->user();
-        if (! $user->isSuperAdmin() && ! $user->isSubAdmin()) {
+        if (! $user->hasPermission('finance') && ! $user->hasPermission('crm')) {
             return response()->json(['message' => 'You are not authorized to view reports'], 403);
         }
 
@@ -194,17 +199,19 @@ class ReportController extends Controller
      * straight from the URL with no check that it belonged to the caller
      * — any authenticated user could read any driver's balance, pending
      * earnings, rating, and compliance status by changing the id in the
-     * URL (IDOR). Now only the driver themselves, or an admin, may fetch
-     * it. New clients should prefer myReport()/`/my-driver-report` above,
-     * which doesn't take an id at all; this route is kept only because
-     * nothing forces every caller to have upgraded yet.
+     * URL (IDOR). Now only the driver themselves, or an admin with the
+     * same finance/crm scope as requireAdmin() above, may fetch it (see
+     * 2026-08-27 note there). New clients should prefer myReport()/
+     * `/my-driver-report` above, which doesn't take an id at all; this
+     * route is kept only because nothing forces every caller to have
+     * upgraded yet.
      */
     public function driverSelf(Request $request, $driver_user_id)
     {
         $requester = $request->user();
         if ((string) $requester->id !== (string) $driver_user_id
-            && ! $requester->isSuperAdmin()
-            && ! $requester->isSubAdmin()) {
+            && ! $requester->hasPermission('finance')
+            && ! $requester->hasPermission('crm')) {
             return response()->json(['message' => 'You are not authorized to view this report'], 403);
         }
 

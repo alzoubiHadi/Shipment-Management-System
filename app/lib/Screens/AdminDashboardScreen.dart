@@ -228,7 +228,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 value: stats.shipmentsCompletedThisMonth,
                                 color: LightColors.success,
                                 bg: LightColors.successBg,
-                                onTap: () => _openTab(context, ReportsHomePage(user: widget.user)),
+                                // Reports is scoped to finance/crm only
+                                // (2026-08-27) — same rule as AdminDrawer's
+                                // Reports tile. Card stays visible (it's
+                                // still a useful number for any admin) but
+                                // only navigates for someone actually
+                                // allowed into Reports.
+                                onTap: (widget.user.hasPermission('finance') || widget.user.hasPermission('crm'))
+                                    ? () => _openTab(context, ReportsHomePage(user: widget.user))
+                                    : () {},
                               ),
                             ],
                           ),
