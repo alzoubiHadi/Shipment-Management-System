@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passCtrl.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'الرجاء تعبئة جميع الحقول');
+      setState(() => _errorMessage = 'Please fill in all fields');
       return;
     }
 
@@ -85,13 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      'مرحباً بك في FMS',
+                      'Welcome to FMS',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: LightColors.textPrimary),
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'سجل الدخول للوصول إلى حسابك',
+                      'Sign in to access your account',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
                     ),
@@ -110,16 +110,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           buildLightTextField(
                             controller: _emailCtrl,
-                            label: 'البريد الإلكتروني',
-                            hint: 'أدخل بريدك الإلكتروني',
+                            label: 'Email',
+                            hint: 'Enter your email',
                             keyboardType: TextInputType.emailAddress,
                             prefixIcon: const Icon(Icons.mail_outline, color: LightColors.textMuted, size: 20),
                           ),
                           const SizedBox(height: 16),
                           buildLightTextField(
                             controller: _passCtrl,
-                            label: 'كلمة المرور',
-                            hint: 'أدخل كلمة المرور',
+                            label: 'Password',
+                            hint: 'Enter your password',
                             obscure: _obscure,
                             prefixIcon: const Icon(Icons.lock_outline, color: LightColors.textMuted, size: 20),
                             suffix: IconButton(
@@ -148,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  const Text('تذكرني', style: TextStyle(fontSize: 12.5, color: LightColors.textSecondary)),
+                                  const Text('Remember me', style: TextStyle(fontSize: 12.5, color: LightColors.textSecondary)),
                                 ],
                               ),
                               Material(
@@ -157,12 +157,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderRadius: BorderRadius.circular(6),
                                   onTap: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('تواصل مع الأدمن لإعادة تعيين كلمة المرور')),
+                                      const SnackBar(content: Text('Contact your admin to reset your password')),
                                     );
                                   },
                                   child: const Padding(
                                     padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                                    child: Text('نسيت كلمة المرور؟',
+                                    child: Text('Forgot Password?',
                                         style: TextStyle(fontSize: 12.5, color: LightColors.gold, fontWeight: FontWeight.w600)),
                                   ),
                                 ),
@@ -175,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 12),
                           ],
                           LightPrimaryButton(
-                            label: 'تسجيل الدخول',
+                            label: 'Log In',
                             icon: Icons.login_rounded,
                             color: LightColors.gold,
                             textColor: LightColors.textPrimary,
@@ -191,22 +191,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         Expanded(
                           child: _FeatureItem(
                             icon: Icons.verified_user_rounded,
-                            title: 'آمن وموثوق',
-                            description: 'حماية بياناتك على أعلى مستوى',
+                            title: 'Secure & Reliable',
+                            description: 'Your data protected at the highest level',
                           ),
                         ),
                         Expanded(
                           child: _FeatureItem(
                             icon: Icons.access_time_filled_rounded,
-                            title: 'إدارة سهلة',
-                            description: 'تابع شحناتك في الوقت الحقيقي',
+                            title: 'Easy Management',
+                            description: 'Track your shipments in real time',
                           ),
                         ),
                         Expanded(
                           child: _FeatureItem(
                             icon: Icons.bar_chart_rounded,
-                            title: 'تقارير ذكية',
-                            description: 'تحليلات وتقارير دقيقة',
+                            title: 'Smart Reports',
+                            description: 'Accurate analytics and reports',
                           ),
                         ),
                       ],
@@ -224,9 +224,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             text: const TextSpan(
                               style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
                               children: [
-                                TextSpan(text: 'ليس لديك حساب؟ '),
+                                TextSpan(text: "Don't have an account? "),
                                 TextSpan(
-                                  text: 'سجل الآن',
+                                  text: 'Sign Up',
                                   style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w700),
                                 ),
                               ],
