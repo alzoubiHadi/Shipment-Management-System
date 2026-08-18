@@ -18,6 +18,17 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
   final _service = ReportService();
   late Future<List<Map<String, dynamic>>> _future;
 
+  /// Defensive parsing (2026-08-25): normally by_status/top_destinations
+  /// are JSON objects, but an empty PHP array on the backend used to
+  /// serialize as `[]` instead of `{}` (fixed server-side in
+  /// ReportController::companies()) and crashed this exact cast with no
+  /// visible error in a release build. Kept here too so a similarly-shaped
+  /// bug in any future report field degrades to "no data" instead of a
+  /// blank screen.
+  static Map<String, dynamic> _asStringMap(dynamic value) {
+    return value is Map ? Map<String, dynamic>.from(value) : {};
+  }
+
   @override
   void initState() {
     super.initState();
@@ -70,9 +81,8 @@ class _CompanyReportsPageState extends State<CompanyReportsPage> {
               itemCount: companies.length,
               itemBuilder: (context, index) {
                 final c = companies[index];
-                final byStatus = Map<String, dynamic>.from(c['by_status'] ?? {});
-                final topDestinations =
-                    Map<String, dynamic>.from(c['top_destinations'] ?? {});
+                final byStatus = _asStringMap(c['by_status']);
+                final topDestinations = _asStringMap(c['top_destinations']);
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),

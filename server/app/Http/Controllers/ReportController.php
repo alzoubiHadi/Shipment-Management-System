@@ -126,8 +126,23 @@ class ReportController extends Controller
                 'id' => $company->id,
                 'name' => $company->name,
                 'total_shipments' => $shipments->count(),
-                'by_status' => $byStatus,
-                'top_destinations' => $topDestinations,
+                // Bug fix (2026-08-25): a PHP array with no elements
+                // json_encode()s as `[]`, not `{}` — PHP can't tell an
+                // empty associative array from an empty list. A company
+                // with zero shipments (or, for top_destinations, zero
+                // shipments with a destination set) left $byStatus/
+                // $topDestinations empty, so the response sent `[]` for
+                // that field instead of `{}`. Flutter's CompanyReportsPage
+                // does `Map<String, dynamic>.from(c['by_status'] ?? {})`,
+                // which throws ("List<dynamic> is not a subtype of
+                // Map<dynamic, dynamic>") the moment it hits an empty-array
+                // company — crashing that card's build and, in a release
+                // build, rendering as a blank grey box with no visible
+                // error (Flutter's default release-mode error widget).
+                // Casting to (object) forces `{}` for the empty case too,
+                // regardless of how many entries are actually in it.
+                'by_status' => (object) $byStatus,
+                'top_destinations' => (object) $topDestinations->toArray(),
             ];
         });
 
