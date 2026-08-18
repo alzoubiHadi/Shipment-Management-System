@@ -48,6 +48,19 @@ class UserController extends Controller
             ], 422);
         }
 
+        // Case-insensitivity fix (2026-08-25): normalize BEFORE validate()
+        // runs, since the 'unique:users,email' rule below does an exact
+        // string match against the DB — without this, "New@Example.com"
+        // would sail past the uniqueness check against an existing
+        // "new@example.com" row (Postgres compares case-sensitively), only
+        // to then collide with users.email's real unique constraint the
+        // instant User::create() below tries to insert it (already
+        // lowercased by the model mutator) — a 500 instead of the correct
+        // 422 "already taken" response.
+        if ($request->filled('email')) {
+            $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
+        }
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -292,7 +305,11 @@ class UserController extends Controller
             'otp_code' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        // Case-insensitivity fix (2026-08-25): stored emails are always
+        // lowercase now (see User::setEmailAttribute()); normalize the
+        // lookup value the same way so a different capitalization at
+        // verify-otp time than at registration time still matches.
+        $user = User::where('email', User::normalizeEmail($validated['email']))->first();
 
         if (! $user) {
             return response()->json(['success' => false, 'message' => 'Account not found.'], 404);
@@ -351,7 +368,8 @@ class UserController extends Controller
     {
         $validated = $request->validate(['email' => ['required', 'email']]);
 
-        $user = User::where('email', $validated['email'])->first();
+        // Case-insensitivity fix (2026-08-25) — same reasoning as verifyOtp() above.
+        $user = User::where('email', User::normalizeEmail($validated['email']))->first();
 
         if (! $user) {
             return response()->json(['success' => false, 'message' => 'Account not found.'], 404);
@@ -370,7 +388,13 @@ class UserController extends Controller
 
     public function login(Request $request)
     {
-        $user = User::where('email', $request['email'])->first();
+        // Case-insensitivity fix (2026-08-25): this is the endpoint the
+        // original bug report was about — a user typing their email with
+        // different capitalization than they registered with got "Invalid
+        // credentials" even with the correct password, since stored emails
+        // used to keep whatever casing was submitted at registration and
+        // Postgres compares text case-sensitively by default.
+        $user = User::where('email', User::normalizeEmail($request['email']))->first();
 
         if (! $user || ! Hash::check($request['password'], $user->password)) {
             return response()->json([

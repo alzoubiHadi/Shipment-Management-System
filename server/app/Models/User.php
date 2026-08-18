@@ -60,6 +60,36 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Case-insensitivity fix (2026-08-25): Postgres text comparison is
+     * case-sensitive by default, so "User@Example.com" and
+     * "user@example.com" used to be treated as two different emails —
+     * different rows could exist for both, and a user typing their email
+     * with different capitalization than they registered with would fail
+     * to log in. This mutator normalizes every write (User::create(),
+     * ->update(), $user->email = ...) to lowercase+trimmed, so storage is
+     * always consistent from here on. See the accompanying migration for
+     * the one-time backfill of existing rows, and normalizeEmail() below
+     * for callers that need to normalize a search value the same way
+     * (lookups don't pass through this mutator, only writes do).
+     */
+    protected function setEmailAttribute(?string $value): void
+    {
+        $this->attributes['email'] = $value === null ? null : strtolower(trim($value));
+    }
+
+    /**
+     * Same normalization as the mutator above, exposed for callers that
+     * need to normalize a raw search value BEFORE it's used in a
+     * where('email', ...) lookup or a `unique:users,email` validation rule
+     * — neither of those passes through setEmailAttribute(), since that
+     * only fires on Eloquent writes.
+     */
+    public static function normalizeEmail(?string $email): ?string
+    {
+        return $email === null ? null : strtolower(trim($email));
+    }
+
     public function driver()
     {
         return $this->hasOne(Driver::class);

@@ -32,6 +32,18 @@ class Company extends Model
         'license_expiry' => 'date:Y-m-d',
     ];
 
+    /**
+     * Case-insensitivity fix (2026-08-25) — same rule and same reasoning as
+     * User::setEmailAttribute(). This is a SEPARATE email column from the
+     * linked user's own email (see users.email), used for contact/display
+     * purposes, not for login — normalized for consistency with the rest
+     * of the app.
+     */
+    protected function setEmailAttribute(?string $value): void
+    {
+        $this->attributes['email'] = $value === null ? null : strtolower(trim($value));
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

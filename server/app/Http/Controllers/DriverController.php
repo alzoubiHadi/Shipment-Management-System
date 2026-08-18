@@ -42,6 +42,12 @@ class DriverController extends Controller
     }
     public function create(Request $request)
     {
+        // Case-insensitivity fix (2026-08-25): normalize before validate()
+        // so the 'unique:users,email' rule below compares correctly against
+        // already-lowercased stored rows — see User::setEmailAttribute().
+        if ($request->filled('email')) {
+            $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
+        }
 
         try {
             $validated = $request->validate([
@@ -110,6 +116,11 @@ public function restore( $id)
 
     public function update(Request $request, Driver $driver)
     {
+        // Case-insensitivity fix (2026-08-25) — same reasoning as create() above.
+        if ($request->filled('email')) {
+            $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
+        }
+
         // Exclude the driver's own linked user row from the uniqueness
         // check, otherwise saving the driver's unchanged email back fails
         // validation because it's already "taken" — by themselves.

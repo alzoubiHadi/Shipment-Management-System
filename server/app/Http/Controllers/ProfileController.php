@@ -121,6 +121,11 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
+        // Case-insensitivity fix (2026-08-25) — see User::setEmailAttribute().
+        if ($request->filled('email')) {
+            $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
+        }
+
         try {
             $validated = $request->validate([
                 'name' => ['sometimes', 'string', 'max:255'],

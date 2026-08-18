@@ -34,6 +34,11 @@ class CompanyController extends Controller
     //
     public function update_profile(Request $request, Company $company)
     {
+        // Case-insensitivity fix (2026-08-25) — see Company::setEmailAttribute().
+        if ($request->filled('email')) {
+            $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:companies,email,' . $company->id],
@@ -69,7 +74,11 @@ class CompanyController extends Controller
     }
     public function create(Request $request)
     {
-        
+        // Case-insensitivity fix (2026-08-25) — see User::setEmailAttribute().
+        if ($request->filled('email')) {
+            $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
+        }
+
         try {
             $validated = $request->validate([
                 'email' => ['required', 'email', 'max:255', 'unique:users,email'],
