@@ -280,29 +280,13 @@ class _SplashPageState extends State<SplashPage>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background image (logistics / trucks)
-          Image.network(
-            'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1200&q=80',
+          // Background image (logistics / trucks). Switched 2026-08-18 from
+          // a live Unsplash network fetch to a bundled asset (user-provided
+          // brand image: truck on a highway with a world-map graphic) so it
+          // always loads instantly and works offline.
+          Image.asset(
+            'assets/images/login_background.jpg',
             fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(color: const Color(0xFF0D0D0D));
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF1a1a2e),
-                      Color(0xFF16213e),
-                      Color(0xFF0f3460)
-                    ],
-                  ),
-                ),
-              );
-            },
           ),
 
           // Dark overlay
