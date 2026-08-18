@@ -50,7 +50,10 @@ dependencies:
   geolocator: ^13.0.2
   # 2026-08-26: "Shipments Overview" bar chart on the Admin Reports
   # dashboard (ReportsHomePage.dart) — pure-Dart charting, no native code.
-  fl_chart: ^0.68.0
+  # Pinned to the actual current major (1.x, confirmed on pub.dev) — an
+  # earlier guess at a 0.68.0 constraint doesn't correspond to a real
+  # published version and broke `flutter pub get` during the release build.
+  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:
