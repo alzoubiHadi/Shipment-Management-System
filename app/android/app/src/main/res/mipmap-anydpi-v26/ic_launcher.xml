@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon (2026-08-26 icon fix): on API 26+ this file takes priority
+  over the plain mipmap-*/ic_launcher.png files. Without it, launchers that
+  don't recognize a non-adaptive icon as "well-behaved" (MIUI in
+  particular) pad it onto a white rounded-square backplate for visual
+  consistency with adaptive icons from other apps — that's the white frame
+  reported around the FMS icon. Supplying background + foreground layers
+  here lets the launcher apply its own mask shape directly to FMS's own
+  navy background instead of a white one.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Adaptive icon background (2026-08-26 icon fix): the FMS logo badge's
+         own navy tone, sampled directly from fms_logo.png. Used as the
+         background layer of mipmap-anydpi-v26/ic_launcher.xml so launchers
+         that apply their own icon mask (MIUI, Samsung One UI, etc.) show
+         this navy instead of forcing a white rounded-square backplate
+         behind a non-adaptive icon — which is exactly what was happening
+         before this fix. -->
+    <color name="ic_launcher_background">#0A3C8A</color>
+</resources>
