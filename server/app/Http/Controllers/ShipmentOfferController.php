@@ -6,10 +6,12 @@ use App\Http\Resources\CompanyFacingShipmentOfferResource;
 use App\Http\Resources\DriverFacingShipmentOfferResource;
 use App\Models\Company;
 use App\Models\Driver;
+use App\Models\PlatformSetting;
 use App\Models\Shipment;
 use App\Models\ShipmentOffer;
 use App\Models\Truck;
 use App\Models\User;
+use App\Models\Zone;
 use App\Notifications\AppPushNotification;
 use App\Services\ComplianceService;
 use App\Services\LedgerService;
@@ -56,9 +58,20 @@ class ShipmentOfferController extends Controller
         // order_type isn't validated yet at this point in the method, so a
         // lightweight peek at the raw input (defaulting to 'internal', same
         // default applied below after full validation) is enough here.
-        $orderTypeForComplianceCheck = in_array($request->input('order_type'), ['internal', 'external'], true)
-            ? $request->input('order_type')
-            : 'internal';
+        // Zones (2026-08-27): once the Company Create-Shipment flow sends
+        // structured origin_country/destination_country, order_type is
+        // derived from comparing them rather than trusting whatever the
+        // client separately sent — same rule applied again, authoritatively,
+        // after validation below.
+        $rawOriginCountry = $request->input('origin_country');
+        $rawDestinationCountry = $request->input('destination_country');
+        if ($rawOriginCountry && $rawDestinationCountry) {
+            $orderTypeForComplianceCheck = $rawOriginCountry === $rawDestinationCountry ? 'internal' : 'external';
+        } else {
+            $orderTypeForComplianceCheck = in_array($request->input('order_type'), ['internal', 'external'], true)
+                ? $request->input('order_type')
+                : 'internal';
+        }
 
         if (! ComplianceService::isEligibleForShipment($company, $orderTypeForComplianceCheck)) {
             $message = match ($company->compliance_status) {
@@ -85,6 +98,21 @@ class ShipmentOfferController extends Controller
                 'is_fragile' => ['boolean'],
                 'order_type' => ['nullable', 'in:internal,external'],
                 'required_truck_type' => ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
+                // Zones (2026-08-27) — all optional so an un-migrated older
+                // app build still works exactly as before via the legacy
+                // destination-string path below.
+                'origin_country' => ['nullable', 'string'],
+                'origin_city' => ['nullable', 'string'],
+                'origin_zone_id' => ['nullable', 'integer', 'exists:zones,id'],
+                'origin_address' => ['nullable', 'string'],
+                'destination_country' => ['nullable', 'string'],
+                'destination_city' => ['nullable', 'string'],
+                'destination_zone_id' => ['nullable', 'integer', 'exists:zones,id'],
+                'destination_address' => ['nullable', 'string'],
+                // What the company typed into "Your Price" after seeing the
+                // pricing-preview suggestion — never trusted as the final
+                // price_to_client, only as a starting point (see below).
+                'company_selected_price' => ['nullable', 'numeric', 'min:0'],
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -93,12 +121,28 @@ class ShipmentOfferController extends Controller
             ], 422);
         }
 
-        $validated['order_type'] = $validated['order_type'] ?? 'internal';
+        // Zones (2026-08-27): once both countries are known structurally,
+        // order_type is derived by comparing them instead of trusting a
+        // separately-submitted flag — see the design doc's point 5. Falls
+        // back to the client-submitted value (defaulting to 'internal') for
+        // offers created without zone data, exactly as before.
+        if (! empty($validated['origin_country']) && ! empty($validated['destination_country'])) {
+            $validated['order_type'] = $validated['origin_country'] === $validated['destination_country']
+                ? 'internal'
+                : 'external';
+        } else {
+            $validated['order_type'] = $validated['order_type'] ?? 'internal';
+        }
 
-        // External destinations must match the price matrix exactly so
-        // auto-pricing can find a row; internal offers stay free text
-        // (there's no internal rate table yet — see App\Support\Destinations).
-        if ($validated['order_type'] === 'external' && ! in_array($validated['destination'], Destinations::all(), true)) {
+        $usingZonePricing = ! empty($validated['origin_zone_id']) && ! empty($validated['destination_zone_id']);
+
+        // Legacy path only: external destinations must match the fixed
+        // price matrix exactly so auto-pricing can find a row. Once a zone
+        // is picked, "valid destination" just means "an active zone exists"
+        // — already enforced by the exists:zones,id rule above.
+        if (! $usingZonePricing
+            && $validated['order_type'] === 'external'
+            && ! in_array($validated['destination'], Destinations::all(), true)) {
             return response()->json([
                 'message' => 'Validation failed',
                 'errors' => ['destination' => ['Must be one of the supported external destinations.']],
@@ -107,18 +151,44 @@ class ShipmentOfferController extends Controller
 
         // Admin Shipments redesign (2026-08-24): a representative
         // destination coordinate lets the Trip Report / Live Tracking
-        // screens show a straight-line distance. Only external offers have
-        // a fixed, known destination — internal ones stay free text with
-        // no coordinates, so destination_lat/lng are simply left null and
-        // the UI omits distance for those rather than guessing.
-        if ($validated['order_type'] === 'external') {
+        // screens show a straight-line distance.
+        if ($usingZonePricing) {
+            // Zone coordinates aren't populated in the current dataset
+            // (see Zone model docblock) — this degrades gracefully to no
+            // coordinates today, same as MatchingService's proximity
+            // score treating missing coordinates as neutral, and picks
+            // them up automatically once zones do carry lat/lng.
+            $originZone = Zone::find($validated['origin_zone_id']);
+            $destinationZone = Zone::find($validated['destination_zone_id']);
+            if ($originZone?->latitude !== null && $originZone?->longitude !== null) {
+                $validated['origin_lat'] = $originZone->latitude;
+                $validated['origin_lng'] = $originZone->longitude;
+            }
+            if ($destinationZone?->latitude !== null && $destinationZone?->longitude !== null) {
+                $validated['destination_lat'] = $destinationZone->latitude;
+                $validated['destination_lng'] = $destinationZone->longitude;
+            }
+        } elseif ($validated['order_type'] === 'external') {
+            // Legacy path: only external offers have a fixed, known
+            // destination — internal ones stay free text with no
+            // coordinates, so destination_lat/lng are simply left null.
             $coords = Destinations::coordsFor($validated['destination']);
             if ($coords) {
                 [$validated['destination_lat'], $validated['destination_lng']] = $coords;
             }
         }
 
-        $pricing = app(PricingService::class)->computeAutoPrice($validated['destination'], $validated['required_truck_type']);
+        $pricing = null;
+        if ($usingZonePricing) {
+            $suggestion = app(PricingService::class)->getPriceSuggestion(
+                $validated['origin_zone_id'],
+                $validated['destination_zone_id'],
+                $validated['required_truck_type'],
+            );
+            $pricing = $suggestion['matched'] ? $suggestion : null;
+        } else {
+            $pricing = app(PricingService::class)->computeAutoPrice($validated['destination'], $validated['required_truck_type']);
+        }
 
         $validated['company_id'] = $company->id;
         // Admin Shipments redesign (2026-08-24): same generation pattern as
@@ -130,11 +200,35 @@ class ShipmentOfferController extends Controller
 
         if ($pricing) {
             $validated['pricing_mode'] = 'auto';
-            $validated['price_to_driver'] = $pricing['price_to_driver'];
-            // Company-facing price defaults to the base (pre-margin) price;
-            // the company may raise it later via raisePrice(), never lower it.
-            $validated['price_to_client'] = $pricing['base_price'];
-            $validated['platform_margin_percent_snapshot'] = $pricing['margin_percent'];
+
+            if ($usingZonePricing) {
+                // Company chooses the client-facing price (design doc point
+                // 8) — server still computes price_to_driver from whatever
+                // that turns out to be, never from the (possibly stale)
+                // suggested price alone. A zero/omitted selection just
+                // means "use the suggestion as-is".
+                $marginPercent = (float) PlatformSetting::get('profit_margin_percent', '20');
+                $clientPrice = (! empty($validated['company_selected_price']))
+                    ? (float) $validated['company_selected_price']
+                    : (float) $pricing['suggested_price'];
+
+                $validated['price_to_client'] = $clientPrice;
+                $validated['price_to_driver'] = round($clientPrice - ($clientPrice * $marginPercent / 100), 2);
+                $validated['platform_margin_percent_snapshot'] = $marginPercent;
+                $validated['company_selected_price'] = $clientPrice;
+                $validated['pricing_reference'] = $pricing['reference_price'];
+                $validated['pricing_low'] = $pricing['suggested_low'];
+                $validated['pricing_high'] = $pricing['suggested_high'];
+                $validated['pricing_confidence'] = $pricing['confidence'];
+                $validated['pricing_level'] = $pricing['pricing_level'];
+                $validated['market_adjustment_snapshot'] = $pricing['market_adjustment_percent'];
+            } else {
+                $validated['price_to_driver'] = $pricing['price_to_driver'];
+                // Company-facing price defaults to the base (pre-margin) price;
+                // the company may raise it later via raisePrice(), never lower it.
+                $validated['price_to_client'] = $pricing['base_price'];
+                $validated['platform_margin_percent_snapshot'] = $pricing['margin_percent'];
+            }
 
             // Reserve the price against the company's available balance the
             // moment it's known, so a second offer created a second later
@@ -179,6 +273,71 @@ class ShipmentOfferController extends Controller
             'message' => 'Shipment offer created successfully',
             'offer' => $offer->fresh(),
         ], 201);
+    }
+
+    /**
+     * Smart Pricing Engine (2026-08-27): Step 3 of the Company
+     * Create-Shipment flow — shows a price suggestion BEFORE the company
+     * submits, so they can see/adjust "Your Price" ahead of time. This is
+     * purely informational: create() above always recomputes pricing
+     * server-side from the same inputs and never trusts anything the
+     * client sends back from this preview (see design doc point 36).
+     */
+    public function pricingPreview(Request $request)
+    {
+        $validated = $request->validate([
+            'origin_zone_id' => ['required', 'integer', 'exists:zones,id'],
+            'destination_zone_id' => ['required', 'integer', 'exists:zones,id'],
+            'required_truck_type' => ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
+        ]);
+
+        $suggestion = app(PricingService::class)->getPriceSuggestion(
+            $validated['origin_zone_id'],
+            $validated['destination_zone_id'],
+            $validated['required_truck_type'],
+        );
+
+        return response()->json(array_merge(
+            ['message' => $suggestion['matched'] ? 'Pricing suggestion retrieved successfully' : 'No historical pricing available for this lane'],
+            $suggestion,
+        ), 200);
+    }
+
+    /**
+     * Driver: explicitly passes on a matched offer, instead of just
+     * letting the batch time out. Distinguishing "declined" from
+     * "expired" matters for the driver-response dataset the design doc's
+     * point 26/41 asks for (future ranking/AI signal) — accept()/
+     * matchNextBatch() already record their own outcomes elsewhere.
+     * Deliberately does NOT advance the matching round early — the
+     * current batch still runs out its normal timeout, so a decline just
+     * removes this one offer from the driver's own list, exactly like an
+     * expiry would from their point of view.
+     */
+    public function decline(Request $request, ShipmentOffer $offer)
+    {
+        $driver = Driver::where('user_id', $request->user()->id)->first();
+
+        if (! $driver) {
+            return response()->json(['message' => 'Driver not found'], 404);
+        }
+
+        if (! in_array($driver->id, $offer->matched_driver_ids ?? [], true)) {
+            return response()->json(['message' => 'This offer was not sent to you'], 403);
+        }
+
+        \App\Models\ShipmentOfferDriverResponse::updateOrCreate(
+            ['shipment_offer_id' => $offer->id, 'driver_id' => $driver->id],
+            [
+                'origin_zone_id' => $offer->origin_zone_id,
+                'destination_zone_id' => $offer->destination_zone_id,
+                'price_to_driver_snapshot' => $offer->price_to_driver,
+                'result' => 'declined',
+                'response_at' => now(),
+            ],
+        );
+
+        return response()->json(['message' => 'Offer declined'], 200);
     }
 
     /**
@@ -628,9 +787,17 @@ class ShipmentOfferController extends Controller
             'origin' => $offer->origin,
             'origin_lat' => $offer->origin_lat,
             'origin_lng' => $offer->origin_lng,
+            'origin_country' => $offer->origin_country,
+            'origin_city' => $offer->origin_city,
+            'origin_zone_id' => $offer->origin_zone_id,
+            'origin_address' => $offer->origin_address,
             'destination' => $offer->destination,
             'destination_lat' => $offer->destination_lat,
             'destination_lng' => $offer->destination_lng,
+            'destination_country' => $offer->destination_country,
+            'destination_city' => $offer->destination_city,
+            'destination_zone_id' => $offer->destination_zone_id,
+            'destination_address' => $offer->destination_address,
             'weight' => $offer->weight,
             'description' => $offer->description,
             'needs_permit' => $offer->needs_permit,
@@ -639,6 +806,15 @@ class ShipmentOfferController extends Controller
             'order_type' => $offer->order_type,
             'price_to_driver' => $offer->price_to_driver,
             'price_to_client' => $offer->price_to_client,
+            // Zones / Smart Pricing Engine snapshot (2026-08-27) — carried
+            // over from the offer so the permanent Shipment record (what
+            // Reports/Finance actually read) keeps the same pricing
+            // context, not just the two final numbers with nothing behind
+            // them. See 2026_08_27_000005_add_zone_pricing_fields_to_shipments_table.php.
+            'pricing_reference' => $offer->pricing_reference,
+            'pricing_level' => $offer->pricing_level,
+            'market_adjustment_snapshot' => $offer->market_adjustment_snapshot,
+            'platform_margin_percent_snapshot' => $offer->platform_margin_percent_snapshot,
             'status' => 1, // assigned
         ]);
 
@@ -664,6 +840,13 @@ class ShipmentOfferController extends Controller
                 'accepted_by_driver_id' => $driver->id,
                 'resolved_at' => now(),
             ]);
+
+        // Driver-response dataset (2026-08-27) — mirrors the matching
+        // round close-out above, but per-driver (see decline()'s docblock).
+        \App\Models\ShipmentOfferDriverResponse::updateOrCreate(
+            ['shipment_offer_id' => $offer->id, 'driver_id' => $driver->id],
+            ['result' => \App\Models\ShipmentOfferDriverResponse::RESULT_ACCEPTED, 'response_at' => now()],
+        );
 
         // Company is only actually charged once the shipment is real (a
         // driver has committed to it) — NOT at offer creation, and not

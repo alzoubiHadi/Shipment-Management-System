@@ -26,9 +26,21 @@ class DriverFacingShipmentOfferResource extends JsonResource
             'origin' => $this->origin,
             'origin_lat' => $this->origin_lat,
             'origin_lng' => $this->origin_lng,
+            // Zones (2026-08-27) — route labels only (e.g. "JAFZA ->
+            // Riyadh"). Deliberately NO pricing_reference/pricing_low/
+            // pricing_high/pricing_confidence/market_adjustment here —
+            // the design doc is explicit that a driver never sees
+            // historical pricing, the company's price range, or a
+            // matching score, only their own pay.
+            'origin_country' => $this->origin_country,
+            'origin_city' => $this->origin_city,
+            'origin_zone_id' => $this->origin_zone_id,
             'destination' => $this->destination,
             'destination_lat' => $this->destination_lat,
             'destination_lng' => $this->destination_lng,
+            'destination_country' => $this->destination_country,
+            'destination_city' => $this->destination_city,
+            'destination_zone_id' => $this->destination_zone_id,
             'weight' => $this->weight,
             'description' => $this->description,
             'needs_permit' => $this->needs_permit,

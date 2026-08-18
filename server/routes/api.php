@@ -21,6 +21,7 @@ use App\Http\Controllers\ShipmentController;
 use App\Http\Controllers\ShipmentOfferController;
 use App\Http\Controllers\TruckController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ZoneController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -61,6 +62,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // valid external-destination strings, needed by the company's offer
     // creation form, not sensitive on its own.
     Route::get('/price-list/destinations', [PriceListController::class, 'destinationOptions']);
+    // Zones / Smart Pricing Engine (2026-08-27) — Admin Market Adjustment
+    // screen: view zone-based lanes and edit only their adjustment %.
+    Route::get('/price-list/zone-lanes', [PriceListController::class, 'zoneLanes'])->middleware('permission:finance');
+    Route::put('/price-list/zone-lanes/{entry}/market-adjustment', [PriceListController::class, 'updateMarketAdjustment'])->middleware('permission:finance');
     Route::get('/platform-settings', [PlatformSettingController::class, 'index'])->middleware('permission:finance');
     Route::put('/platform-settings/{key}', [PlatformSettingController::class, 'update'])->middleware('permission:finance');
 
@@ -182,13 +187,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/driver/{driver_user_id}/truck-documents', [TruckController::class, 'myTruckDocuments']);
     Route::post('/driver/{driver_user_id}/truck-documents', [TruckController::class, 'uploadMyTruckDocument']);
 
+    // Zones / Smart Pricing Engine (2026-08-27) — read-only lookup for the
+    // Company Create-Shipment Country -> City -> Zone pickers.
+    Route::get('/zones', [ZoneController::class, 'index']);
+    Route::get('/zones/countries', [ZoneController::class, 'countries']);
+
     // Shipment Offers — companies create these directly (UC-11)
     Route::get('/shipment-offers', [ShipmentOfferController::class, 'index']);
     Route::get('/my-shipment-offers', [ShipmentOfferController::class, 'myOffers']);
     Route::post('/shipment-offers', [ShipmentOfferController::class, 'create']);
+    // Server-side-only price preview shown before the company submits —
+    // never trusted as the final price; create() always recomputes.
+    Route::post('/shipment-offers/pricing-preview', [ShipmentOfferController::class, 'pricingPreview']);
     Route::get('/shipment-offers/{offer}/eligible-drivers', [ShipmentOfferController::class, 'eligibleDrivers']);
     Route::get('/driver/{driver_id}/available-offers', [ShipmentOfferController::class, 'availableForDriver']);
     Route::post('/shipment-offers/accept', [ShipmentOfferController::class, 'accept']);
+    // Driver explicitly passes on an offer — separate from letting the
+    // batch simply time out (see design doc point 25/41: accept/decline/
+    // expire are all recorded for future ranking/AI use).
+    Route::post('/shipment-offers/{offer}/decline', [ShipmentOfferController::class, 'decline']);
     Route::put('/shipment-offers/{offer}/cancel', [ShipmentOfferController::class, 'cancel']);
     Route::post('/shipment-offers/{offer}/manual-price', [ShipmentOfferController::class, 'manualPrice'])->middleware('permission:crm');
     Route::put('/shipment-offers/{offer}/raise-price', [ShipmentOfferController::class, 'raisePrice']);

@@ -137,14 +137,40 @@ class MatchingService
     }
 
     /**
+     * Zones (2026-08-27): maps a zone's raw `country` string (as stored in
+     * the zones table / shipment_offers.origin_country /destination_country
+     * — e.g. 'UAE', 'KSA', 'QATAR') to the DriverDestination::DESTINATIONS
+     * key a driver actually selects in their profile (e.g. 'internal_uae',
+     * 'saudi_arabia', 'qatar'). Only covers the 9 countries present in the
+     * real zones dataset — Egypt/Lebanon/Yemen still only exist via the
+     * legacy Destinations::CITY_TO_COUNTRY path below, since there is no
+     * zone data for them yet.
+     */
+    private const ZONE_COUNTRY_TO_DRIVER_KEY = [
+        'UAE' => 'internal_uae',
+        'KSA' => 'saudi_arabia',
+        'OMAN' => 'oman',
+        'KUWAIT' => 'kuwait',
+        'BAHRAIN' => 'bahrain',
+        'JORDAN' => 'jordan',
+        'SYRIA' => 'syria',
+        'IRAQ' => 'iraq',
+        'QATAR' => 'qatar',
+    ];
+
+    /**
      * Which DriverDestination country keys a driver must cover to be
-     * eligible for this offer. Origin is always the UAE — every company on
-     * the platform ships from a UAE base and shipment_offers has no
-     * origin_country column yet — so this is the same 'internal_uae' key
-     * already used for domestic matching, just also asserted as the
-     * "origin leg" for external offers. That means a cross-border trip
-     * (e.g. Dubai -> Riyadh) requires a driver to cover BOTH 'internal_uae'
-     * AND 'saudi_arabia', not just the destination country.
+     * eligible for this offer.
+     *
+     * Zones (2026-08-27): when the offer carries structured
+     * origin_country/destination_country (see
+     * 2026_08_27_000003_add_zone_pricing_fields_to_shipment_offers_table.php),
+     * those are mapped directly through ZONE_COUNTRY_TO_DRIVER_KEY —
+     * origin is no longer hard-assumed to always be the UAE. Falls back
+     * to the pre-Zones behavior (origin always 'internal_uae', destination
+     * resolved via the legacy Destinations::countryFor() string match) for
+     * any offer created without zone data, so nothing already in flight
+     * breaks.
      *
      * Public (not private) so ShipmentOfferController::accept() can run
      * this exact same check again at accept-time — defense in depth, since
@@ -153,6 +179,13 @@ class MatchingService
      */
     public function requiredCountriesFor(ShipmentOffer $offer): array
     {
+        if ($offer->origin_country && $offer->destination_country) {
+            $origin = self::ZONE_COUNTRY_TO_DRIVER_KEY[$offer->origin_country] ?? null;
+            $destination = self::ZONE_COUNTRY_TO_DRIVER_KEY[$offer->destination_country] ?? null;
+
+            return array_values(array_unique(array_filter([$origin, $destination])));
+        }
+
         $origin = 'internal_uae';
 
         $destination = $offer->order_type === 'internal'
@@ -165,18 +198,23 @@ class MatchingService
     /**
      * Step 2 — Ranking. Composite score in [0, 1] among drivers who already
      * passed Step 1 in full — truck type/documents/capacity are NOT part of
-     * this score, they're binary pass/fail gates above. Weighted mix:
-     * Proximity 40% + Rating 25% + Acceptance Reliability 15% +
-     * Fairness/Last Matched 10% + Route Experience 10% (all configurable
-     * via PlatformSetting, defaults shown here).
+     * this score, they're binary pass/fail gates above. Weighted mix
+     * (2026-08-27 rebalance — see 2026_08_27_000009_update_matching_weights_v1.php):
+     * Proximity 30% + Route/Zone Experience 25% + Rating 20% +
+     * Acceptance Reliability 15% + Fairness/Last Matched 10% (all
+     * configurable via PlatformSetting, defaults shown here match the
+     * migration's stored values). Proximity previously weighed more than
+     * route familiarity for international road freight, which the Zones
+     * feature's better route-experience signal (see routeExperienceScore()
+     * below) now makes worth correcting.
      */
     public function score(Driver $driver, ShipmentOffer $offer): float
     {
-        $wProximity = (float) PlatformSetting::get('matching_weight_proximity', '0.40');
-        $wRating = (float) PlatformSetting::get('matching_weight_rating', '0.25');
+        $wProximity = (float) PlatformSetting::get('matching_weight_proximity', '0.30');
+        $wRating = (float) PlatformSetting::get('matching_weight_rating', '0.20');
         $wAcceptance = (float) PlatformSetting::get('matching_weight_acceptance', '0.15');
         $wFairness = (float) PlatformSetting::get('matching_weight_fairness', '0.10');
-        $wRouteExperience = (float) PlatformSetting::get('matching_weight_route_experience', '0.10');
+        $wRouteExperience = (float) PlatformSetting::get('matching_weight_route_experience', '0.25');
 
         $proximityScore = $this->proximityScore($driver, $offer);
         $ratingScore = min(1.0, max(0.0, (float) $driver->rating / 5));
@@ -236,14 +274,49 @@ class MatchingService
     }
 
     /**
-     * How familiar this driver is with this exact destination, based on
-     * their own shipment history — 5+ prior trips there maxes out the
-     * score. A simple count rather than a status-filtered one on purpose:
-     * even an attempted/in-progress trip to a destination means the driver
-     * already knows the route, border crossing, drop-off point, etc.
+     * How familiar this driver is with this route, based on their own
+     * shipment history — 5+ prior trips maxes out the score. A simple
+     * count rather than a status-filtered one on purpose: even an
+     * attempted/in-progress trip means the driver already knows the
+     * route, border crossing, drop-off point, etc.
+     *
+     * Zones (2026-08-27) upgrade: prefers the exact origin-zone ->
+     * destination-zone lane (an "Ahmed has done JAFZA -> Riyadh 18 times"
+     * signal, much more specific than matching on destination alone),
+     * falling back to destination-zone-only, then destination-country,
+     * then the original plain destination-string match for any offer/
+     * shipment without zone data (nothing regresses for older records).
      */
     private function routeExperienceScore(Driver $driver, ShipmentOffer $offer): float
     {
+        if ($offer->destination_zone_id) {
+            if ($offer->origin_zone_id) {
+                $exactLaneTrips = $driver->shipments()
+                    ->where('origin_zone_id', $offer->origin_zone_id)
+                    ->where('destination_zone_id', $offer->destination_zone_id)
+                    ->count();
+                if ($exactLaneTrips > 0) {
+                    return min(1.0, $exactLaneTrips / 5);
+                }
+            }
+
+            $destinationZoneTrips = $driver->shipments()
+                ->where('destination_zone_id', $offer->destination_zone_id)
+                ->count();
+            if ($destinationZoneTrips > 0) {
+                return min(1.0, $destinationZoneTrips / 5);
+            }
+
+            if ($offer->destination_country) {
+                $countryTrips = $driver->shipments()
+                    ->where('destination_country', $offer->destination_country)
+                    ->count();
+                if ($countryTrips > 0) {
+                    return min(1.0, $countryTrips / 5);
+                }
+            }
+        }
+
         $priorTrips = $driver->shipments()->where('destination', $offer->destination)->count();
 
         return min(1.0, $priorTrips / 5);
@@ -275,6 +348,16 @@ class MatchingService
             ->where('outcome', ShipmentOfferMatchingRound::OUTCOME_WAITING)
             ->update(['outcome' => ShipmentOfferMatchingRound::OUTCOME_NO_ACCEPTANCE, 'resolved_at' => now()]);
 
+        // Driver-response dataset (2026-08-27, design doc point 26/41):
+        // anyone still 'pending' from the round just closed above timed
+        // out without responding — record that explicitly rather than
+        // leaving it ambiguous. A driver who called decline() already
+        // moved their own row to 'declined' before this point, so this
+        // only ever touches genuinely non-responsive drivers.
+        \App\Models\ShipmentOfferDriverResponse::where('shipment_offer_id', $offer->id)
+            ->where('result', \App\Models\ShipmentOfferDriverResponse::RESULT_PENDING)
+            ->update(['result' => \App\Models\ShipmentOfferDriverResponse::RESULT_EXPIRED, 'response_at' => now()]);
+
         $candidates = $this->eligibleDriversQuery($offer)
             ->whereNotIn('id', $alreadyNotified)
             ->get();
@@ -294,6 +377,7 @@ class MatchingService
         $newlyMatched = $ranked->pluck('driver');
         $newIds = $newlyMatched->pluck('id')->all();
         $newRoundNumber = $offer->matching_round + 1;
+        $sentAt = now();
 
         $offer->update([
             'matched_driver_ids' => array_values(array_unique(array_merge($offer->matched_driver_ids ?? [], $newIds))),
@@ -305,13 +389,28 @@ class MatchingService
             'shipment_offer_id' => $offer->id,
             'round_number' => $newRoundNumber,
             'driver_ids' => $newIds,
-            'notified_at' => now(),
+            'notified_at' => $sentAt,
             'outcome' => ShipmentOfferMatchingRound::OUTCOME_WAITING,
         ]);
 
-        foreach ($newlyMatched as $driver) {
+        foreach ($ranked as $entry) {
+            $driver = $entry['driver'];
             $driver->increment('offers_received_count');
             $driver->update(['last_matched_at' => now()]);
+
+            \App\Models\ShipmentOfferDriverResponse::updateOrCreate(
+                ['shipment_offer_id' => $offer->id, 'driver_id' => $driver->id],
+                [
+                    'matching_round' => $newRoundNumber,
+                    'matching_score' => $entry['score'],
+                    'price_to_driver_snapshot' => $offer->price_to_driver,
+                    'origin_zone_id' => $offer->origin_zone_id,
+                    'destination_zone_id' => $offer->destination_zone_id,
+                    'sent_at' => $sentAt,
+                    'response_at' => null,
+                    'result' => \App\Models\ShipmentOfferDriverResponse::RESULT_PENDING,
+                ],
+            );
 
             if ($driver->user) {
                 $driver->user->notify(new AppPushNotification(

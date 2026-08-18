@@ -222,6 +222,13 @@ class AdminShipmentController extends Controller
             'order_type' => $orderType,
             'origin' => $shipment->origin,
             'destination' => $shipment->destination,
+            // Zones / Smart Pricing Engine (2026-08-27) — route context for
+            // the Admin Matching/Trip screens; null for legacy shipments
+            // created before the zone-based flow existed.
+            'origin_country' => $shipment->origin_country,
+            'origin_city' => $shipment->origin_city,
+            'destination_country' => $shipment->destination_country,
+            'destination_city' => $shipment->destination_city,
             'origin_lat' => $shipment->origin_lat,
             'origin_lng' => $shipment->origin_lng,
             'destination_lat' => $shipment->destination_lat,
@@ -263,6 +270,16 @@ class AdminShipmentController extends Controller
                 'commission' => ($shipment->price_to_client !== null && $shipment->price_to_driver !== null)
                     ? round((float) $shipment->price_to_client - (float) $shipment->price_to_driver, 2)
                     : null,
+                // Zones / Smart Pricing Engine snapshot (2026-08-27) — the
+                // historical reference/range/confidence shown to the company
+                // at creation time, kept for admin audit ("was this priced
+                // fairly against history"). Null for legacy/manual-priced
+                // shipments.
+                'pricing_reference' => $shipment->pricing_reference,
+                'pricing_low' => $shipment->pricing_low,
+                'pricing_high' => $shipment->pricing_high,
+                'pricing_confidence' => $shipment->pricing_confidence,
+                'market_adjustment_snapshot' => $shipment->market_adjustment_snapshot,
             ],
             'delivery_status' => $shipment->delivery_status,
             // 2026-08-25: pod_document_path (photo/file) is the current
@@ -310,6 +327,10 @@ class AdminShipmentController extends Controller
             'order_type' => $offer->order_type,
             'origin' => $offer->origin,
             'destination' => $offer->destination,
+            'origin_country' => $offer->origin_country,
+            'origin_city' => $offer->origin_city,
+            'destination_country' => $offer->destination_country,
+            'destination_city' => $offer->destination_city,
             'weight' => $offer->weight,
             'required_truck_type' => $offer->required_truck_type,
             'company' => $offer->company ? [
@@ -323,6 +344,13 @@ class AdminShipmentController extends Controller
             'financial' => [
                 'price_to_client' => $offer->price_to_client,
                 'price_to_driver' => $offer->price_to_driver,
+                // Zones / Smart Pricing Engine snapshot (2026-08-27) — see
+                // the matching docblock note on detailForShipment() above.
+                'pricing_reference' => $offer->pricing_reference,
+                'pricing_low' => $offer->pricing_low,
+                'pricing_high' => $offer->pricing_high,
+                'pricing_confidence' => $offer->pricing_confidence,
+                'market_adjustment_snapshot' => $offer->market_adjustment_snapshot,
             ],
             'cancellation' => $offer->status === 'cancelled' ? [
                 'reason' => $offer->cancellation_reason,

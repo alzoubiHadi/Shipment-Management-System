@@ -6,6 +6,26 @@ class ShipmentOffer {
   final double? originLat;
   final double? originLng;
   final String destination;
+  // Zones / Smart Pricing Engine (2026-08-27) — structured route fields,
+  // present on both the company- and driver-facing JSON once an offer was
+  // created through the zone-based flow; null for older/legacy offers.
+  // pricing* fields are only ever present on the company-facing resource —
+  // DriverFacingShipmentOfferResource deliberately omits them (a driver
+  // never sees historical pricing/range/confidence), so they simply parse
+  // as null for a driver's own offer list.
+  final String? originCountry;
+  final String? originCity;
+  final int? originZoneId;
+  final String? originAddress;
+  final String? destinationCountry;
+  final String? destinationCity;
+  final int? destinationZoneId;
+  final String? destinationAddress;
+  final double? pricingReference;
+  final double? pricingLow;
+  final double? pricingHigh;
+  final String? pricingConfidence;
+  final String? pricingLevel;
   final String weight;
   final String description;
   final bool needsPermit;
@@ -28,6 +48,19 @@ class ShipmentOffer {
     required this.origin,
     this.originLat,
     this.originLng,
+    this.originCountry,
+    this.originCity,
+    this.originZoneId,
+    this.originAddress,
+    this.destinationCountry,
+    this.destinationCity,
+    this.destinationZoneId,
+    this.destinationAddress,
+    this.pricingReference,
+    this.pricingLow,
+    this.pricingHigh,
+    this.pricingConfidence,
+    this.pricingLevel,
     required this.destination,
     required this.weight,
     required this.description,
@@ -47,6 +80,7 @@ class ShipmentOffer {
   bool get isAwaitingManualPrice => status == 'awaiting_manual_price';
   bool get isEscalated => status == 'escalated';
   bool get isPending => status == 'pending';
+  bool get hasZoneRoute => originZoneId != null && destinationZoneId != null;
 
   factory ShipmentOffer.fromJson(Map<String, dynamic> json) {
     bool asBool(dynamic v) => v == true || v == 1 || v == '1';
@@ -58,6 +92,19 @@ class ShipmentOffer {
       origin: json['origin']?.toString() ?? '',
       originLat: json['origin_lat'] != null ? double.tryParse(json['origin_lat'].toString()) : null,
       originLng: json['origin_lng'] != null ? double.tryParse(json['origin_lng'].toString()) : null,
+      originCountry: json['origin_country']?.toString(),
+      originCity: json['origin_city']?.toString(),
+      originZoneId: json['origin_zone_id'] is int ? json['origin_zone_id'] : int.tryParse(json['origin_zone_id']?.toString() ?? ''),
+      originAddress: json['origin_address']?.toString(),
+      destinationCountry: json['destination_country']?.toString(),
+      destinationCity: json['destination_city']?.toString(),
+      destinationZoneId: json['destination_zone_id'] is int ? json['destination_zone_id'] : int.tryParse(json['destination_zone_id']?.toString() ?? ''),
+      destinationAddress: json['destination_address']?.toString(),
+      pricingReference: json['pricing_reference'] != null ? double.tryParse(json['pricing_reference'].toString()) : null,
+      pricingLow: json['pricing_low'] != null ? double.tryParse(json['pricing_low'].toString()) : null,
+      pricingHigh: json['pricing_high'] != null ? double.tryParse(json['pricing_high'].toString()) : null,
+      pricingConfidence: json['pricing_confidence']?.toString(),
+      pricingLevel: json['pricing_level']?.toString(),
       destination: json['destination']?.toString() ?? '',
       weight: json['weight']?.toString() ?? '',
       description: json['description']?.toString() ?? '',

@@ -23,7 +23,83 @@ class PriceListController extends Controller
     {
         return response()->json([
             'message' => 'Price list retrieved successfully',
-            'entries' => PriceListEntry::orderBy('destination')->orderBy('truck_type')->get(),
+            // Zones (2026-08-27) bug fix: the 737-row zone-lane seed
+            // (2026_08_27_000006) leaves `destination` null on every row it
+            // creates, so an unscoped query here would flood this legacy
+            // screen with hundreds of blank-destination rows alongside the
+            // real destination x truck_type matrix. Scope to legacy rows
+            // only — zone-based lanes have their own listing, see
+            // zoneLanes() below.
+            'entries' => PriceListEntry::whereNotNull('destination')->orderBy('destination')->orderBy('truck_type')->get(),
+        ], 200);
+    }
+
+    /**
+     * Zones / Smart Pricing Engine (2026-08-27): searchable, paginated
+     * listing of the zone-based lanes (origin_zone_id + destination_zone_id
+     * + truck_type -> historical pricing) for the Admin "Market Adjustment"
+     * screen — see design doc points 12/32-33. Unlike the legacy CSV
+     * import/export flow above, this is a live per-row editor: admins may
+     * only ever change market_adjustment_percent (see
+     * updateMarketAdjustment() below), never the historical reference_price
+     * itself.
+     */
+    public function zoneLanes(Request $request)
+    {
+        $query = PriceListEntry::whereNotNull('origin_zone_id')
+            ->whereNotNull('destination_zone_id')
+            ->with(['originZone', 'destinationZone']);
+
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('truck_type', 'like', "%{$search}%")
+                    ->orWhereHas('originZone', function ($z) use ($search) {
+                        $z->where('name', 'like', "%{$search}%")
+                            ->orWhere('city', 'like', "%{$search}%")
+                            ->orWhere('country', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('destinationZone', function ($z) use ($search) {
+                        $z->where('name', 'like', "%{$search}%")
+                            ->orWhere('city', 'like', "%{$search}%")
+                            ->orWhere('country', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $entries = $query->orderByDesc('historical_trip_count')->paginate(30)->withQueryString();
+
+        return response()->json([
+            'message' => 'Zone pricing lanes retrieved successfully',
+            'entries' => $entries->items(),
+            'current_page' => $entries->currentPage(),
+            'last_page' => $entries->lastPage(),
+            'total' => $entries->total(),
+        ], 200);
+    }
+
+    /**
+     * Zones / Smart Pricing Engine (2026-08-27): the ONLY field an admin
+     * may edit on a zone-based lane. reference_price/suggested_low/
+     * suggested_high are historical fact, recomputed only by re-running the
+     * data import — see PriceListEntry::adjustedSuggestedPrice() and the
+     * design doc's explicit rule not to mix the two.
+     */
+    public function updateMarketAdjustment(Request $request, PriceListEntry $entry)
+    {
+        if (! $entry->origin_zone_id || ! $entry->destination_zone_id) {
+            return response()->json(['message' => 'This entry is not a zone-based lane'], 422);
+        }
+
+        $validated = $request->validate([
+            'market_adjustment_percent' => ['required', 'numeric', 'between:-100,100'],
+        ]);
+
+        $entry->update(['market_adjustment_percent' => $validated['market_adjustment_percent']]);
+
+        return response()->json([
+            'message' => 'Market adjustment updated successfully',
+            'entry' => $entry->fresh(['originZone', 'destinationZone']),
         ], 200);
     }
 

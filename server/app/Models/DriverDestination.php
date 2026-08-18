@@ -26,6 +26,10 @@ class DriverDestination extends Model
         'egypt' => 'Egypt',
         'iraq' => 'Iraq',
         'yemen' => 'Yemen',
+        // Added 2026-08-27 for Zones/Smart Pricing — the real historical
+        // lane data (FMS_Pricing_Data_FINAL.xlsx) includes UAE<->Qatar
+        // routes, which had no country key here at all before.
+        'qatar' => 'Qatar',
     ];
 
     protected $fillable = [

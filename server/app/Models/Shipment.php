@@ -17,9 +17,17 @@ class Shipment extends Model
         'origin',
         'origin_lat',
         'origin_lng',
+        'origin_country',
+        'origin_city',
+        'origin_zone_id',
+        'origin_address',
         'destination',
         'destination_lat',
         'destination_lng',
+        'destination_country',
+        'destination_city',
+        'destination_zone_id',
+        'destination_address',
         'weight',
         'description',
         'needs_permit',
@@ -28,6 +36,13 @@ class Shipment extends Model
         'order_type',
         'price_to_driver',
         'price_to_client',
+        // Zones / Smart Pricing Engine snapshot (2026-08-27), copied from
+        // the accepted ShipmentOffer in ShipmentOfferController::
+        // finalizeAcceptance() — see 2026_08_27_000005_add_zone_pricing_fields_to_shipments_table.php
+        'pricing_reference',
+        'pricing_level',
+        'market_adjustment_snapshot',
+        'platform_margin_percent_snapshot',
         'status',
         'cancellation_reason',
         'cancelled_by_user_id',
@@ -70,6 +85,9 @@ class Shipment extends Model
         'origin_lng' => 'decimal:7',
         'destination_lat' => 'decimal:7',
         'destination_lng' => 'decimal:7',
+        'pricing_reference' => 'decimal:2',
+        'market_adjustment_snapshot' => 'decimal:2',
+        'platform_margin_percent_snapshot' => 'decimal:2',
     ];
 
     /**
@@ -169,6 +187,16 @@ class Shipment extends Model
     public function offer()
     {
         return $this->belongsTo(ShipmentOffer::class, 'shipment_offer_id');
+    }
+
+    public function originZone()
+    {
+        return $this->belongsTo(Zone::class, 'origin_zone_id');
+    }
+
+    public function destinationZone()
+    {
+        return $this->belongsTo(Zone::class, 'destination_zone_id');
     }
 
     public function companyConfirmedBy()

@@ -140,6 +140,20 @@ class _TripReportScreenState extends State<TripReportScreen> {
               MapEntry('Driver Price', financial['price_to_driver']?.toString() ?? '—'),
               MapEntry('Commission', financial['commission']?.toString() ?? '—'),
             ]),
+          // Zones / Smart Pricing Engine snapshot (2026-08-27) — only
+          // present on shipments created through the zone-based flow; the
+          // historical reference this was priced against, for audit.
+          if (financial != null && financial['pricing_reference'] != null) ...[
+            const SizedBox(height: 16),
+            _InfoCard(title: 'Pricing Reference (Smart Pricing Engine)', rows: [
+              MapEntry('Historical reference', 'AED ${financial['pricing_reference']}'),
+              if (financial['pricing_low'] != null && financial['pricing_high'] != null)
+                MapEntry('Typical range', 'AED ${financial['pricing_low']} – ${financial['pricing_high']}'),
+              if (financial['pricing_confidence'] != null) MapEntry('Confidence', financial['pricing_confidence'].toString()),
+              if (financial['market_adjustment_snapshot'] != null)
+                MapEntry('Market adjustment applied', '${financial['market_adjustment_snapshot']}%'),
+            ]),
+          ],
         ],
       ),
     );

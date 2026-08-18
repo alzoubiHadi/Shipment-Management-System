@@ -6,6 +6,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ShipmentOffer.dart';
 import 'config.dart';
 
+/// Zones / Smart Pricing Engine (2026-08-27) — a single zone row from
+/// `GET /zones`, used to build the Company Create-Shipment flow's cascading
+/// Country -> City -> Zone pickers (see ZonePricingMatchingTest.php on the
+/// backend for the shape this mirrors).
+class ZoneOption {
+  final int id;
+  final String country;
+  final String? city;
+  final String name;
+
+  ZoneOption({required this.id, required this.country, this.city, required this.name});
+
+  factory ZoneOption.fromJson(Map<String, dynamic> json) {
+    return ZoneOption(
+      id: json['id'] as int,
+      country: json['country'] as String,
+      city: json['city'] as String?,
+      name: json['name'] as String,
+    );
+  }
+
+  /// e.g. "JAFZA, Dubai" — matches the display-snapshot format the backend
+  /// docblocks describe ("JAFZA, Dubai, UAE" once the country is appended).
+  String get label => city != null && city!.isNotEmpty ? '$name, $city' : name;
+}
+
 class ShipmentOfferService {
   Future<Map<String, String>> _authHeaders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -90,10 +116,71 @@ class ShipmentOfferService {
     throw Exception('Failed to load destinations (HTTP ${response.statusCode})');
   }
 
+  // ── Zones / Smart Pricing Engine (2026-08-27) ───────────────────────────
+  // Any authenticated user: full active-zone list for the Country -> City ->
+  // Zone pickers. A few hundred rows, cheap enough not to paginate (mirrors
+  // fetchExternalDestinations()'s pattern above) — the Flutter side groups
+  // by country/city client-side.
+  static Future<List<ZoneOption>> fetchZones() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/zones'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return (data['zones'] as List).map((e) => ZoneOption.fromJson(e)).toList();
+    }
+    throw Exception('Failed to load zones (HTTP ${response.statusCode})');
+  }
+
+  // Company: preview the auto-computed price for a lane before submitting
+  // (Step 3 of the Create-Shipment wizard) — purely informational, the
+  // server always recomputes this again at submit time in createOffer().
+  static Future<Map<String, dynamic>> fetchPricingPreview({
+    required int originZoneId,
+    required int destinationZoneId,
+    required String requiredTruckType,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/shipment-offers/pricing-preview'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'origin_zone_id': originZoneId,
+          'destination_zone_id': destinationZoneId,
+          'required_truck_type': requiredTruckType,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, ...data};
+      }
+      return {'success': false, 'message': data['message'] ?? 'Server Error (${response.statusCode})'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ── Company: create a new offer (self-service, UC-11) ──────────────────
   // Pricing is fully automatic (or falls back to manual review) — no price
-  // fields are sent here, and there is no company picker: the backend
-  // resolves the company from the authenticated user.
+  // fields are required here (company_selected_price is optional, only
+  // meaningful on the new zone-based path), and there is no company picker:
+  // the backend resolves the company from the authenticated user.
   static Future<Map<String, dynamic>> createOffer({
     required String origin,
     required String destination,
@@ -106,6 +193,17 @@ class ShipmentOfferService {
     required bool isFragile,
     required String orderType, // 'internal' or 'external'
     required String requiredTruckType,
+    // Zones / Smart Pricing Engine (2026-08-27) — all optional so this
+    // method still works for any caller that hasn't adopted zone pickers.
+    String? originCountry,
+    String? originCity,
+    int? originZoneId,
+    String? originAddress,
+    String? destinationCountry,
+    String? destinationCity,
+    int? destinationZoneId,
+    String? destinationAddress,
+    double? companySelectedPrice,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -130,6 +228,15 @@ class ShipmentOfferService {
           'is_fragile': isFragile,
           'order_type': orderType,
           'required_truck_type': requiredTruckType,
+          'origin_country': originCountry,
+          'origin_city': originCity,
+          'origin_zone_id': originZoneId,
+          'origin_address': originAddress,
+          'destination_country': destinationCountry,
+          'destination_city': destinationCity,
+          'destination_zone_id': destinationZoneId,
+          'destination_address': destinationAddress,
+          'company_selected_price': companySelectedPrice,
         }),
       );
 
@@ -327,6 +434,34 @@ class ShipmentOfferService {
 
       return {
         'success': false,
+        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Driver: explicitly pass on a matched offer ──────────────────────────
+  // Distinct from letting the batch time out — see
+  // ShipmentOfferController::decline() on the server.
+  static Future<Map<String, dynamic>> declineOffer(int offerId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/shipment-offers/$offerId/decline'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      return {
+        'success': response.statusCode == 200,
         'message': data['message'] ?? 'Server Error (${response.statusCode})',
       };
     } catch (e) {

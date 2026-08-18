@@ -114,6 +114,8 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
     final eligibleCount = offer['eligible_drivers_count'];
     final offersSent = rounds.fold<int>(0, (sum, r) => sum + ((r['driver_count'] as int?) ?? 0));
     final cancellation = offer['cancellation'] as Map<String, dynamic>?;
+    final financial = offer['financial'] as Map<String, dynamic>?;
+    final pricingReference = financial?['pricing_reference'];
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -132,6 +134,21 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
           if (company != null) ...[
             const SizedBox(height: 4),
             Text(company['name']?.toString() ?? '', style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
+          ],
+          if (offer['origin_country'] != null && offer['destination_country'] != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.pin_drop_outlined, size: 13, color: LightColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  '${[offer['origin_city'], offer['origin_country']].where((s) => s != null && s.toString().isNotEmpty).join(', ')}'
+                  ' → '
+                  '${[offer['destination_city'], offer['destination_country']].where((s) => s != null && s.toString().isNotEmpty).join(', ')}',
+                  style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
+                ),
+              ],
+            ),
           ],
           const SizedBox(height: 24),
           if (offer['status'] == 'pending') ...[
@@ -168,6 +185,18 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
               MapEntry('Reason', cancellation['reason']?.toString() ?? '—'),
               MapEntry('Cancelled by', cancellation['cancelled_by']?.toString() ?? '—'),
               MapEntry('Cancelled at', _fmt(cancellation['cancelled_at'])),
+            ]),
+          ],
+          if (pricingReference != null) ...[
+            const SizedBox(height: 16),
+            _InfoCard(title: 'Pricing Reference (Smart Pricing Engine)', rows: [
+              MapEntry('Historical reference', 'AED ${pricingReference.toString()}'),
+              if (financial?['pricing_low'] != null && financial?['pricing_high'] != null)
+                MapEntry('Typical range', 'AED ${financial!['pricing_low']} – ${financial['pricing_high']}'),
+              if (financial?['pricing_confidence'] != null) MapEntry('Confidence', financial!['pricing_confidence'].toString()),
+              if (financial?['market_adjustment_snapshot'] != null)
+                MapEntry('Market adjustment applied', '${financial!['market_adjustment_snapshot']}%'),
+              MapEntry('Company was charged', financial?['price_to_client'] != null ? 'AED ${financial!['price_to_client']}' : '—'),
             ]),
           ],
           const SizedBox(height: 24),

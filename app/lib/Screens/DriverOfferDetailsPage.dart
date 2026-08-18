@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
 import '../models/ShipmentOffer.dart';
 import '../utils/offer_accept_flow.dart';
@@ -23,6 +24,7 @@ class DriverOfferDetailsPage extends StatefulWidget {
 class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
   bool _saved = false;
   bool _accepting = false;
+  bool _declining = false;
 
   @override
   void initState() {
@@ -43,6 +45,36 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
     if (!mounted) return;
     setState(() => _accepting = false);
     if (ok) Navigator.pop(context, true);
+  }
+
+  Future<void> _decline() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LightColors.surface,
+        title: const Text('Decline this offer?', style: TextStyle(color: LightColors.cream)),
+        content: const Text('You won\'t be matched with this shipment again unless it\'s re-offered.',
+            style: TextStyle(color: LightColors.muted)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Decline', style: TextStyle(color: LightColors.error))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _declining = true);
+    final result = await ShipmentOfferService.declineOffer(widget.offer.id);
+    if (!mounted) return;
+    setState(() => _declining = false);
+
+    if (result['success'] == true) {
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? 'Failed to decline offer'), backgroundColor: LightColors.error),
+      );
+    }
   }
 
   @override
@@ -88,6 +120,8 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
             title: 'Load Information',
             rows: [
               ('Order Type', offer.orderType == 'internal' ? 'Domestic' : 'Cross-border'),
+              if (offer.hasZoneRoute) ('Pickup Zone', [offer.originCity, offer.originCountry].where((s) => s != null && s.isNotEmpty).join(', ')),
+              if (offer.hasZoneRoute) ('Drop-off Zone', [offer.destinationCity, offer.destinationCountry].where((s) => s != null && s.isNotEmpty).join(', ')),
               ('Truck Type', offer.requiredTruckType.isEmpty ? '—' : offer.requiredTruckType),
               ('Weight', offer.weight.isEmpty ? '—' : '${offer.weight} kg'),
               if (requirements.isNotEmpty) ('Requirements', requirements.join(', ')),
@@ -108,14 +142,14 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
             highlightValue: true,
           ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
                   onPressed: _toggleSave,
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     side: const BorderSide(color: LightColors.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -124,20 +158,34 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _accepting ? null : _accept,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: LightColors.gold,
+                child: OutlinedButton(
+                  onPressed: _declining ? null : _decline,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: const BorderSide(color: LightColors.error),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: _accepting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy))
-                      : const Text('Accept Shipment', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w700)),
+                  child: _declining
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.error))
+                      : const Text('Decline', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _accepting ? null : _accept,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: LightColors.gold,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _accepting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy))
+                  : const Text('Accept Shipment', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w700)),
+            ),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../API/config.dart';
 import 'AdminFinancePage.dart';
 import 'AdminProfileEditRequestsPage.dart';
+import 'AdminZonePricingPage.dart';
 import 'DeletedDrivers.dart';
 import 'Deletedcompanies.dart';
 import 'PriceListAdminPage.dart';
@@ -72,6 +73,16 @@ class AdminSettingsPage extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PriceListAdminPage()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            icon: Icons.auto_graph_outlined,
+            title: 'Zone Pricing',
+            subtitle: 'Smart Pricing Engine: review historical lanes, adjust market %',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminZonePricingPage()),
             ),
           ),
           const SizedBox(height: 28),
