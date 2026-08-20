@@ -23,7 +23,7 @@ class UserController extends Controller
      * create their own account this way — the admin never creates a
      * company's or a driver's account. Every driver is an independent
      * operator who owns their own truck(s); there is no platform-owning
-     * company anymore, so no "internal fleet" distinction exists.
+     * company, so no "internal fleet" distinction exists.
      *
      * This does NOT log the user in yet: the account is created with
      * email_verified_at = null and a fresh OTP is sent (UC-4). The account
@@ -31,11 +31,9 @@ class UserController extends Controller
      * still needs Super Admin final approval (approval_status stays
      * 'pending' — see DriverController/CompanyController::approve()).
      *
-     * For drivers, the truck IS now collected here too (per the revised
-     * sign-up UX: one form, two sections — driver info then truck info) —
-     * a departure from the original design where a truck was always added
-     * later from the driver's own account (TruckController::addMyTruck
-     * still exists unchanged for adding further/replacement trucks).
+     * For drivers, the truck is collected in the same form: one submission,
+     * two sections — driver info then truck info. TruckController::addMyTruck
+     * remains available for adding further or replacement trucks later.
      */
     public function register(Request $request)
     {
@@ -48,15 +46,13 @@ class UserController extends Controller
             ], 422);
         }
 
-        // Case-insensitivity fix (2026-08-25): normalize BEFORE validate()
-        // runs, since the 'unique:users,email' rule below does an exact
-        // string match against the DB — without this, "New@Example.com"
-        // would sail past the uniqueness check against an existing
-        // "new@example.com" row (Postgres compares case-sensitively), only
-        // to then collide with users.email's real unique constraint the
-        // instant User::create() below tries to insert it (already
-        // lowercased by the model mutator) — a 500 instead of the correct
-        // 422 "already taken" response.
+        // Normalize BEFORE validate() runs, since the 'unique:users,email'
+        // rule below does an exact string match against the DB — without
+        // this, "New@Example.com" would sail past the uniqueness check
+        // against an existing "new@example.com" row (Postgres compares
+        // case-sensitively), only to then collide with users.email's real
+        // unique constraint when User::create() below inserts it already
+        // lowercased by the model mutator.
         if ($request->filled('email')) {
             $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
         }
@@ -74,17 +70,16 @@ class UserController extends Controller
             $rules['age'] = ['required', 'integer', 'min:18', 'max:65'];
             $rules['nationality'] = ['required', 'string', 'max:100'];
 
-            // Driver documents — all three collected up front now (the
-            // revised sign-up form), rather than deferred to UC-8.
+            // Driver documents — all three collected up front at sign-up,
+            // rather than deferred to UC-8.
             $rules['license_file'] = ['required', 'file', 'max:10240'];
             $rules['license_expiry'] = ['required', 'date'];
             $rules['passport_file'] = ['required', 'file', 'max:10240'];
             $rules['passport_expiry'] = ['required', 'date'];
             $rules['residency_file'] = ['required', 'file', 'max:10240'];
             $rules['residency_expiry'] = ['required', 'date'];
-            // New-registration-design batch (2026-08-19): license back side
-            // and a driver photo, both optional so older app builds that
-            // don't send them still work.
+            // License back side and a driver photo, both optional so older
+            // app builds that don't send them still work.
             $rules['license_back_file'] = ['nullable', 'file', 'max:10240'];
             $rules['driver_photo_file'] = ['nullable', 'file', 'max:10240'];
 
@@ -100,9 +95,9 @@ class UserController extends Controller
             $rules['truck_license_file'] = ['required', 'file', 'max:10240'];
             $rules['truck_license_expiry'] = ['nullable', 'date'];
             $rules['permit_type'] = ['nullable', 'string', 'max:255'];
-            // New-registration-design batch: insurance + technical
-            // inspection, both optional at registration (can still be added
-            // later via the driver's own truck-edit path).
+            // Insurance + technical inspection, both optional at
+            // registration (can still be added later via the driver's own
+            // truck-edit path).
             $rules['truck_insurance_file'] = ['nullable', 'file', 'max:10240'];
             $rules['truck_insurance_expiry'] = ['nullable', 'date'];
             $rules['truck_inspection_file'] = ['nullable', 'file', 'max:10240'];
@@ -140,33 +135,33 @@ class UserController extends Controller
         $truckInspectionFilePath = null;
 
         if ($type === 'company' && $request->hasFile('license_file')) {
-            $licenseFilePath = $request->file('license_file')->store('company_licenses', 'public');
+            $licenseFilePath = $request->file('license_file')->store('company_licenses', 'local');
         }
 
         if ($type === 'driver') {
             if ($request->hasFile('license_file')) {
-                $driverLicenseFilePath = $request->file('license_file')->store('driver_documents', 'public');
+                $driverLicenseFilePath = $request->file('license_file')->store('driver_documents', 'local');
             }
             if ($request->hasFile('passport_file')) {
-                $passportFilePath = $request->file('passport_file')->store('driver_documents', 'public');
+                $passportFilePath = $request->file('passport_file')->store('driver_documents', 'local');
             }
             if ($request->hasFile('residency_file')) {
-                $residencyFilePath = $request->file('residency_file')->store('driver_documents', 'public');
+                $residencyFilePath = $request->file('residency_file')->store('driver_documents', 'local');
             }
             if ($request->hasFile('license_back_file')) {
-                $licenseBackFilePath = $request->file('license_back_file')->store('driver_documents', 'public');
+                $licenseBackFilePath = $request->file('license_back_file')->store('driver_documents', 'local');
             }
             if ($request->hasFile('driver_photo_file')) {
-                $driverPhotoFilePath = $request->file('driver_photo_file')->store('driver_documents', 'public');
+                $driverPhotoFilePath = $request->file('driver_photo_file')->store('driver_documents', 'local');
             }
             if ($request->hasFile('truck_license_file')) {
-                $truckLicenseFilePath = $request->file('truck_license_file')->store('truck_licenses', 'public');
+                $truckLicenseFilePath = $request->file('truck_license_file')->store('truck_licenses', 'local');
             }
             if ($request->hasFile('truck_insurance_file')) {
-                $truckInsuranceFilePath = $request->file('truck_insurance_file')->store('truck_insurance', 'public');
+                $truckInsuranceFilePath = $request->file('truck_insurance_file')->store('truck_insurance', 'local');
             }
             if ($request->hasFile('truck_inspection_file')) {
-                $truckInspectionFilePath = $request->file('truck_inspection_file')->store('truck_inspections', 'public');
+                $truckInspectionFilePath = $request->file('truck_inspection_file')->store('truck_inspections', 'local');
             }
         }
 
@@ -305,10 +300,9 @@ class UserController extends Controller
             'otp_code' => ['required', 'string'],
         ]);
 
-        // Case-insensitivity fix (2026-08-25): stored emails are always
-        // lowercase now (see User::setEmailAttribute()); normalize the
-        // lookup value the same way so a different capitalization at
-        // verify-otp time than at registration time still matches.
+        // Stored emails are always lowercase (see User::setEmailAttribute());
+        // normalize the lookup value the same way so a different
+        // capitalization at verify-otp time still matches.
         $user = User::where('email', User::normalizeEmail($validated['email']))->first();
 
         if (! $user) {
@@ -368,7 +362,7 @@ class UserController extends Controller
     {
         $validated = $request->validate(['email' => ['required', 'email']]);
 
-        // Case-insensitivity fix (2026-08-25) — same reasoning as verifyOtp() above.
+        // Normalize the lookup the same way as verifyOtp() above.
         $user = User::where('email', User::normalizeEmail($validated['email']))->first();
 
         if (! $user) {
@@ -388,11 +382,8 @@ class UserController extends Controller
 
     public function login(Request $request)
     {
-        // Case-insensitivity fix (2026-08-25): this is the endpoint the
-        // original bug report was about — a user typing their email with
-        // different capitalization than they registered with got "Invalid
-        // credentials" even with the correct password, since stored emails
-        // used to keep whatever casing was submitted at registration and
+        // Normalize the email before lookup so a different capitalization
+        // than what was used at registration still resolves correctly —
         // Postgres compares text case-sensitively by default.
         $user = User::where('email', User::normalizeEmail($request['email']))->first();
 
@@ -416,18 +407,14 @@ class UserController extends Controller
             ], 403);
         }
 
-        // OTP only ever belongs to the sign-up flow — it is generated and
-        // emailed exactly once, right after registration (see register()
-        // above). Login must NOT block on this, and must NOT generate or
-        // send another OTP either — it only reports the status. An
-        // unverified account still logs in normally (token issued below
-        // like anyone else); the app gets told via 'email_verified' =>
-        // false and shows the same OTP-entry screen used at sign-up
-        // instead of the normal home screen, the same way an unapproved
-        // driver/company gets DriverApprovalStatusPage instead of
-        // HomeScreen. If their original code already expired, the
-        // existing "Resend code" action on that screen (resendOtp())
-        // is how they get a new one — not every login attempt.
+        // OTP belongs only to the sign-up flow — generated and emailed once,
+        // right after registration (see register() above). Login does not
+        // block on it and does not generate or send another OTP; it only
+        // reports the status. An unverified account still logs in normally
+        // (token issued below), and the app uses 'email_verified' => false
+        // to show the OTP-entry screen instead of the home screen, the same
+        // way an unapproved driver/company gets DriverApprovalStatusPage.
+        // resendOtp() is how an expired code gets replaced.
         $token = $user->createToken('api-token')->plainTextToken;
 
         // Drivers/companies carry an admin-approval status; the app needs

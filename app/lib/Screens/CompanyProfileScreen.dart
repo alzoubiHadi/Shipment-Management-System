@@ -1,6 +1,5 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../API/ProfileService.dart';
 import '../API/config.dart';
@@ -111,13 +110,14 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
     if (response['success'] == true) _refresh();
   }
 
-  Future<void> _viewLicense(String? path) async {
-    if (path == null || path.isEmpty) return;
-    final uri = Uri.parse(storageUrl(path));
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open file')));
-    }
+  /// 2026-08-27 (security review, item 7): the license file moved to the
+  /// private disk — fetched through the authenticated
+  /// /companies/{id}/license/file endpoint instead of a plain storage URL.
+  /// `show()` on the backend now returns the company's own id for exactly
+  /// this purpose.
+  Future<void> _viewLicense(String? path, dynamic companyId) async {
+    if (path == null || path.isEmpty || companyId == null) return;
+    await viewSecureFile(context, '$baseUrl/companies/$companyId/license/file');
   }
 
   /// Compliance/Approval separation feature (2026-08-23): (label, color)
@@ -262,7 +262,7 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                           ),
                         ),
                         if ((licensePath ?? '').isNotEmpty)
-                          TextButton(onPressed: () => _viewLicense(licensePath), child: const Text('View', style: TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
+                          TextButton(onPressed: () => _viewLicense(licensePath, data['id']), child: const Text('View', style: TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
                       ],
                     ),
                   ),

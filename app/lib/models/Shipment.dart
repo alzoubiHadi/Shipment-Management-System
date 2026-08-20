@@ -180,20 +180,25 @@ class Shipment {
   }
 
   // Derive display properties from status
+  // 2026-08-27: was still reading the old dark `AppColors` palette — every
+  // other status/badge color in the app reads from `LightColors` now (see
+  // FMS design-system unification), so this was the one place a shipment
+  // status chip could render in the wrong (dark) palette against the app's
+  // light backgrounds. Swapped to the equivalent `LightColors` tokens.
   Color get statusColor {
     switch (status) {
       case 2:
-        return AppColors.success;
+        return LightColors.success;
       case 1:
-        return AppColors.info;
+        return LightColors.info;
       case 0:
-        return AppColors.gold;
+        return LightColors.gold;
       case 3:
-        return AppColors.error;
-        case 5:
-          return AppColors.cream;
+        return LightColors.error;
+      case 5:
+        return LightColors.cream;
       default:
-        return AppColors.muted;
+        return LightColors.muted;
     }
   }
 

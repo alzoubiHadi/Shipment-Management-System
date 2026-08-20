@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../API/DriverService.dart';
 import '../API/config.dart'; // Ensure AppColors is imported from here
 import '../models/Driver.dart';
@@ -28,18 +27,11 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
     _documentsFuture = DriverService.fetchDocumentsFor(driver.user_id);
   }
 
-  /// Opens an uploaded document (license/passport/residency/...) in an
-  /// external viewer — the admin needs to actually see the file content to
-  /// approve a join request responsibly, not just its expiry date.
-  Future<void> _openFile(String path) async {
-    if (path.isEmpty) return;
-    final uri = Uri.parse(storageUrl(path));
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open file')),
-      );
-    }
+  /// 2026-08-27 (security review, item 7): documents moved to the private
+  /// disk — fetched through the authenticated /driver-documents/{id}/file
+  /// endpoint instead of a plain storage URL.
+  Future<void> _openFile(String documentId) async {
+    await viewSecureFile(context, '$baseUrl/driver-documents/$documentId/file');
   }
 
   Color get _approvalColor => switch (driver.approvalStatus) {
@@ -454,7 +446,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                               ),
                             ),
                             TextButton(
-                              onPressed: () => _openFile(doc.filePath),
+                              onPressed: () => _openFile(doc.id),
                               child: const Text('View', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
                             ),
                           ],

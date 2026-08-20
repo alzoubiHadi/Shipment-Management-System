@@ -54,6 +54,15 @@ class AdminDrawer extends StatelessWidget {
   // requireAdmin() on the backend for the matching 403.
   bool get _canViewReports => user.hasPermission('finance') || user.hasPermission('crm');
 
+  // 2026-08-27 (security review): AdminSettingsPage itself now hides every
+  // tile the caller has no permission for (Admin Accounts/Platform
+  // Settings/recycle bin = Super Admin only, Finance/Price List/Zone
+  // Pricing = 'finance' permission) — this mirrors that same check so a
+  // trainer/technical_check-only sub-admin, who'd see a permanently empty
+  // Settings page, doesn't get the menu item at all.
+  bool get _canSeeSettings => _isSuperAdmin || _canFinance;
+  bool get _canFinance => user.hasPermission('finance');
+
   String get _roleLabel {
     switch (user.role.toLowerCase()) {
       case 'super_admin':
@@ -187,11 +196,12 @@ class AdminDrawer extends StatelessWidget {
                       label: 'Activity Log',
                       onTap: () => _push(context, const ActivityLogPage()),
                     ),
-                  _DrawerTile(
-                    icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    onTap: () => _push(context, const AdminSettingsPage()),
-                  ),
+                  if (_canSeeSettings)
+                    _DrawerTile(
+                      icon: Icons.settings_outlined,
+                      label: 'Settings',
+                      onTap: () => _push(context, AdminSettingsPage(user: user)),
+                    ),
                 ],
               ),
             ),

@@ -219,7 +219,12 @@ class DriverRatingAndComplianceTest extends TestCase
             'status' => 'under_review',
         ]);
         $this->assertDatabaseHas('drivers', ['id' => $driver->id, 'compliance_status' => 'suspended']);
-        $this->assertFalse($driver->fresh()->isEligibleForNewJob());
+        // 2026-08-27 (test suite fix): isEligibleForNewJob() picked up a
+        // required $orderType param on 2026-08-24 (grace-period logic) —
+        // this test predates that and was never updated. Suspension is
+        // checked before the order-type-specific grace window, so the
+        // choice of type doesn't affect this assertion.
+        $this->assertFalse($driver->fresh()->isEligibleForNewJob('internal'));
     }
 
     public function test_super_admin_upholding_a_report_updates_driver_compliance_status(): void

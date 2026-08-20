@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../API/CompanyService.dart';
 import '../API/DriverService.dart';
@@ -86,13 +85,12 @@ class _RequestReviewScreenState extends State<RequestReviewScreen> with SingleTi
     return '$prefix-${id.toString().padLeft(4, '0')}';
   }
 
-  Future<void> _openFile(String? path) async {
-    if (path == null || path.isEmpty) return;
-    final uri = Uri.parse(storageUrl(path));
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open file')));
-    }
+  /// 2026-08-27 (security review, item 7): documents moved to the private
+  /// disk — each tab now builds the right authenticated download URL
+  /// itself (driver/truck/company id varies per tab), this just opens it.
+  Future<void> _openFile(String? url) async {
+    if (url == null || url.isEmpty) return;
+    await viewSecureFile(context, url);
   }
 
   void _snack(String message, {bool isError = false}) {
@@ -577,7 +575,15 @@ class _DriverDocumentsTabState extends State<_DriverDocumentsTab> {
         }
         final docs = current.values.toList();
         return _DocumentListView(
-          docs: docs.map((d) => _DocRow(label: driverDocumentTypeLabel(d.type), path: d.filePath, expiry: d.expiryDate, expired: d.isExpired)).toList(),
+          docs: docs
+              .map((d) => _DocRow(
+                    label: driverDocumentTypeLabel(d.type),
+                    path: d.filePath,
+                    viewUrl: '$baseUrl/driver-documents/${d.id}/file',
+                    expiry: d.expiryDate,
+                    expired: d.isExpired,
+                  ))
+              .toList(),
           onOpenFile: widget.onOpenFile,
         );
       },
@@ -632,9 +638,9 @@ class _TruckInfoTabState extends State<_TruckInfoTab> {
             ),
             _DocumentListView(
               docs: [
-                _DocRow(label: 'Vehicle Registration', path: truck.licenseFilePath, expiry: truck.licenseExpiry, expired: _isExpired(truck.licenseExpiry)),
-                _DocRow(label: 'Insurance Certificate', path: truck.insuranceFilePath, expiry: truck.insuranceExpiry, expired: _isExpired(truck.insuranceExpiry)),
-                _DocRow(label: 'Technical Inspection', path: truck.technicalInspectionFilePath, expiry: truck.technicalInspectionExpiry, expired: _isExpired(truck.technicalInspectionExpiry)),
+                _DocRow(label: 'Vehicle Registration', path: truck.licenseFilePath, viewUrl: '$baseUrl/trucks/${truck.id}/file/license', expiry: truck.licenseExpiry, expired: _isExpired(truck.licenseExpiry)),
+                _DocRow(label: 'Insurance Certificate', path: truck.insuranceFilePath, viewUrl: '$baseUrl/trucks/${truck.id}/file/insurance', expiry: truck.insuranceExpiry, expired: _isExpired(truck.insuranceExpiry)),
+                _DocRow(label: 'Technical Inspection', path: truck.technicalInspectionFilePath, viewUrl: '$baseUrl/trucks/${truck.id}/file/technical_inspection', expiry: truck.technicalInspectionExpiry, expired: _isExpired(truck.technicalInspectionExpiry)),
               ],
               onOpenFile: widget.onOpenFile,
               showSummary: false,
@@ -689,7 +695,14 @@ class _CompanyDocumentsTab extends StatelessWidget {
     final hasLicense = (company.licenseFilePath ?? '').isNotEmpty;
     return _DocumentListView(
       docs: [
-        _DocRow(label: 'Trade License', path: company.licenseFilePath, expiry: null, expired: false, missing: !hasLicense),
+        _DocRow(
+          label: 'Trade License',
+          path: company.licenseFilePath,
+          viewUrl: '$baseUrl/companies/${company.id}/license/file',
+          expiry: null,
+          expired: false,
+          missing: !hasLicense,
+        ),
       ],
       onOpenFile: onOpenFile,
       showSummary: false,
@@ -739,10 +752,15 @@ class _InfoCard extends StatelessWidget {
 class _DocRow {
   final String label;
   final String? path;
+  // 2026-08-27 (security review, item 7): the fully-built authenticated
+  // download URL for this specific document (varies by source — driver
+  // document id, truck id + file type, or company id) — `path` is kept
+  // only to detect "missing" (empty/null), viewing goes through this URL.
+  final String? viewUrl;
   final DateTime? expiry;
   final bool expired;
   final bool missing;
-  _DocRow({required this.label, required this.path, required this.expiry, required this.expired, this.missing = false});
+  _DocRow({required this.label, required this.path, this.viewUrl, required this.expiry, required this.expired, this.missing = false});
 }
 
 class _DocumentListView extends StatelessWidget {
@@ -790,7 +808,7 @@ class _DocumentListView extends StatelessWidget {
                   const Text('Missing', style: TextStyle(color: LightColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600))
                 else
                   TextButton(
-                    onPressed: () => onOpenFile(doc.path),
+                    onPressed: () => onOpenFile(doc.viewUrl),
                     child: const Text('View', style: TextStyle(color: LightColors.goldMuted, fontSize: 12, fontWeight: FontWeight.w700)),
                   ),
               ],

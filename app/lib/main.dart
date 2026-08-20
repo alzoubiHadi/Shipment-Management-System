@@ -14,10 +14,9 @@ import 'theme/FmsTheme.dart';
 /// Runs in a separate background isolate when a push arrives while the app
 /// is backgrounded/terminated — must be a top-level function, and must
 /// re-initialize Firebase itself since it doesn't share state with the
-/// main isolate. The OS already shows the notification itself in this
-/// case (this app doesn't need to do anything extra for a simple
-/// notification+data payload); this hook exists for future data-only
-/// pushes that need custom handling.
+/// main isolate. The OS already shows the notification for a simple
+/// notification+data payload; this hook exists for data-only pushes that
+/// need custom handling.
 @pragma('vm-entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -43,11 +42,9 @@ class MyApp extends StatelessWidget {
       navigatorKey: rootNavigatorKey,
       title: 'FMS',
       debugShowCheckedModeBanner: false,
-      // FMS design system unification (2026-08-24) — was a bare
-      // ColorScheme.fromSeed(seedColor: Colors.blueGrey) with no AppBar/
-      // button/input themes at all, so any stock Material widget a screen
-      // forgot to re-skin fell back to generic blue-grey Material instead
-      // of FMS's Navy+Gold identity. See theme/FmsTheme.dart.
+      // Central theme so any stock Material widget a screen doesn't
+      // explicitly re-skin still falls back to FMS's Navy+Gold identity
+      // instead of generic Material defaults. See theme/FmsTheme.dart.
       theme: FmsTheme.lightTheme,
       home: const SplashPage(),
     );
@@ -62,27 +59,18 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  // 2026-08-20 fix: this screen used to show unconditionally on every cold
-  // start ("Welcome Back!" + Log In button) even for someone who was
-  // already logged in — LoggingInScreen saves a token/loggedIn flag on
-  // success (see its _run()), but nothing ever read it back on app launch,
-  // so every user was forced to log in again every single time they
-  // reopened the app. This flag gates the marketing UI below behind a
-  // quick session check so a returning, still-logged-in user skips
-  // straight to their home screen instead.
+  // Gates the marketing UI below behind a quick session check — LoggingInScreen
+  // saves a token/loggedIn flag on success (see its _run()), and a returning,
+  // still-logged-in user skips straight to their home screen instead of
+  // seeing "Welcome Back!" + Log In again.
   bool _checkingSession = true;
 
-  // 2026-08-24 fix: fetchMyProfile() used to have every failure — expired
-  // token, weak/no internet, a Render cold-start timeout, a transient 500
-  // — funneled into one catch block that cleared the whole session
-  // (prefs.clear()). That meant an active driver losing signal mid-trip,
-  // or just hitting a slow server, got silently logged out and dropped
-  // back to Login — which is exactly what was reported as "the app logs
-  // itself out". Only an explicit AuthenticationException (server said
-  // 401 — the token itself is invalid) should ever clear the session now;
-  // every other failure sets this flag instead and keeps the token intact
-  // so the user can just hit Retry — see _checkSession()'s two catch
-  // blocks and the offline-retry branch in build().
+  // Only an explicit AuthenticationException (server said 401 — the token
+  // itself is invalid) clears the session. Every other failure — weak/no
+  // internet, a Render cold-start timeout, a transient 500 — sets this flag
+  // instead and keeps the token intact so the user can just hit Retry — see
+  // _checkSession()'s two catch blocks and the offline-retry branch in
+  // build().
   bool _sessionCheckFailed = false;
 
   @override
@@ -247,11 +235,8 @@ class _SplashPageState extends State<SplashPage> {
       );
     }
 
-    // Welcome/Login redesign (2026-08-18, per user-provided mockup): the
-    // dark "Welcome Back!" hero + separate Log In tap-through used to live
-    // here. It's replaced by LoginScreen itself, which now carries the
-    // hero image + branding + the email/password form directly — see
-    // LoginScreen.dart's docblock.
+    // LoginScreen carries the hero image, branding, and the email/password
+    // form directly — see LoginScreen.dart's docblock.
     return const LoginScreen();
   }
 }

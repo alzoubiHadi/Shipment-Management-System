@@ -18,7 +18,7 @@ use App\Support\Geo;
  * ProcessExpiredMatches console command when a round's timeout passes
  * without an acceptance.
  *
- * Two-step design (2026-08-21 redesign):
+ * Two-step design:
  *   Step 1 — Hard Eligibility (eligibleDriversQuery): a driver either
  *   passes every gate below or they are not a candidate at all — no
  *   partial credit, nothing here ever influences the score.
@@ -35,9 +35,8 @@ class MatchingService
      *     also qualifies as long as no critical document (the driver's own,
      *     or their truck's) expires within an order-type-based grace
      *     window: 3 days for an internal offer, 3 months for an external
-     *     one (2026-08-24 grace-period follow-up — see
-     *     ComplianceService::isEligibleForShipment(), the same rule
-     *     re-applied at accept-time). 'action_required'/'pending_review'
+     *     one (see ComplianceService::isEligibleForShipment(), applied
+     *     again at accept time). 'action_required'/'pending_review'
      *     always disqualify.
      *   - No blocking financial/payout issue (UC-30).
      *   - Every required driver document (license/passport/residency) is
@@ -137,14 +136,13 @@ class MatchingService
     }
 
     /**
-     * Zones (2026-08-27): maps a zone's raw `country` string (as stored in
-     * the zones table / shipment_offers.origin_country /destination_country
-     * — e.g. 'UAE', 'KSA', 'QATAR') to the DriverDestination::DESTINATIONS
-     * key a driver actually selects in their profile (e.g. 'internal_uae',
-     * 'saudi_arabia', 'qatar'). Only covers the 9 countries present in the
-     * real zones dataset — Egypt/Lebanon/Yemen still only exist via the
-     * legacy Destinations::CITY_TO_COUNTRY path below, since there is no
-     * zone data for them yet.
+     * Maps a zone's raw `country` string (as stored in the zones table /
+     * shipment_offers.origin_country/destination_country — e.g. 'UAE',
+     * 'KSA', 'QATAR') to the DriverDestination::DESTINATIONS key a driver
+     * actually selects in their profile (e.g. 'internal_uae',
+     * 'saudi_arabia', 'qatar'). Covers the 9 countries present in the
+     * zones dataset; Egypt/Lebanon/Yemen resolve via the legacy
+     * Destinations::CITY_TO_COUNTRY path below instead.
      */
     private const ZONE_COUNTRY_TO_DRIVER_KEY = [
         'UAE' => 'internal_uae',
@@ -162,15 +160,11 @@ class MatchingService
      * Which DriverDestination country keys a driver must cover to be
      * eligible for this offer.
      *
-     * Zones (2026-08-27): when the offer carries structured
-     * origin_country/destination_country (see
-     * 2026_08_27_000003_add_zone_pricing_fields_to_shipment_offers_table.php),
-     * those are mapped directly through ZONE_COUNTRY_TO_DRIVER_KEY —
-     * origin is no longer hard-assumed to always be the UAE. Falls back
-     * to the pre-Zones behavior (origin always 'internal_uae', destination
-     * resolved via the legacy Destinations::countryFor() string match) for
-     * any offer created without zone data, so nothing already in flight
-     * breaks.
+     * When the offer carries structured origin_country/destination_country,
+     * those are mapped directly through ZONE_COUNTRY_TO_DRIVER_KEY. Falls
+     * back to origin always 'internal_uae' with the destination resolved
+     * via the legacy Destinations::countryFor() string match for any
+     * offer created without zone data.
      *
      * Public (not private) so ShipmentOfferController::accept() can run
      * this exact same check again at accept-time — defense in depth, since
@@ -199,14 +193,10 @@ class MatchingService
      * Step 2 — Ranking. Composite score in [0, 1] among drivers who already
      * passed Step 1 in full — truck type/documents/capacity are NOT part of
      * this score, they're binary pass/fail gates above. Weighted mix
-     * (2026-08-27 rebalance — see 2026_08_27_000009_update_matching_weights_v1.php):
-     * Proximity 30% + Route/Zone Experience 25% + Rating 20% +
-     * Acceptance Reliability 15% + Fairness/Last Matched 10% (all
-     * configurable via PlatformSetting, defaults shown here match the
-     * migration's stored values). Proximity previously weighed more than
-     * route familiarity for international road freight, which the Zones
-     * feature's better route-experience signal (see routeExperienceScore()
-     * below) now makes worth correcting.
+     * (all configurable via PlatformSetting): Proximity 30% + Route/Zone
+     * Experience 25% + Rating 20% + Acceptance Reliability 15% +
+     * Fairness/Last Matched 10%. See routeExperienceScore() below for the
+     * route-familiarity signal.
      */
     public function score(Driver $driver, ShipmentOffer $offer): float
     {
@@ -249,19 +239,14 @@ class MatchingService
             (float) $offer->origin_lng,
         );
 
-        // Phase-one linear falloff: 0km -> 1.0, 200km+ -> 0.0. A real
-        // routing-API-based ETA is a later upgrade (per the spec's own
-        // "phase one Haversine, real routing API later" note).
+        // Convert geographic distance to a normalized proximity score.
+        // Distances of 200 km or more receive a score of zero.
+        // Haversine is used for proximity estimation; road-based ETA can
+        // be integrated through a routing service.
         return max(0.0, 1 - min($distanceKm, 200) / 200);
     }
 
-    /**
-     * Load-balancing / fairness: a driver who was matched very recently
-     * scores low here (0 at the instant they were last matched), ramping
-     * linearly back up to a full 1.0 once 30+ minutes have passed. A
-     * driver who has never been matched (or has no last_matched_at yet)
-     * gets the max score, since they're the most "overdue" candidate.
-     */
+    /** Apply a short recency penalty to improve match distribution across drivers. */
     private function fairnessScore(Driver $driver): float
     {
         if (! $driver->last_matched_at) {
@@ -280,12 +265,11 @@ class MatchingService
      * attempted/in-progress trip means the driver already knows the
      * route, border crossing, drop-off point, etc.
      *
-     * Zones (2026-08-27) upgrade: prefers the exact origin-zone ->
-     * destination-zone lane (an "Ahmed has done JAFZA -> Riyadh 18 times"
-     * signal, much more specific than matching on destination alone),
-     * falling back to destination-zone-only, then destination-country,
-     * then the original plain destination-string match for any offer/
-     * shipment without zone data (nothing regresses for older records).
+     * Prefers the exact origin-zone -> destination-zone lane (an "Ahmed
+     * has done JAFZA -> Riyadh 18 times" signal, more specific than
+     * matching on destination alone), falling back to destination-zone,
+     * then destination-country, then a plain destination-string match
+     * for offers/shipments without zone data.
      */
     private function routeExperienceScore(Driver $driver, ShipmentOffer $offer): float
     {
@@ -336,24 +320,21 @@ class MatchingService
         $batchSize = (int) PlatformSetting::get('matching_batch_size', '5');
         $alreadyNotified = $offer->matched_driver_ids ?? [];
 
-        // Admin Shipments redesign (2026-08-24): whatever round is still
-        // sitting 'waiting' is, by definition, over the instant this method
-        // runs again for the same offer — matchNextBatch() is only ever
-        // re-invoked either by an offer just having timed out
-        // (ProcessExpiredMatches) or by an admin-triggered rematch, never
-        // while a round is genuinely still live. Close it out before
-        // opening the next one so the Matching Status screen has a clean
-        // round-by-round history.
+        // Any round still sitting 'waiting' is over the instant this method
+        // runs again for the same offer — it's only re-invoked either by an
+        // offer timing out (ProcessExpiredMatches) or by an admin-triggered
+        // rematch, never while a round is genuinely still live. Close it out
+        // before opening the next one so the Matching Status screen has a
+        // clean round-by-round history.
         ShipmentOfferMatchingRound::where('shipment_offer_id', $offer->id)
             ->where('outcome', ShipmentOfferMatchingRound::OUTCOME_WAITING)
             ->update(['outcome' => ShipmentOfferMatchingRound::OUTCOME_NO_ACCEPTANCE, 'resolved_at' => now()]);
 
-        // Driver-response dataset (2026-08-27, design doc point 26/41):
-        // anyone still 'pending' from the round just closed above timed
-        // out without responding — record that explicitly rather than
-        // leaving it ambiguous. A driver who called decline() already
-        // moved their own row to 'declined' before this point, so this
-        // only ever touches genuinely non-responsive drivers.
+        // Anyone still 'pending' from the round just closed above timed out
+        // without responding — record that explicitly rather than leaving it
+        // ambiguous. A driver who called decline() already moved their own
+        // row to 'declined' before this point, so this only ever touches
+        // genuinely non-responsive drivers.
         \App\Models\ShipmentOfferDriverResponse::where('shipment_offer_id', $offer->id)
             ->where('result', \App\Models\ShipmentOfferDriverResponse::RESULT_PENDING)
             ->update(['result' => \App\Models\ShipmentOfferDriverResponse::RESULT_EXPIRED, 'response_at' => now()]);

@@ -1,3 +1,11 @@
+/// DEAD CODE (2026-08-27 security review cleanup): last caller was
+/// HomeScreen.dart, which has opened AddShipmentOfferPage() instead for a
+/// long time already — this form was imported but never actually
+/// constructed anywhere, and still renders on the old dark `AppColors`
+/// theme (never migrated to LightColors). That import has now been
+/// removed from HomeScreen.dart, so this file is fully unreachable. Left
+/// in place rather than deleted (file deletion isn't available in this
+/// environment) — safe to remove by hand.
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -5,10 +13,6 @@ import '../API/ShipmentServices.dart';
 import '../API/config.dart';
 import '../models/Shipment.dart';
 import 'package:uuid/uuid.dart';
-
-
-
-
 
 class AddShipmentForm extends StatefulWidget {
   /// Called with the new [Shipment] when the form is submitted successfully.

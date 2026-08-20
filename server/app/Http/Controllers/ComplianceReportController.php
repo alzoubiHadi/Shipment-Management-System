@@ -8,6 +8,7 @@ use App\Models\Driver;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * UC-25 (report a driver compliance/safety violation) and UC-26 (driver
@@ -40,7 +41,7 @@ class ComplianceReportController extends Controller
         ]);
 
         $evidencePath = $request->hasFile('evidence_file')
-            ? $request->file('evidence_file')->store('compliance_evidence', 'public')
+            ? $request->file('evidence_file')->store('compliance_evidence', 'local')
             : null;
 
         $isImmediateFreeze = in_array($validated['category'], ComplianceReport::IMMEDIATE_FREEZE_CATEGORIES, true);
@@ -84,6 +85,32 @@ class ComplianceReportController extends Controller
             'message' => 'Compliance reports retrieved successfully',
             'reports' => $query->get(),
         ], 200);
+    }
+
+    /**
+     * Streams the evidence file attached to a report from the private disk
+     * (see store() above, saving via 'local'). Reachable by whoever filed
+     * the report, the driver it was filed against (so they can see what
+     * they're appealing), or any admin/sub-admin — matches index()'s lack
+     * of a narrower permission split, since compliance review isn't behind
+     * a specific permission key.
+     */
+    public function downloadEvidence(Request $request, ComplianceReport $report)
+    {
+        $requester = $request->user();
+        $isReporter = (string) $requester->id === (string) $report->reported_by_user_id;
+        $isReportedDriver = (string) $requester->id === (string) $report->driver?->user_id;
+        $isAdmin = $requester->isSuperAdmin() || $requester->isSubAdmin();
+
+        if (! $isReporter && ! $isReportedDriver && ! $isAdmin) {
+            abort(403, 'You are not authorized to view this evidence.');
+        }
+
+        if (! $report->evidence_file_path || ! Storage::disk('local')->exists($report->evidence_file_path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('local')->response($report->evidence_file_path);
     }
 
     /**

@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -26,6 +28,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // 2026-08-27 (test suite fix): see 2026_08_19_000112's docblock —
+        // same Postgres-only DO $$ block, same SQLite guard needed so the
+        // in-memory test database (phpunit.xml) can run this migration.
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            Schema::table('drivers', function (Blueprint $blueprint) {
+                $blueprint->enum('compliance_status', ['active', 'warning', 'suspended', 'banned', 'action_required'])
+                    ->default('active')
+                    ->change();
+            });
+
+            return;
+        }
+
         DB::statement(<<<SQL
             DO \$\$
             DECLARE

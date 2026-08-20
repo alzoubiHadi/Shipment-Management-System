@@ -11,9 +11,15 @@ import '../utils/saved_offers.dart';
 import 'DriverOfferDetailsPage.dart';
 
 /// Driver redesign Phase 2 (2026-08-17 mockup): "Available Shipments" —
-/// search, a truck-type filter, and All/Nearby/Saved tabs, on top of the
-/// existing accept-with-a-truck flow (now shared with DriverOfferDetailsPage
-/// via utils/offer_accept_flow.dart).
+/// search and All/Nearby/Saved tabs, on top of the existing
+/// accept-with-a-truck flow (now shared with DriverOfferDetailsPage via
+/// utils/offer_accept_flow.dart).
+///
+/// 2026-08-27: dropped the truck-type filter chip — this list is already
+/// the driver's own eligible offers (the backend's hard-eligibility filter
+/// in MatchingService only ever surfaces offers the driver's own truck
+/// qualifies for), so a driver filtering "by truck type" had nothing
+/// meaningful to narrow: every offer here already matches their truck.
 ///
 /// "Nearby" uses ShipmentOffer.originLat/originLng (real DB columns, see
 /// the 2026-08-16 geo-matching migration) compared against the driver's own
@@ -46,7 +52,6 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   _OfferTab _tab = _OfferTab.all;
-  String? _truckTypeFilter;
 
   Set<int> _savedIds = {};
   Position? _myPosition;
@@ -144,9 +149,6 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
   List<ShipmentOffer> _visible(List<ShipmentOffer> all) {
     var result = all;
 
-    if (_truckTypeFilter != null) {
-      result = result.where((o) => o.requiredTruckType == _truckTypeFilter).toList();
-    }
     if (_searchQuery.isNotEmpty) {
       result = result.where((o) {
         final haystack = '${o.origin} ${o.destination} ${o.requiredTruckType} ${o.description}'.toLowerCase();
@@ -167,38 +169,6 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
     }
 
     return result;
-  }
-
-  Future<void> _openFilterSheet() async {
-    final choice = await showModalBottomSheet<String?>(
-      context: context,
-      backgroundColor: LightColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-              child: Align(alignment: Alignment.centerLeft, child: Text('Filter by Truck Type', style: TextStyle(color: LightColors.cream, fontWeight: FontWeight.w700))),
-            ),
-            ListTile(
-              title: const Text('All truck types', style: TextStyle(color: LightColors.cream)),
-              trailing: _truckTypeFilter == null ? const Icon(Icons.check, color: LightColors.gold) : null,
-              onTap: () => Navigator.pop(ctx, ''),
-            ),
-            ...kTruckTypes.map((t) => ListTile(
-                  title: Text(t, style: const TextStyle(color: LightColors.cream)),
-                  trailing: _truckTypeFilter == t ? const Icon(Icons.check, color: LightColors.gold) : null,
-                  onTap: () => Navigator.pop(ctx, t),
-                )),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    if (choice == null) return;
-    setState(() => _truckTypeFilter = choice.isEmpty ? null : choice);
   }
 
   @override
@@ -234,39 +204,19 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            style: const TextStyle(color: LightColors.cream, fontSize: 14),
-                            decoration: InputDecoration(
-                              hintText: 'Search by location, load type...',
-                              hintStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
-                              prefixIcon: const Icon(Icons.search, color: LightColors.muted, size: 20),
-                              filled: true,
-                              fillColor: LightColors.surface,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
-                              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.gold)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: _openFilterSheet,
-                          child: Container(
-                            padding: const EdgeInsets.all(13),
-                            decoration: BoxDecoration(
-                              color: LightColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _truckTypeFilter != null ? LightColors.gold : LightColors.border),
-                            ),
-                            child: Icon(Icons.tune_rounded, color: _truckTypeFilter != null ? LightColors.gold : LightColors.muted, size: 20),
-                          ),
-                        ),
-                      ],
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: LightColors.cream, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Search by location, load type...',
+                        hintStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
+                        prefixIcon: const Icon(Icons.search, color: LightColors.muted, size: 20),
+                        filled: true,
+                        fillColor: LightColors.surface,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.border)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: LightColors.gold)),
+                      ),
                     ),
                   ),
                 ),
@@ -367,7 +317,6 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
 
   int _tabCount(List<ShipmentOffer> all, _OfferTab tab) {
     var result = all;
-    if (_truckTypeFilter != null) result = result.where((o) => o.requiredTruckType == _truckTypeFilter).toList();
     if (_searchQuery.isNotEmpty) {
       result = result.where((o) => '${o.origin} ${o.destination} ${o.requiredTruckType} ${o.description}'.toLowerCase().contains(_searchQuery)).toList();
     }

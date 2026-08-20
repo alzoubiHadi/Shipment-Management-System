@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Company;
+use App\Models\CompanyDocument;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 
@@ -29,6 +31,44 @@ class CompanyController extends Controller
             'message' => 'Company retrieved successfully',
             'company' => $company,
         ], 200);
+    }
+
+    /**
+     * 2026-08-27 (security review, item 7): the company's CURRENT trade
+     * license is a flat column on `companies` (license_file_path), now
+     * stored on the private disk. Owning company user or an admin with
+     * 'crm' permission only.
+     */
+    public function downloadLicense(Request $request, Company $company)
+    {
+        $requester = $request->user();
+
+        if ((string) $requester->id !== (string) $company->user_id && ! $requester->hasPermission('crm')) {
+            abort(403, 'You are not authorized to view this file.');
+        }
+
+        if (! $company->license_file_path || ! Storage::disk('local')->exists($company->license_file_path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('local')->response($company->license_file_path);
+    }
+
+    /** Same owner-or-'crm' check, for a specific CompanyDocument renewal-history row. */
+    public function downloadDocument(Request $request, CompanyDocument $document)
+    {
+        $requester = $request->user();
+        $ownerUserId = $document->company?->user_id;
+
+        if ((string) $requester->id !== (string) $ownerUserId && ! $requester->hasPermission('crm')) {
+            abort(403, 'You are not authorized to view this document.');
+        }
+
+        if (! $document->file_path || ! Storage::disk('local')->exists($document->file_path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('local')->response($document->file_path);
     }
 
     //

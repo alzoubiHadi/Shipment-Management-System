@@ -67,7 +67,7 @@ class AppBarWidget extends StatelessWidget {
             padding: EdgeInsets.zero,
             onSelected: (value) {
               if (value == 'settings') {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminSettingsPage()));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => AdminSettingsPage(user: user)));
               } else if (value == 'logout') {
                 confirmAndLogout(context, light: true);
               }

@@ -20,7 +20,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Self-service "tap your name" profile page, shared by every role.
+ * Self-service profile page, shared by every role.
  *
  * Contact info (name/phone/email) and the avatar are NOT considered
  * material to eligibility, so they're applied immediately. Anything that
@@ -65,8 +65,7 @@ class ProfileController extends Controller
                 'residency_expiry' => optional($driver->residency_expiry)->format('Y-m-d'),
                 'blood_type' => $driver->blood_type,
                 'health_conditions' => $driver->health_conditions,
-                // Bank Details section (Profile screen, driver Phase 5) —
-                // finance-team reference for manual payouts only, nothing
+                // Finance-team reference for manual payouts only, nothing
                 // automated reads these yet.
                 'bank_name' => $driver->bank_name,
                 'bank_account_holder' => $driver->bank_account_holder,
@@ -83,26 +82,26 @@ class ProfileController extends Controller
             ];
         } elseif ($user->type === 'company' && $user->company) {
             $extra = [
+                // Needed so CompanyProfileScreen can hit the authenticated
+                // /companies/{id}/license/file endpoint for its own license.
+                'id' => $user->company->id,
                 'phone' => $user->company->phone,
                 'address' => $user->company->address,
                 'license_file_path' => $user->company->license_file_path,
                 'approval_status' => $user->company->approval_status,
                 'rejection_reason' => $user->company->rejection_reason,
-                // Company Profile screen (2026-08-17 redesign) shows an
-                // Active/Suspended badge — wasn't previously returned here.
+                // Drives the Active/Suspended badge on the Company Profile
+                // screen.
                 'account_status' => $user->company->account_status,
-                // Compliance/Approval separation feature (2026-08-23): the
-                // Trade License card now shows Status + Days Remaining, same
+                // The Trade License card shows Status + Days Remaining, same
                 // pattern as the driver My Documents screen — needs the
-                // license's own expiry_date and compliance_status, neither
-                // of which was returned here before.
+                // license's own expiry_date and compliance_status.
                 'license_expiry' => optional($user->company->license_expiry)->format('Y-m-d'),
                 'compliance_status' => $user->company->compliance_status,
             ];
         } elseif ($user->isSuperAdmin() || $user->isSubAdmin()) {
             // Needed so UserProfilePage can show permission badges and
-            // AdminDrawer can hide menu items the admin has no access to —
-            // previously this response only carried 'type', not permissions.
+            // AdminDrawer can hide menu items the admin has no access to.
             $extra = [
                 'permissions' => $user->isSuperAdmin()
                     // Super Admin never has permission_user rows (implicit
@@ -134,7 +133,7 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        // Case-insensitivity fix (2026-08-25) — see User::setEmailAttribute().
+        // Normalize before validate() — see User::setEmailAttribute().
         if ($request->filled('email')) {
             $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
         }
@@ -243,13 +242,11 @@ class ProfileController extends Controller
 
     /**
      * Company self-service trade-license renewal — mirrors
-     * DriverController::uploadDocument(). Unified Approvals /
-     * document-expiry feature (2026-08-22): now also collects an
-     * expiry_date (previously not tracked at all — companies had no
-     * license_expiry column) and creates a real CompanyDocument row
-     * immediately as status='under_review'; the company's current
-     * license_file_path/license_expiry are left untouched until an admin
-     * decides — see applyCompanyLicense() below.
+     * DriverController::uploadDocument(). Collects an expiry_date and
+     * creates a real CompanyDocument row immediately as
+     * status='under_review'; the company's current license_file_path/
+     * license_expiry are left untouched until an admin decides — see
+     * applyCompanyLicense() below.
      */
     public function submitCompanyLicense(Request $request)
     {
@@ -267,7 +264,7 @@ class ProfileController extends Controller
             return response()->json(['message' => 'Validation failed', 'errors' => $e->errors()], 422);
         }
 
-        $path = $request->file('license_file')->store('company_licenses', 'public');
+        $path = $request->file('license_file')->store('company_licenses', 'local');
 
         $company = $user->company;
         $currentDoc = $company->documents()->where('type', 'trade_license')->where('is_current', true)->first();
@@ -292,7 +289,7 @@ class ProfileController extends Controller
             $company->recomputeComplianceStatus();
 
             if ($oldPath) {
-                Storage::disk('public')->delete($oldPath);
+                Storage::disk('local')->delete($oldPath);
             }
 
             return response()->json([
@@ -301,8 +298,7 @@ class ProfileController extends Controller
             ], 200);
         }
 
-        // Compliance/Approval separation feature (2026-08-23): same
-        // resubmission detection as DriverController::uploadDocument().
+        // Same resubmission detection as DriverController::uploadDocument().
         $isResubmission = $company->documents()->where('type', 'trade_license')->where('status', 'changes_required')->exists();
         if ($isResubmission) {
             $company->documents()->where('type', 'trade_license')->where('status', 'changes_required')->update(['status' => 'superseded']);
@@ -359,7 +355,7 @@ class ProfileController extends Controller
     /**
      * $category (optional, comma-separated) narrows to specific
      * ProfileEditRequest categories — used by the admin Approvals screen's
-     * "Document Renewals" tab (2026-08-22) to fetch only
+     * "Document Renewals" tab to fetch only
      * document/truck_document/company_license, excluding 'destinations'.
      *
      * For those three document categories, each request also gets an
@@ -461,6 +457,10 @@ class ProfileController extends Controller
         }
 
         return [
+            // Needed so DocumentRenewalReviewScreen.dart can fetch the old
+            // file through the authenticated driver-documents/
+            // truck-documents/company-documents endpoint.
+            'id' => $old->id,
             'file_path' => $old->file_path,
             'expiry_date' => optional($old->expiry_date)->format('Y-m-d'),
             'status' => $old->status,
@@ -528,13 +528,12 @@ class ProfileController extends Controller
 
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
 
-        // Compliance/Approval separation feature (2026-08-23): for the
-        // three document categories, a real driver_documents/
+        // For the three document categories, a real driver_documents/
         // truck_documents/company_documents row was already created at
         // submission time (status='pending_review') — moving it to
         // 'changes_required' in place (is_current stays false) rather than
         // deleting the file, per the append-only "never delete a row"
-        // convention. Per spec, the account stays operationally inactive
+        // convention. The account stays operationally inactive
         // (compliance_status recomputes back to 'action_required' — see
         // ComplianceService::effectiveState()) until the owner resubmits.
         // 'destinations' has no associated document row, so this is a
@@ -582,7 +581,7 @@ class ProfileController extends Controller
         $profileEditRequest->user?->notify(new AppPushNotification(
             $isDocumentRenewal ? 'renewal_changes_required' : 'profile_edit_resolved',
             $isDocumentRenewal ? 'Changes required on your renewal' : 'Your profile update was declined',
-            $validated['reason']
+            ($validated['reason'] ?? null)
                 ? "An admin requested changes on your submission: {$validated['reason']}"
                 : 'An admin requested changes on your submitted document — please re-upload it.',
             ['request_id' => $profileEditRequest->id],
@@ -592,13 +591,12 @@ class ProfileController extends Controller
     }
 
     /**
-     * Unified Approvals / document-expiry feature (2026-08-22): the new
-     * row already exists (created at submission time by
+     * The new row already exists (created at submission time by
      * DriverController::uploadDocument(), status='under_review') — this
      * just flips the decision: old current row -> is_current=false,
      * status = 'expired' (if it genuinely was) or 'superseded' otherwise;
      * new row -> is_current=true, status='valid'. Then re-syncs the legacy
-     * column and re-evaluates the driver's OVERALL compliance (this
+     * column and re-evaluates the driver's overall compliance (this
      * document might not be the only expired one — see
      * Driver::recomputeComplianceStatus()).
      */
@@ -721,7 +719,7 @@ class ProfileController extends Controller
         $driver->recomputeComplianceStatus();
     }
 
-    /** Exact same apply logic DriverController::syncDestinations() used to run inline before it became review-gated. */
+    /** Applies the same destination-replacement logic as DriverController::syncDestinations(), once admin-approved. */
     private function applyDestinations(ProfileEditRequest $editRequest): void
     {
         $driver = Driver::where('user_id', $editRequest->user_id)->first();

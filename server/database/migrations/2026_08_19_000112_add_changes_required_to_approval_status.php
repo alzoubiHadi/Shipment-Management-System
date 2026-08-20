@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -43,6 +45,27 @@ return new class extends Migration
 
     private function widen(string $table): void
     {
+        // 2026-08-27 (test suite fix): the raw PL/pgSQL block below is
+        // Postgres-only syntax. The automated test suite runs against an
+        // in-memory SQLite database (see phpunit.xml's DB_CONNECTION
+        // override), which doesn't understand "DO $$ ... END $$;" at
+        // all — every RefreshDatabase-based feature test was failing at
+        // migration time with "near DO: syntax error" before this guard
+        // existed (first actually run 2026-08-27; this migration predates
+        // that). Laravel 11+ can rebuild a SQLite table's CHECK
+        // constraint natively via change(), no doctrine/dbal required —
+        // production (Postgres/Neon) keeps using the exact block that
+        // was already verified working there.
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            Schema::table($table, function (Blueprint $blueprint) {
+                $blueprint->enum('approval_status', ['pending', 'approved', 'rejected', 'changes_required'])
+                    ->default('approved')
+                    ->change();
+            });
+
+            return;
+        }
+
         DB::statement(<<<SQL
             DO \$\$
             DECLARE

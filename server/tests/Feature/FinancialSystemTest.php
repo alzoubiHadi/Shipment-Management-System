@@ -261,7 +261,10 @@ class FinancialSystemTest extends TestCase
     {
         [, $driver] = $this->makeDriverWithUser(['compliance_status' => 'suspended']);
 
-        $this->assertFalse($driver->isEligibleForNewJob());
+        // 2026-08-27 (test suite fix): see DriverRatingAndComplianceTest's
+        // matching note — isEligibleForNewJob() now requires $orderType;
+        // suspension short-circuits before that logic either way.
+        $this->assertFalse($driver->isEligibleForNewJob('internal'));
     }
 
     // ── Concurrency / idempotency regression tests (2026-08-25 audit) ──────

@@ -46,23 +46,22 @@ class ShipmentOfferController extends Controller
             ], 403);
         }
 
-        // Compliance/Approval separation feature (2026-08-23), grace-period
-        // follow-up (2026-08-24): 'action_required'/'pending_review' always
-        // block; 'expiring_soon' is allowed as long as the trade license
-        // doesn't expire within the order-type-based grace window (3 days
-        // for an internal shipment, 3 months for an external one) — see
+        // 'action_required'/'pending_review' always block; 'expiring_soon'
+        // is allowed as long as the trade license doesn't expire within the
+        // order-type-based grace window (3 days for an internal shipment,
+        // 3 months for an external one) — see
         // ComplianceService::isEligibleForShipment(). approval_status/
         // account_status stay untouched either way, so the company can
         // still log in and view existing shipments/tracking/finance/
         // documents/profile (see Company::recomputeComplianceStatus()).
         // order_type isn't validated yet at this point in the method, so a
         // lightweight peek at the raw input (defaulting to 'internal', same
-        // default applied below after full validation) is enough here.
-        // Zones (2026-08-27): once the Company Create-Shipment flow sends
-        // structured origin_country/destination_country, order_type is
-        // derived from comparing them rather than trusting whatever the
-        // client separately sent — same rule applied again, authoritatively,
-        // after validation below.
+        // default applied below after full validation) is enough here. Once
+        // the Company Create-Shipment flow sends structured
+        // origin_country/destination_country, order_type is derived from
+        // comparing them rather than trusting whatever the client
+        // separately sent — same rule applied again, authoritatively, after
+        // validation below.
         $rawOriginCountry = $request->input('origin_country');
         $rawDestinationCountry = $request->input('destination_country');
         if ($rawOriginCountry && $rawDestinationCountry) {
@@ -98,9 +97,8 @@ class ShipmentOfferController extends Controller
                 'is_fragile' => ['boolean'],
                 'order_type' => ['nullable', 'in:internal,external'],
                 'required_truck_type' => ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
-                // Zones (2026-08-27) — all optional so an un-migrated older
-                // app build still works exactly as before via the legacy
-                // destination-string path below.
+                // All optional so an app build without zone support still
+                // works via the legacy destination-string path below.
                 'origin_country' => ['nullable', 'string'],
                 'origin_city' => ['nullable', 'string'],
                 'origin_zone_id' => ['nullable', 'integer', 'exists:zones,id'],
@@ -121,11 +119,10 @@ class ShipmentOfferController extends Controller
             ], 422);
         }
 
-        // Zones (2026-08-27): once both countries are known structurally,
-        // order_type is derived by comparing them instead of trusting a
-        // separately-submitted flag — see the design doc's point 5. Falls
-        // back to the client-submitted value (defaulting to 'internal') for
-        // offers created without zone data, exactly as before.
+        // Once both countries are known structurally, order_type is derived
+        // by comparing them instead of trusting a separately-submitted
+        // flag. Falls back to the client-submitted value (defaulting to
+        // 'internal') for offers created without zone data.
         if (! empty($validated['origin_country']) && ! empty($validated['destination_country'])) {
             $validated['order_type'] = $validated['origin_country'] === $validated['destination_country']
                 ? 'internal'
@@ -149,9 +146,8 @@ class ShipmentOfferController extends Controller
             ], 422);
         }
 
-        // Admin Shipments redesign (2026-08-24): a representative
-        // destination coordinate lets the Trip Report / Live Tracking
-        // screens show a straight-line distance.
+        // A representative destination coordinate lets the Trip Report /
+        // Live Tracking screens show a straight-line distance.
         if ($usingZonePricing) {
             // Zone coordinates aren't populated in the current dataset
             // (see Zone model docblock) — this degrades gracefully to no
@@ -191,10 +187,10 @@ class ShipmentOfferController extends Controller
         }
 
         $validated['company_id'] = $company->id;
-        // Admin Shipments redesign (2026-08-24): same generation pattern as
-        // Shipment's own tracking_number (finalizeAcceptance() below) — a
-        // continuous #TRK-xxxxx identity from the moment the offer exists,
-        // not only once a driver accepts it.
+        // Same generation pattern as Shipment's own tracking_number
+        // (finalizeAcceptance() below) — a continuous #TRK-xxxxx identity
+        // from the moment the offer exists, not only once a driver accepts
+        // it.
         $validated['tracking_number'] = 'TRK' . strtoupper(uniqid());
         $validated['status'] = $pricing ? 'pending' : ShipmentOffer::STATUS_AWAITING_MANUAL_PRICE;
 
@@ -202,11 +198,11 @@ class ShipmentOfferController extends Controller
             $validated['pricing_mode'] = 'auto';
 
             if ($usingZonePricing) {
-                // Company chooses the client-facing price (design doc point
-                // 8) — server still computes price_to_driver from whatever
-                // that turns out to be, never from the (possibly stale)
-                // suggested price alone. A zero/omitted selection just
-                // means "use the suggestion as-is".
+                // Company chooses the client-facing price; server still
+                // computes price_to_driver from whatever that turns out to
+                // be, never from the (possibly stale) suggested price
+                // alone. A zero/omitted selection just means "use the
+                // suggestion as-is".
                 $marginPercent = (float) PlatformSetting::get('profit_margin_percent', '20');
                 $clientPrice = (! empty($validated['company_selected_price']))
                     ? (float) $validated['company_selected_price']
@@ -237,16 +233,13 @@ class ShipmentOfferController extends Controller
             $validated['financial_status'] = 'reserved';
         }
 
-        // Concurrency fix (2026-08-25, financial audit): canAffordOffer()
-        // was a plain read with no lock, and the offer (with its
-        // reservation) was created afterward with no lock either. Two
-        // offers created back to back for the same company could both read
-        // the same available balance and both pass the credit-limit check,
-        // together reserving more than the company's actual headroom. Fix:
-        // lock the Company row as a per-company mutex before checking
-        // affordability and creating the offer — manualPrice() and
+        // Locks the Company row as a per-company mutex before checking
+        // affordability and creating the offer, so two offers created back
+        // to back for the same company can't both read the same available
+        // balance and both pass the credit-limit check, together reserving
+        // more than the company's actual headroom. manualPrice() and
         // raisePrice() below take this same lock, so any two of these three
-        // actions for the same company now serialize instead of racing.
+        // actions for the same company serialize instead of racing.
         try {
             $offer = $pricing
                 ? DB::transaction(function () use ($company, $validated) {
@@ -276,12 +269,11 @@ class ShipmentOfferController extends Controller
     }
 
     /**
-     * Smart Pricing Engine (2026-08-27): Step 3 of the Company
-     * Create-Shipment flow — shows a price suggestion BEFORE the company
-     * submits, so they can see/adjust "Your Price" ahead of time. This is
-     * purely informational: create() above always recomputes pricing
-     * server-side from the same inputs and never trusts anything the
-     * client sends back from this preview (see design doc point 36).
+     * Step 3 of the Company Create-Shipment flow — shows a price
+     * suggestion BEFORE the company submits, so they can see/adjust "Your
+     * Price" ahead of time. This is purely informational: create() above
+     * always recomputes pricing server-side from the same inputs and
+     * never trusts anything the client sends back from this preview.
      */
     public function pricingPreview(Request $request)
     {
@@ -306,13 +298,12 @@ class ShipmentOfferController extends Controller
     /**
      * Driver: explicitly passes on a matched offer, instead of just
      * letting the batch time out. Distinguishing "declined" from
-     * "expired" matters for the driver-response dataset the design doc's
-     * point 26/41 asks for (future ranking/AI signal) — accept()/
-     * matchNextBatch() already record their own outcomes elsewhere.
-     * Deliberately does NOT advance the matching round early — the
-     * current batch still runs out its normal timeout, so a decline just
-     * removes this one offer from the driver's own list, exactly like an
-     * expiry would from their point of view.
+     * "expired" matters for the driver-response dataset (a future
+     * ranking/AI signal) — accept()/matchNextBatch() already record their
+     * own outcomes elsewhere. Deliberately does NOT advance the matching
+     * round early — the current batch still runs out its normal timeout,
+     * so a decline just removes this one offer from the driver's own
+     * list, exactly like an expiry would from their point of view.
      */
     public function decline(Request $request, ShipmentOffer $offer)
     {
@@ -530,9 +521,9 @@ class ShipmentOfferController extends Controller
 
         return response()->json([
             'message' => 'Offers retrieved successfully',
-            // Financial audit (2026-08-25): CompanyFacingShipmentOfferResource
-            // shows this company its own price_to_client, but never
-            // price_to_driver or platform_margin_percent_snapshot.
+            // CompanyFacingShipmentOfferResource shows this company its own
+            // price_to_client, but never price_to_driver or
+            // platform_margin_percent_snapshot.
             'offers' => CompanyFacingShipmentOfferResource::collection($offers),
         ], 200);
     }
@@ -540,12 +531,8 @@ class ShipmentOfferController extends Controller
     /**
      * Admin: list every offer, with how many eligible drivers currently
      * match it (helps show why an offer might be stuck unmatched).
-     *
-     * Authorization fix (2026-08-25, financial audit): this only sat behind
-     * auth:sanctum with no role check, so any authenticated driver or
-     * company could call it directly and read every offer's
-     * price_to_client / platform_margin_percent_snapshot for every other
-     * company. Restricted to admin/sub-admin — the real audience.
+     * Restricted to admin/sub-admin, since offers carry price_to_client /
+     * platform_margin_percent_snapshot for every company.
      */
     public function index(Request $request)
     {
@@ -590,10 +577,7 @@ class ShipmentOfferController extends Controller
      * qualifies for, so the app can show "available jobs" to that driver.
      * Broader than "only the top-5 matched this round" on purpose — any
      * eligible driver can still pick up a pending offer, matching just
-     * decides who gets pushed a notification first. NOT broader than full
-     * eligibility, though: this used to show almost every pending internal
-     * offer regardless of the driver's truck/route, only checking the
-     * cross-border residency rule for external ones. It now reuses
+     * decides who gets pushed a notification first. Reuses
      * MatchingService::eligibleDriversQuery() — the exact same Step 1 hard
      * filter matching runs — so a driver whose truck can't do the job, or
      * who doesn't cover the route, never sees it here at all. One query
@@ -602,8 +586,15 @@ class ShipmentOfferController extends Controller
      * it guarantees this list can never drift out of sync with what
      * matching itself considers eligible.
      */
-    public function availableForDriver($driver_id)
+    public function availableForDriver(Request $request, $driver_id)
     {
+        // The Flutter client only ever calls this with its own logged-in
+        // user id, so this is strictly self-only, unlike the admin-shared
+        // driver routes in DriverController/TruckController.
+        if ((string) $request->user()->id !== (string) $driver_id) {
+            return response()->json(['message' => 'You can only view your own available offers'], 403);
+        }
+
         $driver = Driver::where('user_id', $driver_id)->first();
 
         if (! $driver) {
@@ -622,11 +613,10 @@ class ShipmentOfferController extends Controller
 
         return response()->json([
             'message' => 'Available offers retrieved successfully',
-            // Financial audit (2026-08-25): DriverFacingShipmentOfferResource
-            // shows this driver their own price_to_driver, but never
-            // price_to_client or platform_margin_percent_snapshot — the
-            // driver was never meant to see what the company pays or FMS's
-            // margin.
+            // DriverFacingShipmentOfferResource shows this driver their own
+            // price_to_driver, but never price_to_client or
+            // platform_margin_percent_snapshot — the driver is never meant
+            // to see what the company pays or FMS's margin.
             'offers' => DriverFacingShipmentOfferResource::collection($offers),
         ], 200);
     }
@@ -650,15 +640,11 @@ class ShipmentOfferController extends Controller
             'offer_id' => ['required', 'exists:shipment_offers,id'],
         ]);
 
-        // Security fix (2026-08-25, financial audit): this used to trust a
-        // client-supplied driver_user_id and resolve the driver from THAT,
-        // instead of from the authenticated request. Any logged-in user who
-        // knew (or guessed) another driver's user id could accept an offer
-        // on that driver's behalf — which immediately posts a real
-        // SHIPMENT_CHARGE against the company and later a DRIVER_EARNING
-        // for a driver who never actually agreed to the job. The server
-        // already knows who is calling; it must never take that identity
-        // from the request body.
+        // The driver is always resolved from the authenticated request,
+        // never from a client-supplied id — accepting an offer immediately
+        // posts a real SHIPMENT_CHARGE against the company and later a
+        // DRIVER_EARNING, so the identity behind it must come only from
+        // the session.
         $authenticatedDriverUserId = $request->user()->id;
 
         return DB::transaction(function () use ($validated, $authenticatedDriverUserId) {
@@ -721,11 +707,10 @@ class ShipmentOfferController extends Controller
 
             return response()->json([
                 'message' => 'Offer accepted, shipment created successfully',
-                // Financial audit (2026-08-25): price_to_client (what the
-                // company pays) and the platform margin were never meant to
-                // reach the driver — same rule as the offer resources
-                // above, applied here since accept() returns a real
-                // Shipment record, not a ShipmentOffer.
+                // price_to_client (what the company pays) and the platform
+                // margin are not meant to reach the driver — same rule as
+                // the offer resources above, applied here since accept()
+                // returns a real Shipment record, not a ShipmentOffer.
                 'shipment' => $shipment->makeHidden('price_to_client'),
             ], 201);
         });
@@ -754,9 +739,9 @@ class ShipmentOfferController extends Controller
             'financial_status' => $offer->financial_status === 'reserved' ? 'released' : $offer->financial_status,
         ]);
 
-        // Admin Shipments redesign (2026-08-24): close out any still-open
-        // round so the Matching Status/history doesn't show a phantom
-        // "still waiting" round for an offer that's actually cancelled.
+        // Closes out any still-open round so the Matching Status/history
+        // doesn't show a phantom "still waiting" round for an offer that's
+        // actually cancelled.
         \App\Models\ShipmentOfferMatchingRound::where('shipment_offer_id', $offer->id)
             ->where('outcome', \App\Models\ShipmentOfferMatchingRound::OUTCOME_WAITING)
             ->update(['outcome' => \App\Models\ShipmentOfferMatchingRound::OUTCOME_NO_ACCEPTANCE, 'resolved_at' => now()]);
@@ -806,11 +791,10 @@ class ShipmentOfferController extends Controller
             'order_type' => $offer->order_type,
             'price_to_driver' => $offer->price_to_driver,
             'price_to_client' => $offer->price_to_client,
-            // Zones / Smart Pricing Engine snapshot (2026-08-27) — carried
-            // over from the offer so the permanent Shipment record (what
-            // Reports/Finance actually read) keeps the same pricing
+            // Carried over from the offer so the permanent Shipment record
+            // (what Reports/Finance actually read) keeps the same pricing
             // context, not just the two final numbers with nothing behind
-            // them. See 2026_08_27_000005_add_zone_pricing_fields_to_shipments_table.php.
+            // them.
             'pricing_reference' => $offer->pricing_reference,
             'pricing_level' => $offer->pricing_level,
             'market_adjustment_snapshot' => $offer->market_adjustment_snapshot,
@@ -830,9 +814,9 @@ class ShipmentOfferController extends Controller
             'financial_status' => 'committed',
         ]);
 
-        // Admin Shipments redesign (2026-08-24): close out this offer's
-        // current matching round as a genuine acceptance, not a timeout —
-        // see ShipmentOfferMatchingRound / MatchingService::matchNextBatch().
+        // Closes out this offer's current matching round as a genuine
+        // acceptance, not a timeout — see ShipmentOfferMatchingRound /
+        // MatchingService::matchNextBatch().
         \App\Models\ShipmentOfferMatchingRound::where('shipment_offer_id', $offer->id)
             ->where('outcome', \App\Models\ShipmentOfferMatchingRound::OUTCOME_WAITING)
             ->update([
@@ -841,17 +825,16 @@ class ShipmentOfferController extends Controller
                 'resolved_at' => now(),
             ]);
 
-        // Driver-response dataset (2026-08-27) — mirrors the matching
-        // round close-out above, but per-driver (see decline()'s docblock).
+        // Mirrors the matching round close-out above, but per-driver (see
+        // decline()'s docblock).
         \App\Models\ShipmentOfferDriverResponse::updateOrCreate(
             ['shipment_offer_id' => $offer->id, 'driver_id' => $driver->id],
             ['result' => \App\Models\ShipmentOfferDriverResponse::RESULT_ACCEPTED, 'response_at' => now()],
         );
 
         // Company is only actually charged once the shipment is real (a
-        // driver has committed to it) — NOT at offer creation, and not
-        // merely reserved. This was previously missing entirely: balance
-        // only ever went up (deposits), never down for shipment charges.
+        // driver has committed to it) — not at offer creation, and not
+        // merely reserved.
         app(LedgerService::class)->record(
             $offer->company,
             'SHIPMENT_CHARGE',

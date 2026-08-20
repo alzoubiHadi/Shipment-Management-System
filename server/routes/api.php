@@ -66,8 +66,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // screen: view zone-based lanes and edit only their adjustment %.
     Route::get('/price-list/zone-lanes', [PriceListController::class, 'zoneLanes'])->middleware('permission:finance');
     Route::put('/price-list/zone-lanes/{entry}/market-adjustment', [PriceListController::class, 'updateMarketAdjustment'])->middleware('permission:finance');
-    Route::get('/platform-settings', [PlatformSettingController::class, 'index'])->middleware('permission:finance');
-    Route::put('/platform-settings/{key}', [PlatformSettingController::class, 'update'])->middleware('permission:finance');
+    // 2026-08-27 (security review): design is "Platform Settings = Super
+    // Admin only" — 'permission:finance' would also admit any finance
+    // sub-admin, so the Super-Admin-only check now lives solely in
+    // PlatformSettingController (same "no route middleware, in-controller
+    // check" pattern as the financial-adjustments approve/reject above).
+    Route::get('/platform-settings', [PlatformSettingController::class, 'index']);
+    Route::put('/platform-settings/{key}', [PlatformSettingController::class, 'update']);
 
     // Manual balance adjustments — dual control (Finance Admin proposes,
     // Super Admin approves/rejects; enforced again inside the controller
@@ -119,40 +124,56 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/sub-admins/{admin}', [AdminController::class, 'destroy']);
 
     // companies Requests
+    // 2026-08-27 (security review): the whole admin-management cluster below
+    // (list/create/delete/restore/update/approve/reject/suspend/activate)
+    // previously relied on auth:sanctum ALONE — any logged-in driver or
+    // company account could call these. Gated behind 'permission:crm'
+    // (Super Admin always passes; a sub-admin needs the CRM permission
+    // group), matching the same route-middleware pattern already used for
+    // finance-only endpoints elsewhere in this file. Self-service routes
+    // (a company/driver acting on their own record) are deliberately left
+    // out of this gate — see the 'Self-service' comments below.
     Route::get('/my-company', [CompanyController::class, 'myCompany']);
-    Route::get('/get/companies', [CompanyController::class, 'index']);
-    Route::get('/get/companies/trashed', [CompanyController::class, 'index_trashed']);
-    Route::post('/add/companies', [CompanyController::class, 'create']);
-    Route::delete('/delete/companies/{company}', [CompanyController::class, 'destroy']);
-    Route::put('/restore/companies/{company}', [CompanyController::class, 'restore']);
-    Route::put('/update/companies/{company}', [CompanyController::class, 'update']);
-    Route::put('/companies/{company}/approve', [CompanyController::class, 'approve']);
-    Route::put('/companies/{company}/reject', [CompanyController::class, 'reject']);
-    Route::put('/companies/{company}/return-for-completion', [CompanyController::class, 'returnForCompletion']);
+    Route::get('/get/companies', [CompanyController::class, 'index'])->middleware('permission:crm');
+    Route::get('/get/companies/trashed', [CompanyController::class, 'index_trashed'])->middleware('permission:crm');
+    Route::post('/add/companies', [CompanyController::class, 'create'])->middleware('permission:crm');
+    Route::delete('/delete/companies/{company}', [CompanyController::class, 'destroy'])->middleware('permission:crm');
+    Route::put('/restore/companies/{company}', [CompanyController::class, 'restore'])->middleware('permission:crm');
+    Route::put('/update/companies/{company}', [CompanyController::class, 'update'])->middleware('permission:crm');
+    Route::put('/companies/{company}/approve', [CompanyController::class, 'approve'])->middleware('permission:crm');
+    Route::put('/companies/{company}/reject', [CompanyController::class, 'reject'])->middleware('permission:crm');
+    Route::put('/companies/{company}/return-for-completion', [CompanyController::class, 'returnForCompletion'])->middleware('permission:crm');
     // Self-service edit + resubmit while approval_status === 'changes_required'
     Route::put('/me/company-registration', [CompanyController::class, 'updateCompanyInfo']);
     Route::post('/me/company-registration/resubmit', [CompanyController::class, 'resubmit']);
-    Route::put('/companies/{company}/suspend', [CompanyController::class, 'suspend']);
-    Route::put('/companies/{company}/activate', [CompanyController::class, 'activate']);
+    Route::put('/companies/{company}/suspend', [CompanyController::class, 'suspend'])->middleware('permission:crm');
+    Route::put('/companies/{company}/activate', [CompanyController::class, 'activate'])->middleware('permission:crm');
     Route::put('/companies/{company}/credit-limit', [CompanyController::class, 'setCreditLimit'])->middleware('permission:finance');
-    // Drivers Requests
-    Route::get('/get/drivers', [DriverController::class, 'index']);
-    Route::get('/get/drivers/trashed', [DriverController::class, 'index_trashed']);
-    Route::post('/add/drivers', [DriverController::class, 'create']);
-    Route::delete('/delete/drivers/{driver}', [DriverController::class, 'destroy']);
-   Route::put('/restore/drivers/{id}', [DriverController::class, 'restore']);
-    Route::put('/update/drivers/{driver}', [DriverController::class, 'update']);
-    Route::put('/drivers/{driver}/status', [DriverController::class, 'updateStatus']);
-    Route::put('/drivers/{driver}/approve', [DriverController::class, 'approve']);
-    Route::put('/drivers/{driver}/reject', [DriverController::class, 'reject']);
-    Route::put('/drivers/{driver}/return-for-completion', [DriverController::class, 'returnForCompletion']);
+    // 2026-08-27 (security review, item 7): trade license moved to the
+    // private disk — owner-or-'crm' check lives in the controller method.
+    Route::get('/companies/{company}/license/file', [CompanyController::class, 'downloadLicense']);
+    Route::get('/company-documents/{document}/file', [CompanyController::class, 'downloadDocument']);
+    // Drivers Requests — same 2026-08-27 fix as the companies cluster above.
+    Route::get('/get/drivers', [DriverController::class, 'index'])->middleware('permission:crm');
+    Route::get('/get/drivers/trashed', [DriverController::class, 'index_trashed'])->middleware('permission:crm');
+    Route::post('/add/drivers', [DriverController::class, 'create'])->middleware('permission:crm');
+    Route::delete('/delete/drivers/{driver}', [DriverController::class, 'destroy'])->middleware('permission:crm');
+   Route::put('/restore/drivers/{id}', [DriverController::class, 'restore'])->middleware('permission:crm');
+    Route::put('/update/drivers/{driver}', [DriverController::class, 'update'])->middleware('permission:crm');
+    // Admin-initiated status change — NOT the driver's own availability
+    // toggle (that's updateMyStatus() on /driver/{driver_user_id}/status
+    // further down, a distinct self-service route/method).
+    Route::put('/drivers/{driver}/status', [DriverController::class, 'updateStatus'])->middleware('permission:crm');
+    Route::put('/drivers/{driver}/approve', [DriverController::class, 'approve'])->middleware('permission:crm');
+    Route::put('/drivers/{driver}/reject', [DriverController::class, 'reject'])->middleware('permission:crm');
+    Route::put('/drivers/{driver}/return-for-completion', [DriverController::class, 'returnForCompletion'])->middleware('permission:crm');
     // Admin request-review screen (Phase 3): a specific driver's truck.
-    Route::get('/drivers/{driver}/truck', [DriverController::class, 'truck']);
+    Route::get('/drivers/{driver}/truck', [DriverController::class, 'truck'])->middleware('permission:crm');
     // Self-service edit + resubmit while approval_status === 'changes_required'
     Route::put('/me/driver-registration', [DriverController::class, 'updateDriverInfo']);
     Route::post('/me/driver-registration/resubmit', [DriverController::class, 'resubmit']);
-    Route::put('/drivers/{driver}/suspend', [DriverController::class, 'suspend']);
-    Route::put('/drivers/{driver}/reactivate', [DriverController::class, 'reactivate']);
+    Route::put('/drivers/{driver}/suspend', [DriverController::class, 'suspend'])->middleware('permission:crm');
+    Route::put('/drivers/{driver}/reactivate', [DriverController::class, 'reactivate'])->middleware('permission:crm');
     // UC-24: Super Admin rates a driver directly (no shipment attached).
     Route::post('/drivers/{driver}/rate', [DriverRatingController::class, 'rateBySuperAdmin']);
     Route::get('/drivers/{driver}/ratings', [DriverRatingController::class, 'driverRatings']);
@@ -163,21 +184,28 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/compliance-reports/{report}/resolve', [ComplianceReportController::class, 'resolve']);
     Route::post('/compliance-reports/{report}/appeal', [ComplianceReportController::class, 'appeal']);
     Route::post('/compliance-reports/{report}/resolve-appeal', [ComplianceReportController::class, 'resolveAppeal']);
+    // 2026-08-27 (security review, item 7): evidence file on the private disk.
+    Route::get('/compliance-reports/{report}/evidence', [ComplianceReportController::class, 'downloadEvidence']);
     // Driver documents (append-only, UC-8) and destinations
     Route::get('/driver/{driver_user_id}/documents', [DriverController::class, 'documents']);
     Route::post('/driver/{driver_user_id}/documents', [DriverController::class, 'uploadDocument']);
+    // 2026-08-27 (security review, item 7): documents now live on the
+    // private disk — this is the only way to fetch the actual file.
+    Route::get('/driver-documents/{document}/file', [DriverController::class, 'downloadDocument']);
     Route::get('/driver/destination-options', [DriverController::class, 'destinationOptions']);
     Route::get('/driver/{driver_user_id}/destinations', [DriverController::class, 'myDestinations']);
     Route::put('/driver/{driver_user_id}/destinations', [DriverController::class, 'syncDestinations']);
 
-    // Trucks
+    // Trucks — admin CRUD cluster gated the same way (2026-08-27); the
+    // driver's own truck routes right below (myTrucks/addMyTruck/
+    // updateMyTruck) stay ungated here since that's the self-service path.
     Route::get('/truck-types', [TruckController::class, 'truckTypes']);
-    Route::get('/get/trucks', [TruckController::class, 'index']);
-    Route::get('/get/trucks/trashed', [TruckController::class, 'index_trashed']);
-    Route::post('/add/trucks', [TruckController::class, 'create']);
-    Route::put('/update/trucks/{truck}', [TruckController::class, 'update']);
-    Route::delete('/delete/trucks/{truck}', [TruckController::class, 'destroy']);
-    Route::put('/restore/trucks/{id}', [TruckController::class, 'restore']);
+    Route::get('/get/trucks', [TruckController::class, 'index'])->middleware('permission:crm');
+    Route::get('/get/trucks/trashed', [TruckController::class, 'index_trashed'])->middleware('permission:crm');
+    Route::post('/add/trucks', [TruckController::class, 'create'])->middleware('permission:crm');
+    Route::put('/update/trucks/{truck}', [TruckController::class, 'update'])->middleware('permission:crm');
+    Route::delete('/delete/trucks/{truck}', [TruckController::class, 'destroy'])->middleware('permission:crm');
+    Route::put('/restore/trucks/{id}', [TruckController::class, 'restore'])->middleware('permission:crm');
     Route::get('/driver/{driver_user_id}/trucks', [TruckController::class, 'myTrucks']);
     Route::post('/driver/{driver_user_id}/trucks', [TruckController::class, 'addMyTruck']);
     Route::put('/driver/{driver_user_id}/my-truck', [TruckController::class, 'updateMyTruck']);
@@ -186,6 +214,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // workflow at all outside the changes_required edit window.
     Route::get('/driver/{driver_user_id}/truck-documents', [TruckController::class, 'myTruckDocuments']);
     Route::post('/driver/{driver_user_id}/truck-documents', [TruckController::class, 'uploadMyTruckDocument']);
+    // 2026-08-27 (security review, item 7): private-disk file access —
+    // {type} is one of license|insurance|technical_inspection (the flat
+    // columns on trucks) vs. a specific TruckDocument renewal-history row.
+    Route::get('/trucks/{truck}/file/{type}', [TruckController::class, 'downloadFile']);
+    Route::get('/truck-documents/{document}/file', [TruckController::class, 'downloadDocument']);
 
     // Zones / Smart Pricing Engine (2026-08-27) — read-only lookup for the
     // Company Create-Shipment Country -> City -> Zone pickers.
@@ -199,7 +232,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Server-side-only price preview shown before the company submits —
     // never trusted as the final price; create() always recomputes.
     Route::post('/shipment-offers/pricing-preview', [ShipmentOfferController::class, 'pricingPreview']);
-    Route::get('/shipment-offers/{offer}/eligible-drivers', [ShipmentOfferController::class, 'eligibleDrivers']);
+    // 2026-08-27 (security review): was reachable by any authenticated user
+    // and returned the full eligible-driver list (names, ratings, etc.) for
+    // an offer — admin/CRM-only screen, so gated the same as the rest of
+    // the admin-management cluster above.
+    Route::get('/shipment-offers/{offer}/eligible-drivers', [ShipmentOfferController::class, 'eligibleDrivers'])->middleware('permission:crm');
     Route::get('/driver/{driver_id}/available-offers', [ShipmentOfferController::class, 'availableForDriver']);
     Route::post('/shipment-offers/accept', [ShipmentOfferController::class, 'accept']);
     // Driver explicitly passes on an offer — separate from letting the

@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 import '../API/PlatformSettingService.dart';
 import '../API/config.dart';
 
-/// Finance Admin: platform-wide configuration screen (2026-08-27) —
+/// Super Admin only: platform-wide configuration screen (2026-08-27) —
 /// profit margin, matching weights/timeout/batch size, and driver-ops
 /// defaults. The backend (PlatformSettingController) has always supported
 /// this via GET/PUT /platform-settings, but no Flutter screen ever called
 /// it until now.
+///
+/// 2026-08-27 (security review): this was mislabeled as a Finance Admin
+/// screen and reachable via 'permission:finance' — the backend now
+/// restricts both endpoints to Super Admin only (see
+/// PlatformSettingController::requireSuperAdmin()); this screen must only
+/// ever be shown to a Super Admin (see AdminDrawer's routing).
 class AdminPlatformSettingsPage extends StatefulWidget {
   const AdminPlatformSettingsPage({super.key});
 

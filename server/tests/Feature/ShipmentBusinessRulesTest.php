@@ -316,6 +316,14 @@ class ShipmentBusinessRulesTest extends TestCase
     {
         [$user, $driver] = $this->makeDriver();
         $company = $this->makeCompany();
+        // 2026-08-27 (test suite fix): this test loops through 6 driver-
+        // advanceable stages + asserts a 7th is rejected, but
+        // Shipment::ADVANCE_COLUMNS only has 6 stages for order_type
+        // 'external' (cross-border, with the two border-crossing stages) —
+        // 'internal' (the default this test used to leave implicit) caps
+        // at 4. Making the order type explicit here instead of shortening
+        // the loop, since 'external' is what the test was actually written
+        // to exercise.
         $shipment = Shipment::create([
             'company_id' => $company->id,
             'driver_id' => $driver->id,
@@ -324,6 +332,7 @@ class ShipmentBusinessRulesTest extends TestCase
             'destination' => 'Amman',
             'status' => 1,
             'current_stage' => 0,
+            'order_type' => 'external',
         ]);
 
         Sanctum::actingAs($user);
@@ -382,6 +391,13 @@ class ShipmentBusinessRulesTest extends TestCase
 
         [$user, $driver] = $this->makeDriver(['status' => 'busy']);
         $company = $this->makeCompany();
+        // 2026-08-27 (test suite fix): current_stage 6 = 'unloaded_at' for
+        // order_type 'external' (see Shipment::ADVANCE_COLUMNS) — the
+        // fixture already assumed external's 6-stage timeline but never
+        // set order_type, so deliver() computed 'internal' math instead
+        // (maxAdvance 4, not 6) and produced current_stage 5, not the 7
+        // this test expects. Same root cause as the "stages advance"
+        // test above.
         $shipment = Shipment::create([
             'company_id' => $company->id,
             'driver_id' => $driver->id,
@@ -390,6 +406,7 @@ class ShipmentBusinessRulesTest extends TestCase
             'destination' => 'Amman',
             'status' => 1,
             'current_stage' => 6,
+            'order_type' => 'external',
             'price_to_driver' => 500,
         ]);
 
@@ -442,7 +459,6 @@ class ShipmentBusinessRulesTest extends TestCase
 
     public function test_cancelling_a_shipment_without_a_reason_is_rejected(): void
     {
-        [$user] = $this->makeDriver();
         $company = $this->makeCompany();
         $shipment = Shipment::create([
             'company_id' => $company->id,
@@ -452,7 +468,12 @@ class ShipmentBusinessRulesTest extends TestCase
             'status' => 1,
         ]);
 
-        Sanctum::actingAs($user);
+        // 2026-08-27 (test suite fix): updateshipmentstatus() is
+        // Super-Admin-only (requireSuperAdmin()) — the live app only ever
+        // calls this from ShipmentPageAdmin.dart, so this test was acting
+        // as the wrong role and hitting the 403 guard before it ever
+        // reached the cancellation-reason validation this test is for.
+        Sanctum::actingAs($this->makeAdmin());
 
         $response = $this->postJson('/api/shipments/status/change', [
             'shipment_id' => $shipment->id,
@@ -465,7 +486,7 @@ class ShipmentBusinessRulesTest extends TestCase
 
     public function test_cancelling_a_shipment_with_a_reason_succeeds_and_frees_the_driver(): void
     {
-        [$user, $driver] = $this->makeDriver(['status' => 'busy']);
+        [, $driver] = $this->makeDriver(['status' => 'busy']);
         $company = $this->makeCompany();
         $shipment = Shipment::create([
             'company_id' => $company->id,
@@ -476,7 +497,9 @@ class ShipmentBusinessRulesTest extends TestCase
             'status' => 1,
         ]);
 
-        Sanctum::actingAs($user);
+        // 2026-08-27 (test suite fix): see the sibling test above — this
+        // endpoint is Super-Admin-only in the real app.
+        Sanctum::actingAs($this->makeAdmin());
 
         $response = $this->postJson('/api/shipments/status/change', [
             'shipment_id' => $shipment->id,

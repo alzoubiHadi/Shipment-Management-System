@@ -11,10 +11,29 @@ use App\Models\User;
 use App\Notifications\AppPushNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class DriverController extends Controller
 {
+    /**
+     * documents(), uploadDocument(), myDestinations() and syncDestinations()
+     * below all take $driver_user_id straight from the URL, so this guards
+     * against one authenticated user passing another driver's user_id to
+     * read or upload documents / change destinations on their file. These
+     * routes are genuinely shared between the driver's own app (self access)
+     * and the admin review screens (any driver's file), so — same pattern as
+     * ReportController::driverSelf() — this allows either the owning user or
+     * an admin with 'crm' permission, and blocks everyone else.
+     */
+    private function authorizeDriverAccess(Request $request, $driver_user_id): void
+    {
+        $requester = $request->user();
+        if ((string) $requester->id !== (string) $driver_user_id && ! $requester->hasPermission('crm')) {
+            abort(403, 'You are not authorized to access this driver\'s data.');
+        }
+    }
+
     public function index()
     {
         // Drivers don't have their own email column — it lives on the
@@ -42,9 +61,9 @@ class DriverController extends Controller
     }
     public function create(Request $request)
     {
-        // Case-insensitivity fix (2026-08-25): normalize before validate()
-        // so the 'unique:users,email' rule below compares correctly against
-        // already-lowercased stored rows — see User::setEmailAttribute().
+        // Normalize before validate() so the 'unique:users,email' rule below
+        // compares correctly against already-lowercased stored rows — see
+        // User::setEmailAttribute().
         if ($request->filled('email')) {
             $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
         }
@@ -116,7 +135,7 @@ public function restore( $id)
 
     public function update(Request $request, Driver $driver)
     {
-        // Case-insensitivity fix (2026-08-25) — same reasoning as create() above.
+        // Normalize the same way as create() above.
         if ($request->filled('email')) {
             $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
         }
@@ -183,10 +202,9 @@ public function restore( $id)
     }
 
     /**
-     * Admin request-review screen (Phase 3, 2026-08-17): the driver's own
-     * /me/profile endpoint already returns their truck, but nothing exposed
-     * a SPECIFIC driver's truck to an admin reviewing someone else's
-     * registration. Returns the full record (permit/insurance/technical
+     * Exposes a specific driver's truck to an admin reviewing their
+     * registration (the driver's own /me/profile endpoint only returns
+     * their own truck). Returns the full record (permit/insurance/technical
      * inspection files + expiries) so the Truck Info/Truck Documents tabs
      * have real data instead of just Driver::truck_number/truck_type.
      */
@@ -258,17 +276,16 @@ public function restore( $id)
     }
 
     /**
-     * UC-5 alt flow (2026-08-19: now the "Changes Required" state):
-     * instead of outright rejecting, return the application so the driver
-     * can fix specific flagged items and resubmit themselves. Distinct
-     * from 'rejected' (permanently terminal, register-again-required) —
-     * this one supports a real self-service edit + resubmit loop (see
-     * updateDriverInfo()/uploadDocument()/syncDestinations(), all newly
-     * gated to apply directly rather than queue a ProfileEditRequest while
-     * status is 'changes_required', and resubmit() below which flips it
+     * UC-5 alt flow — the "Changes Required" state: instead of outright
+     * rejecting, return the application so the driver can fix specific
+     * flagged items and resubmit themselves. Distinct from 'rejected'
+     * (permanently terminal, register-again-required) — this one supports
+     * a real self-service edit + resubmit loop (see updateDriverInfo()/
+     * uploadDocument()/syncDestinations(), which apply directly while
+     * status is 'changes_required', and resubmit() below, which flips it
      * back to 'pending' for a fresh admin review). Written to both
-     * rejection_reason (what DriverApprovalStatusPage already displays)
-     * and admin_note (kept for continuity with the older convention).
+     * rejection_reason (what DriverApprovalStatusPage displays) and
+     * admin_note.
      */
     public function returnForCompletion(Request $request, Driver $driver)
     {
@@ -289,11 +306,10 @@ public function restore( $id)
     }
 
     /**
-     * Driver's own fix-up submission (2026-08-19), only reachable while
-     * approval_status === 'changes_required' — the admin already asked for
-     * this specific re-review, so unlike the post-approval self-service
-     * endpoints below, applying it does NOT go through the
-     * ProfileEditRequest queue first.
+     * Driver's own fix-up submission, only reachable while approval_status
+     * === 'changes_required' — the admin already asked for this specific
+     * re-review, so unlike the post-approval self-service endpoints below,
+     * applying it does NOT go through the ProfileEditRequest queue first.
      */
     public function updateDriverInfo(Request $request)
     {
@@ -405,8 +421,10 @@ public function restore( $id)
      * a specific driver's file also have that driver's user_id available
      * from the drivers list response.
      */
-    public function documents($driver_user_id)
+    public function documents(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
 
         if (! $driver) {
@@ -420,14 +438,36 @@ public function restore( $id)
     }
 
     /**
+     * Streams a driver document from the private 'local' disk. Same
+     * owner-or-'crm' check as the rest of this controller's driver-scoped
+     * endpoints, returned through Storage::disk('local')->response(),
+     * matching the pattern used by
+     * PayoutRequestController::downloadReceipt().
+     */
+    public function downloadDocument(Request $request, DriverDocument $document)
+    {
+        $requester = $request->user();
+        $ownerUserId = $document->driver?->user_id;
+
+        if ((string) $requester->id !== (string) $ownerUserId && ! $requester->hasPermission('crm')) {
+            abort(403, 'You are not authorized to view this document.');
+        }
+
+        if (! $document->file_path || ! Storage::disk('local')->exists($document->file_path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('local')->response($document->file_path);
+    }
+
+    /**
      * A driver renewing/uploading their own document is a change that's
      * material to eligibility (it directly feeds Driver::isEligibleForNewJob
      * / documentIssues), so it is NEVER applied straight away here.
      *
-     * Unified Approvals / document-expiry feature (2026-08-22): the new
-     * row IS created immediately, as a real `driver_documents` row with
-     * status='under_review' and is_current=false — this is what makes it
-     * show up as a real "Renewal Submitted" document (Admin > Approvals >
+     * The new row is created immediately, as a real `driver_documents` row
+     * with status='under_review' and is_current=false — this is what makes
+     * it show up as a real "Renewal Submitted" document (Admin > Approvals >
      * Document Renewals), not just an entry buried in a JSON payload. The
      * OLD row keeps is_current=true (and therefore keeps counting for
      * Driver::documentIssues()/eligibility) until an admin actually
@@ -436,6 +476,8 @@ public function restore( $id)
      */
     public function uploadDocument(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
 
         if (! $driver) {
@@ -455,7 +497,7 @@ public function restore( $id)
             ], 422);
         }
 
-        $path = $request->file('file')->store('driver_documents', 'public');
+        $path = $request->file('file')->store('driver_documents', 'local');
 
         $currentDoc = $driver->documents()->where('type', $validated['type'])->where('is_current', true)->first();
 
@@ -492,9 +534,8 @@ public function restore( $id)
             ], 201);
         }
 
-        // Compliance/Approval separation feature (2026-08-23): a
-        // resubmission after an admin previously requested changes on this
-        // exact document type gets its own notification wording
+        // A resubmission after an admin requested changes on this exact
+        // document type gets its own notification wording
         // (renewal_resubmitted) instead of a fresh new_document_renewal —
         // and the stale 'changes_required' row is superseded now that a
         // new attempt has replaced it.
@@ -564,8 +605,10 @@ public function restore( $id)
         ], 200);
     }
 
-    public function myDestinations($driver_user_id)
+    public function myDestinations(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
 
         if (! $driver) {
@@ -588,6 +631,8 @@ public function restore( $id)
      */
     public function syncDestinations(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
 
         if (! $driver) {
@@ -634,12 +679,12 @@ public function restore( $id)
     }
 
     /**
-     * UC-21/UC-14: near-live location, foreground-only per the spec (no
-     * background tracking service) — the Flutter app calls this
-     * periodically while it's open and the driver is 'available' or
-     * 'busy'. Feeds both live tracking (company-facing, via
-     * ShipmentController::trackmyshipment) and the Haversine proximity
-     * term in the matching score (MatchingService::proximityScore).
+     * UC-21/UC-14: near-live location, foreground-only (no background
+     * tracking service) — the Flutter app calls this periodically while
+     * it's open and the driver is 'available' or 'busy'. Feeds both live
+     * tracking (company-facing, via ShipmentController::trackmyshipment)
+     * and the Haversine proximity term in the matching score
+     * (MatchingService::proximityScore).
      */
     public function updateLocation(Request $request, $driver_user_id)
     {

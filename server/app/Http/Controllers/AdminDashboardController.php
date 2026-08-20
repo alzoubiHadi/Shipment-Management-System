@@ -29,8 +29,26 @@ class AdminDashboardController extends Controller
 {
     const RENEWAL_CATEGORIES = ['document', 'truck_document', 'company_license'];
 
+    /**
+     * 2026-08-27 (security review): neither endpoint below checked the
+     * caller was an admin at all — any authenticated driver or company
+     * account could read these platform-wide counts and the affected-people
+     * list. This spans several permission categories at once (finance,
+     * compliance, crm...), so unlike the single-category endpoints
+     * elsewhere in the app it's gated here by "any admin" rather than one
+     * specific 'permission:<key>' route middleware.
+     */
+    private function requireAdmin(Request $request): void
+    {
+        $user = $request->user();
+        if (! $user || (! $user->isSuperAdmin() && ! $user->isSubAdmin())) {
+            abort(403, 'Admin access required.');
+        }
+    }
+
     public function stats(Request $request)
     {
+        $this->requireAdmin($request);
         $now = now();
 
         $pendingDrivers = Driver::where('approval_status', 'pending')->count();
@@ -134,6 +152,7 @@ class AdminDashboardController extends Controller
      */
     public function documentAlerts(Request $request)
     {
+        $this->requireAdmin($request);
         $status = $request->query('status', 'expiring_soon');
         if (! in_array($status, ['expiring_soon', 'expired'], true)) {
             return response()->json(['message' => 'status must be expiring_soon or expired'], 422);

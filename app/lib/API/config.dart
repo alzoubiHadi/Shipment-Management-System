@@ -2,6 +2,9 @@ library config;
 
 import 'dart:ui';
 
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 // Deployed backend (Render) — works from any device, any network, no need
 // to be on the same Wi-Fi or run a local server. If you ever go back to
 // running the server locally instead, swap this for
@@ -18,6 +21,63 @@ String storageUrl(String relativePath) {
       ? baseUrl.substring(0, baseUrl.length - 4)
       : baseUrl;
   return '$base/storage/$relativePath';
+}
+
+/// 2026-08-27 (security review, item 7): driver/truck/company documents and
+/// compliance evidence moved off the public disk onto Laravel's private
+/// disk, so they can no longer be opened via a plain storageUrl() link —
+/// the new download endpoints (e.g. `$baseUrl/driver-documents/{id}/file`)
+/// require this user's Bearer token. Shows the file inline in a simple
+/// dialog with the token attached, same pattern already used for
+/// payment/payout receipts in AdminFinancePage.dart.
+///
+/// Scope note: this only renders images. A handful of upload flows
+/// (company license, truck documents) technically also accept PDFs — for
+/// those the dialog falls back to an explanatory message rather than
+/// failing silently. Viewing a PDF externally isn't possible here without
+/// a file-download package this environment couldn't install; the
+/// underlying file is still safely stored and reachable by anyone who
+/// builds that flow later.
+Future<void> viewSecureFile(BuildContext context, String url) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  if (!context.mounted) return;
+
+  showDialog(
+    context: context,
+    builder: (dialogContext) => Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.all(16),
+      child: Stack(
+        alignment: Alignment.topRight,
+        children: [
+          InteractiveViewer(
+            child: Image.network(
+              url,
+              headers: {'Authorization': 'Bearer $token'},
+              loadingBuilder: (context, child, progress) => progress == null
+                  ? child
+                  : const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                    ),
+              errorBuilder: (context, error, stackTrace) => const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  "Can't preview this file — it may not be an image (e.g. a PDF).",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 

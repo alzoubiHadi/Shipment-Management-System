@@ -17,19 +17,13 @@ use Illuminate\Support\Facades\DB;
 class ShipmentController extends Controller
 {
     /**
-     * Authorization fix (2026-08-25, financial audit): assignDriver,
-     * refuse, index, delete, update, and restore below had NO role or
-     * ownership check at all — any authenticated user of any role (driver,
-     * company, or admin) could call them directly (they only sat behind the
-     * blanket auth:sanctum middleware). None of them are reachable from any
-     * live screen anymore — the real flows today are
+     * Guards assignDriver, refuse, index, delete, update, and restore below,
+     * none of which are reachable from any live screen — the real flows are
      * ShipmentOfferController::accept/finalizeAcceptance, advanceStage(),
-     * deliver(), confirmDelivery(), and AdminShipmentController for
-     * listing — the only live callers of these legacy endpoints traced back
-     * to screens already confirmed dead code elsewhere in this codebase
-     * (ShipmentPageAdmin.dart, ShipmentDetailsPage.dart). Restricting them
-     * to Super Admin closes the hole with zero effect on the running app,
-     * without deleting routes something unknown might still depend on.
+     * deliver(), confirmDelivery(), and AdminShipmentController for listing.
+     * Restricting these legacy endpoints to Super Admin keeps them available
+     * for anything that might still depend on the routes, without exposing
+     * them to any authenticated user regardless of role.
      */
     private function requireSuperAdmin(Request $request)
     {
@@ -197,8 +191,16 @@ class ShipmentController extends Controller
             'shipment' => $data,
         ], 200);
     }
-    public function drivergetShipments($driver_id)
+    public function drivergetShipments(Request $request, $driver_id)
     {
+        // The Flutter client only ever calls this with its own logged-in
+        // user id (see ShipmentServices.fetchShipments()) — admin has a
+        // separate unscoped /shipments route for viewing everyone's — so
+        // this is strictly self-only, same as currentActiveTrip() below.
+        if ((string) $request->user()->id !== (string) $driver_id) {
+            return response()->json(['message' => 'You can only view your own shipments'], 403);
+        }
+
         $driver = Driver::where('user_id', $driver_id)->first();
 
         if (! $driver) {
@@ -209,9 +211,9 @@ class ShipmentController extends Controller
 
         return response()->json([
             'message' => 'Shipments retrieved successfully',
-            // Financial audit (2026-08-25): price_to_client (what the
-            // company pays) and the platform margin were never meant to
-            // reach the driver — only their own price_to_driver.
+            // price_to_client (what the company pays) and the platform
+            // margin are not meant to reach the driver — only their own
+            // price_to_driver.
             'shipments' => $shipments->makeHidden('price_to_client'),
         ], 200);
     }
@@ -254,8 +256,14 @@ class ShipmentController extends Controller
         ], 200);
     }
 
-    public function companygetShipments($company_id)
+    public function companygetShipments(Request $request, $company_id)
     {
+        // Same self-only enforcement as drivergetShipments() above — the
+        // client always passes its own id (ShipmentServices.fetchShipmentscompany()).
+        if ((string) $request->user()->id !== (string) $company_id) {
+            return response()->json(['message' => 'You can only view your own shipments'], 403);
+        }
+
         $company = Company::where('user_id', $company_id)->first();
 
         if (! $company) {
@@ -311,22 +319,22 @@ class ShipmentController extends Controller
 
         return response()->json([
             'message' => 'Shipment stage updated successfully',
-            // Financial audit (2026-08-25): driver-facing response — hide
-            // price_to_client, same rule as drivergetShipments() above.
+            // Driver-facing response — hide price_to_client, same rule as
+            // drivergetShipments() above.
             'shipment' => $shipment->makeHidden('price_to_client'),
         ], 200);
     }
 
     /**
      * Driver app (UC-19): final tracking stage. Captures the
-     * proof-of-delivery signature and recipient name and moves the
-     * shipment to "awaiting company confirmation" — deliberately does NOT
-     * free the driver or mark the shipment fully "delivered" yet. Per the
-     * spec, the driver stays busy and unpaid until the company actually
-     * confirms (UC-20, ShipmentController::confirmDelivery) or a dispute
-     * gets resolved in the driver's favor — crediting a driver's balance
-     * (or freeing them) the instant they merely claim delivery would let
-     * an unscrupulous driver get paid for a shipment that never arrived.
+     * proof-of-delivery document and recipient name and moves the shipment
+     * to "awaiting company confirmation" — deliberately does NOT free the
+     * driver or mark the shipment fully "delivered" yet. The driver stays
+     * busy and unpaid until the company actually confirms (UC-20,
+     * ShipmentController::confirmDelivery) or a dispute gets resolved in
+     * the driver's favor — crediting a driver's balance (or freeing them)
+     * the instant they merely claim delivery would let an unscrupulous
+     * driver get paid for a shipment that never arrived.
      */
     public function deliver(Request $request, Shipment $shipment)
     {
@@ -347,13 +355,12 @@ class ShipmentController extends Controller
             ], 422);
         }
 
-        // Feature (2026-08-25): the driver now attaches a proof-of-delivery
-        // document (a photo taken on the spot, or any file — e.g. a scanned
-        // delivery note) instead of drawing a signature on-screen.
-        // pod_signature/its validation are gone for new deliveries; the
-        // column itself is untouched so already-delivered shipments still
-        // show their original signature (see AdminShipmentController::show()
-        // and ProofOfDeliveryPage.dart, both of which fall back to it).
+        // The driver attaches a proof-of-delivery document (a photo taken
+        // on the spot, or any file — e.g. a scanned delivery note). The
+        // legacy pod_signature column is untouched so already-delivered
+        // shipments still show their original signature (see
+        // AdminShipmentController::show() and ProofOfDeliveryPage.dart,
+        // both of which fall back to it).
         $validated = $request->validate([
             'pod_document' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
             'pod_recipient_name' => ['required', 'string'],
@@ -382,8 +389,8 @@ class ShipmentController extends Controller
 
         return response()->json([
             'message' => 'Delivery recorded — awaiting company confirmation',
-            // Financial audit (2026-08-25): driver-facing response — hide
-            // price_to_client, same rule as drivergetShipments() above.
+            // Driver-facing response — hide price_to_client, same rule as
+            // drivergetShipments() above.
             'shipment' => $shipment->fresh()->makeHidden('price_to_client'),
         ], 200);
     }
@@ -402,14 +409,11 @@ class ShipmentController extends Controller
             return response()->json(['message' => 'This is not your shipment'], 403);
         }
 
-        // Concurrency fix (2026-08-25, financial audit): the delivery_status
-        // check used to run BEFORE the transaction opened, then re-lock the
-        // shipment WITHOUT re-checking its status again. Two near-
-        // simultaneous "Confirm delivery" taps could both read
-        // 'awaiting_confirmation', both pass, and both post a DRIVER_EARNING
-        // credit for the same shipment — the driver paid twice for one trip.
-        // Fix: lock the shipment row first and re-check delivery_status only
-        // once that lock is held.
+        // Locks the shipment row first and re-checks delivery_status only
+        // once that lock is held, so two near-simultaneous "Confirm
+        // delivery" taps can't both read 'awaiting_confirmation', both
+        // pass, and both post a DRIVER_EARNING credit for the same
+        // shipment.
         try {
             DB::transaction(function () use ($shipment, $request) {
                 $lockedShipment = Shipment::where('id', $shipment->id)->lockForUpdate()->firstOrFail();
@@ -677,9 +681,9 @@ class ShipmentController extends Controller
             'cancellation_reason' => (int) $newStatus === 4
                 ? $request->cancellation_reason
                 : $shipment->cancellation_reason,
-            // Cancellation Report screen (2026-08-24): who + exactly when,
-            // not inferable from updated_at alone (that column changes on
-            // every subsequent edit, not just the cancellation itself).
+            // Records who cancelled and exactly when, for the Cancellation
+            // Report screen — not inferable from updated_at alone (that
+            // column changes on every subsequent edit).
             'cancelled_by_user_id' => (int) $newStatus === 4 ? $request->user()->id : $shipment->cancelled_by_user_id,
             'cancelled_at' => (int) $newStatus === 4 ? now() : $shipment->cancelled_at,
         ]);

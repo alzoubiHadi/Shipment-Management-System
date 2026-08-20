@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../API/CompanyService.dart';
 import '../API/config.dart';
 import '../models/Company.dart';
@@ -105,21 +104,14 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     }
   }
 
-  /// Opens the company's uploaded trade/commercial license file in an
-  /// external viewer (browser/PDF app) — the app itself doesn't render
-  /// PDFs, so this hands off to whatever the device already has.
+  /// 2026-08-27 (security review, item 7): the license file moved to the
+  /// private disk, so it's fetched through the authenticated
+  /// /companies/{id}/license/file endpoint instead of a plain storage URL.
   Future<void> _openLicense() async {
     final path = company.licenseFilePath;
     if (path == null || path.isEmpty) return;
 
-    final uri = Uri.parse(storageUrl(path));
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open license file')),
-      );
-    }
+    await viewSecureFile(context, '$baseUrl/companies/${company.id}/license/file');
   }
 
   /// UC-27: Super Admin temporarily suspends a company account.

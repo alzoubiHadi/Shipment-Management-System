@@ -1,6 +1,5 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../API/DriverService.dart';
 import '../API/TruckService.dart';
@@ -48,12 +47,12 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
 
   void _refresh() => setState(() => _documentsFuture = DriverService.fetchMyDocuments());
 
-  Future<void> _viewFile(String? path) async {
-    if (path == null || path.isEmpty) return;
-    final launched = await launchUrl(Uri.parse(storageUrl(path)), mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open file')));
-    }
+  /// 2026-08-27 (security review, item 7): the truck's license/insurance/
+  /// technical-inspection file moved to the private disk — fetched through
+  /// the authenticated /trucks/{id}/file/{type} endpoint instead of a
+  /// plain storage URL.
+  Future<void> _viewFile(String truckId, String type) async {
+    await viewSecureFile(context, '$baseUrl/trucks/$truckId/file/$type');
   }
 
   _ExpiryState _expiryState(DateTime? date) {
@@ -550,7 +549,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                         children: [
                           if ((path ?? '').isNotEmpty)
                             TextButton(
-                              onPressed: () => _viewFile(path),
+                              onPressed: () => _viewFile(trucks.first.id, typeKey),
                               style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28)),
                               child: const Text('View', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
                             ),

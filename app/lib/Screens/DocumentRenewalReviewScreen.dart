@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../API/ProfileService.dart';
 import '../API/config.dart';
@@ -30,13 +29,19 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
   final _service = ProfileService();
   bool _busy = false;
 
-  Future<void> _openFile(String? path) async {
-    if (path == null || path.isEmpty) return;
-    final uri = Uri.parse(storageUrl(path));
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open file')));
-    }
+  /// 2026-08-27 (security review, item 7): renewal documents live in the
+  /// driver_documents/truck_documents/company_documents history tables and
+  /// moved to the private disk — this builds the right authenticated
+  /// download endpoint for whichever table `request.category` points at
+  /// and opens it, instead of resolving a plain storage URL.
+  Future<void> _openFile(String? documentId) async {
+    if (documentId == null || documentId.isEmpty) return;
+    final prefix = switch (widget.request.category) {
+      'truck_document' => 'truck-documents',
+      'company_license' => 'company-documents',
+      _ => 'driver-documents',
+    };
+    await viewSecureFile(context, '$baseUrl/$prefix/$documentId/file');
   }
 
   Future<void> _approve() async {
@@ -96,6 +101,7 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
     final old = r.oldDocument;
     final newExpiry = r.payload['expiry_date']?.toString();
     final newFile = r.payload['file_path']?.toString();
+    final newDocumentId = r.payload['document_id']?.toString();
 
     return Scaffold(
       backgroundColor: LightColors.bg,
@@ -123,7 +129,7 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
                       MapEntry('Expiry Date', _fmt(old['expiry_date']?.toString())),
                       MapEntry('Status', (old['status']?.toString() ?? '—')),
                     ],
-              onPreview: old?['file_path'] != null ? () => _openFile(old!['file_path']?.toString()) : null,
+              onPreview: old?['id'] != null ? () => _openFile(old!['id']?.toString()) : null,
             ),
             const SizedBox(height: 20),
 
@@ -135,7 +141,7 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
                 MapEntry('Submitted', _fmt(r.createdAt?.toIso8601String())),
                 const MapEntry('Status', 'Pending Review'),
               ],
-              onPreview: newFile != null ? () => _openFile(newFile) : null,
+              onPreview: newFile != null ? () => _openFile(newDocumentId) : null,
             ),
             const SizedBox(height: 28),
 

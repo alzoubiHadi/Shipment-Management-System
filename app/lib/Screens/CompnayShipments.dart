@@ -9,11 +9,10 @@ import 'ShipmentTrackingPage.dart';
 // ── Page ─────────────────────────────────────────────────────────────────────
 // Company redesign Phase 3 (2026-08-17 mockup): "My Shipments" list,
 // light-themed with All/Pending/Live/Delivered tabs. The Tracking screen
-// itself (ShipmentTrackingPage) stays on the old dark theme for now — it's
-// shared with the driver's own in-progress advance-stage UI, which isn't
-// part of this redesign pass, so re-theming it here would change the
-// driver's screen too. Re-themed only when driver-side screens get their
-// own pass.
+// itself (ShipmentTrackingPage) is also on LightColors already — this note
+// used to say it stayed on the old dark theme, but that's out of date
+// (verified 2026-08-27): it uses LightColors.bg/surface/gold/border
+// throughout, same as this screen.
 
 enum _ShipmentTab { all, pending, live, delivered }
 

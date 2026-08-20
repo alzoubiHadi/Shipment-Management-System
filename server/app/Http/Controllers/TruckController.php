@@ -14,6 +14,22 @@ use Illuminate\Validation\ValidationException;
 
 class TruckController extends Controller
 {
+    /**
+     * 2026-08-27 (security review / IDOR fix): myTrucks(), addMyTruck(),
+     * updateMyTruck(), myTruckDocuments() and uploadMyTruckDocument() below
+     * all trust $driver_user_id from the URL with no ownership check — any
+     * authenticated user could read or modify another driver's truck by
+     * passing their user_id. Same fix pattern as DriverController's
+     * equivalent self-service routes.
+     */
+    private function authorizeDriverAccess(Request $request, $driver_user_id): void
+    {
+        $requester = $request->user();
+        if ((string) $requester->id !== (string) $driver_user_id && ! $requester->hasPermission('crm')) {
+            abort(403, "You are not authorized to access this driver's truck.");
+        }
+    }
+
     public function index()
     {
         $trucks = Truck::with('defaultDriver')->get();
@@ -74,7 +90,7 @@ class TruckController extends Controller
         }
 
         if ($request->hasFile('license_file')) {
-            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'public');
+            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'local');
         }
         unset($validated['license_file']);
 
@@ -102,7 +118,7 @@ class TruckController extends Controller
         }
 
         if ($request->hasFile('license_file')) {
-            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'public');
+            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'local');
         }
 
         $truck->update($validated);
@@ -138,8 +154,10 @@ class TruckController extends Controller
      * these two endpoints resolve everything from the user_id, the same
      * pattern already used for /driver/{driver_id}/shipments.
      */
-    public function myTrucks($driver_user_id)
+    public function myTrucks(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
 
         if (! $driver) {
@@ -156,6 +174,8 @@ class TruckController extends Controller
 
     public function addMyTruck(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
 
         if (! $driver) {
@@ -193,7 +213,7 @@ class TruckController extends Controller
         $validated['default_driver_id'] = $driver->id;
 
         if ($request->hasFile('license_file')) {
-            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'public');
+            $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'local');
         }
         unset($validated['license_file']);
 
@@ -213,6 +233,8 @@ class TruckController extends Controller
      */
     public function updateMyTruck(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
 
         if (! $driver) {
@@ -258,9 +280,9 @@ class TruckController extends Controller
         ] as $inputKey => [$column, $folder]) {
             if ($request->hasFile($inputKey)) {
                 $oldPath = $truck->{$column};
-                $validated[$column] = $request->file($inputKey)->store($folder, 'public');
+                $validated[$column] = $request->file($inputKey)->store($folder, 'local');
                 if ($oldPath) {
-                    Storage::disk('public')->delete($oldPath);
+                    Storage::disk('local')->delete($oldPath);
                 }
             }
             unset($validated[$inputKey]);
@@ -277,8 +299,10 @@ class TruckController extends Controller
     // ── Truck documents (Unified Approvals / document-expiry feature, 2026-08-22) ──
 
     /** History of this driver's truck's document renewals — same pattern as DriverController::documents(). */
-    public function myTruckDocuments($driver_user_id)
+    public function myTruckDocuments(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
         if (! $driver) {
             return response()->json(['message' => 'Driver not found'], 404);
@@ -296,6 +320,61 @@ class TruckController extends Controller
     }
 
     /**
+     * 2026-08-27 (security review, item 7): the truck's CURRENT license/
+     * insurance/technical-inspection file is a flat column on `trucks`
+     * (not a TruckDocument row), and used to be served straight from the
+     * public disk. Now that store()/replace() write to 'local', this is
+     * the only way to fetch that file: owning driver (via
+     * defaultDriver/ownerDriver) or an admin with 'crm' permission.
+     */
+    public function downloadFile(Request $request, Truck $truck, string $type)
+    {
+        $column = match ($type) {
+            'license' => 'license_file_path',
+            'insurance' => 'insurance_file_path',
+            'technical_inspection' => 'technical_inspection_file_path',
+            default => null,
+        };
+
+        if (! $column) {
+            return response()->json(['message' => 'Unknown file type'], 404);
+        }
+
+        $requester = $request->user();
+        $ownerUserId = $truck->ownerDriver?->user_id ?? $truck->defaultDriver?->user_id;
+
+        if ((string) $requester->id !== (string) $ownerUserId && ! $requester->hasPermission('crm')) {
+            abort(403, 'You are not authorized to view this file.');
+        }
+
+        $path = $truck->{$column};
+
+        if (! $path || ! Storage::disk('local')->exists($path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('local')->response($path);
+    }
+
+    /** Same owner-or-'crm' check, for a specific TruckDocument renewal-history row. */
+    public function downloadDocument(Request $request, TruckDocument $document)
+    {
+        $requester = $request->user();
+        $truck = $document->truck;
+        $ownerUserId = $truck?->ownerDriver?->user_id ?? $truck?->defaultDriver?->user_id;
+
+        if ((string) $requester->id !== (string) $ownerUserId && ! $requester->hasPermission('crm')) {
+            abort(403, 'You are not authorized to view this document.');
+        }
+
+        if (! $document->file_path || ! Storage::disk('local')->exists($document->file_path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('local')->response($document->file_path);
+    }
+
+    /**
      * A driver renewing their truck's license/insurance/technical
      * inspection — previously there was no workflow for this at all
      * outside the changes_required edit window (see updateMyTruck()
@@ -307,6 +386,8 @@ class TruckController extends Controller
      */
     public function uploadMyTruckDocument(Request $request, $driver_user_id)
     {
+        $this->authorizeDriverAccess($request, $driver_user_id);
+
         $driver = Driver::where('user_id', $driver_user_id)->first();
         if (! $driver) {
             return response()->json(['message' => 'Driver not found'], 404);
@@ -332,7 +413,7 @@ class TruckController extends Controller
             'technical_inspection' => 'truck_inspections',
             default => 'truck_licenses',
         };
-        $path = $request->file('file')->store($folder, 'public');
+        $path = $request->file('file')->store($folder, 'local');
 
         $currentDoc = $truck->documents()->where('type', $validated['type'])->where('is_current', true)->first();
 

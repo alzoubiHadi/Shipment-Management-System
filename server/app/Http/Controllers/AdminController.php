@@ -50,7 +50,7 @@ class AdminController extends Controller
      */
     public function store(Request $request)
     {
-        // Case-insensitivity fix (2026-08-25) — see User::setEmailAttribute().
+        // Normalize before validate() — see User::setEmailAttribute().
         if ($request->filled('email')) {
             $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
         }
