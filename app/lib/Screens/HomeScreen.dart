@@ -4,6 +4,7 @@ import '../API/DriverLocationReporter.dart';
 import '../API/NotificationBadge.dart';
 import '../API/PushNotificationSetup.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../models/NavItem.dart';
 
@@ -33,10 +34,21 @@ import 'UserHomePage.dart';
 
 class HomeScreen extends StatefulWidget {
   final AppUser user;
+  // 2026-08-28: lets a screen that was pushed on top of HomeScreen (e.g.
+  // AdminSettingsPage's "Work Destinations" tile, or a
+  // 'profile_edit_pending' notification tap) land directly on a specific
+  // bottom-nav tab/Approvals section instead of always opening on the
+  // dashboard — those admin tabs are only ever reachable through this
+  // IndexedStack (no standalone back-button page exists for them), so a
+  // deep link has to go through HomeScreen's own state.
+  final int initialTabIndex;
+  final ApprovalSection initialApprovalSection;
 
   const HomeScreen({
     super.key,
     required this.user,
+    this.initialTabIndex = 0,
+    this.initialApprovalSection = ApprovalSection.registrations,
   });
 
   @override
@@ -44,17 +56,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex = widget.initialTabIndex;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // Approvals tab (admin index 1, formerly "Registration Requests" /
   // RegistrationRequestsScreen — see ApprovalsPage's docblock for the
-  // Unified Approvals redesign). _requestsSection picks which of the 3
-  // Approvals tabs (registrations/renewals/changes) opens by default;
-  // changing it swaps the ValueKey on ApprovalsPage below, forcing it to
-  // rebuild on that section instead of keeping whatever section the admin
-  // had open before.
-  ApprovalSection _requestsSection = ApprovalSection.registrations;
+  // Unified Approvals redesign). _requestsSection picks which of the 4
+  // Approvals tabs (registrations/renewals/changes/destinations) opens by
+  // default; changing it swaps the ValueKey on ApprovalsPage below, forcing
+  // it to rebuild on that section instead of keeping whatever section the
+  // admin had open before.
+  late ApprovalSection _requestsSection = widget.initialApprovalSection;
 
   bool get _isAdmin =>
       widget.user.role == 'admin' || widget.user.role == 'super_admin' || widget.user.role == 'sub_admin';
@@ -108,25 +120,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // NAV ITEMS
   List<NavItem> get _navItems {
+    final t = AppLocalizations.of(context)!;
     switch (widget.user.role) {
       case "driver":
         return [
           NavItem(
             icon: Icons.home_outlined,
             activeIcon: Icons.home_rounded,
-            label: 'Home',
+            label: t.navHome,
           ),
 
           NavItem(
             icon: Icons.handshake_outlined,
             activeIcon: Icons.handshake_rounded,
-            label: 'Offers',
+            label: t.navOffers,
           ),
 
           NavItem(
             icon: Icons.person_outline,
             activeIcon: Icons.person_rounded,
-            label: 'Profile',
+            label: t.navProfile,
           ),
         ];
 
@@ -135,19 +148,19 @@ class _HomeScreenState extends State<HomeScreen> {
           NavItem(
             icon: Icons.dashboard_outlined,
             activeIcon: Icons.dashboard_rounded,
-            label: 'Dashboard',
+            label: t.navDashboard,
           ),
 
           NavItem(
             icon: Icons.handshake_outlined,
             activeIcon: Icons.handshake_rounded,
-            label: 'Offers',
+            label: t.navOffers,
           ),
 
           NavItem(
             icon: Icons.person_outline,
             activeIcon: Icons.person_rounded,
-            label: 'Profile',
+            label: t.navProfile,
           ),
         ];
 
@@ -162,28 +175,28 @@ class _HomeScreenState extends State<HomeScreen> {
           NavItem(
             icon: Icons.people_outline,
             activeIcon: Icons.people_rounded,
-            label: 'Drivers',
+            label: t.navDrivers,
           ),
 
           NavItem(
             icon: Icons.flag_outlined,
             activeIcon: Icons.flag_rounded,
-            label: 'Companies',
+            label: t.navCompanies,
           ),
           NavItem(
             icon: Icons.local_shipping_outlined,
             activeIcon: Icons.local_shipping_rounded,
-            label: 'Shipments',
+            label: t.navShipments,
           ),
           NavItem(
             icon: Icons.handshake_outlined,
             activeIcon: Icons.handshake_rounded,
-            label: 'Offers',
+            label: t.navOffers,
           ),
           NavItem(
             icon: Icons.bar_chart_outlined,
             activeIcon: Icons.bar_chart_rounded,
-            label: 'Reports',
+            label: t.navReports,
           ),
         ];
 
@@ -192,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
           NavItem(
             icon: Icons.home_outlined,
             activeIcon: Icons.home_rounded,
-            label: 'Home',
+            label: t.navHome,
           ),
         ];
     }

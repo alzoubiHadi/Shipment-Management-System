@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
 import 'ShipmentTrackingPage.dart';
@@ -52,13 +53,14 @@ class _UserHomePageState extends State<UserHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.cream),
-        title: const Text('My Shipments', style: TextStyle(color: LightColors.cream)),
+        title: Text(t.myShipmentsTitle, style: const TextStyle(color: LightColors.cream)),
       ),
       body: RefreshIndicator(
         color: LightColors.gold,
@@ -78,25 +80,25 @@ class _UserHomePageState extends State<UserHomePage> {
                       child: Row(
                         children: [
                           _TabChip(
-                            label: 'All (${all.length})',
+                            label: t.tabAllCount(all.length),
                             active: _tab == _ShipmentTab.all,
                             onTap: () => setState(() => _tab = _ShipmentTab.all),
                           ),
                           const SizedBox(width: 8),
                           _TabChip(
-                            label: 'Active (${_filter(all, _ShipmentTab.active).length})',
+                            label: t.tabActiveCount(_filter(all, _ShipmentTab.active).length),
                             active: _tab == _ShipmentTab.active,
                             onTap: () => setState(() => _tab = _ShipmentTab.active),
                           ),
                           const SizedBox(width: 8),
                           _TabChip(
-                            label: 'Completed (${_filter(all, _ShipmentTab.completed).length})',
+                            label: t.tabCompletedCount(_filter(all, _ShipmentTab.completed).length),
                             active: _tab == _ShipmentTab.completed,
                             onTap: () => setState(() => _tab = _ShipmentTab.completed),
                           ),
                           const SizedBox(width: 8),
                           _TabChip(
-                            label: 'Cancelled (${_filter(all, _ShipmentTab.cancelled).length})',
+                            label: t.tabCancelledCount(_filter(all, _ShipmentTab.cancelled).length),
                             active: _tab == _ShipmentTab.cancelled,
                             onTap: () => setState(() => _tab = _ShipmentTab.cancelled),
                           ),
@@ -200,6 +202,7 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
       child: Column(
@@ -211,9 +214,9 @@ class _ErrorState extends StatelessWidget {
             size: 48,
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Failed to load shipments',
-            style: TextStyle(
+          Text(
+            t.failedToLoadShipments,
+            style: const TextStyle(
               color: LightColors.cream,
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -229,9 +232,9 @@ class _ErrorState extends StatelessWidget {
           TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded, color: LightColors.gold),
-            label: const Text(
-              'Retry',
-              style: TextStyle(color: LightColors.gold),
+            label: Text(
+              t.commonRetry,
+              style: const TextStyle(color: LightColors.gold),
             ),
           ),
         ],
@@ -245,30 +248,31 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+    final t = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
+          const Icon(
             Icons.inventory_2_outlined,
             color: LightColors.muted,
             size: 48,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
-            'No shipments here',
-            style: TextStyle(
+            t.noShipmentsHere,
+            style: const TextStyle(
               color: LightColors.cream,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Shipments matching this filter will appear here.',
+            t.shipmentsMatchingFilterEmpty,
             textAlign: TextAlign.center,
-            style: TextStyle(color: LightColors.muted, fontSize: 12),
+            style: const TextStyle(color: LightColors.muted, fontSize: 12),
           ),
         ],
       ),

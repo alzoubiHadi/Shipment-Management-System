@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'register_shared.dart';
 
 /// Company self-service screen (UC-11), redesigned as a light-themed
@@ -63,18 +64,18 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
   bool _pricingLoading = false;
   String? _pricingFetchKey;
 
-  static const _stepTitles = [
-    'Route',
-    'Cargo Details',
-    'Truck & Pricing',
-    'Review & Submit',
-  ];
-  static const _stepSubtitles = [
-    'Where is this shipment going?',
-    'Tell us what\'s being shipped',
-    'What kind of truck, and what will you pay?',
-    'Check everything before creating the offer',
-  ];
+  List<String> _stepTitles(AppLocalizations t) => [
+        t.addShipmentStepRoute,
+        t.addShipmentStepCargo,
+        t.addShipmentStepTruckPricing,
+        t.addShipmentStepReview,
+      ];
+  List<String> _stepSubtitles(AppLocalizations t) => [
+        t.addShipmentSubtitleRoute,
+        t.addShipmentSubtitleCargo,
+        t.addShipmentSubtitleTruckPricing,
+        t.addShipmentSubtitleReview,
+      ];
 
   @override
   void initState() {
@@ -89,7 +90,8 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
       setState(() => _zones = zones);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _zonesLoadError = 'Failed to load zones: $e');
+      final t = AppLocalizations.of(context)!;
+      setState(() => _zonesLoadError = t.addShipmentFailedToLoadZones(e.toString()));
     }
   }
 
@@ -171,19 +173,19 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     });
   }
 
-  String? _validateStep(int step) {
+  String? _validateStep(AppLocalizations t, int step) {
     switch (step) {
       case 0:
-        if (_originZone == null) return 'Please select a pickup zone';
-        if (_destZone == null) return 'Please select a drop-off zone';
+        if (_originZone == null) return t.addShipmentSelectPickupZone;
+        if (_destZone == null) return t.addShipmentSelectDropoffZone;
         return null;
       case 1:
         if (_weightController.text.trim().isNotEmpty && double.tryParse(_weightController.text.trim()) == null) {
-          return 'Weight must be a number';
+          return t.addShipmentWeightMustBeNumber;
         }
         return null;
       case 2:
-        if (_selectedTruckType == null) return 'Please select a required truck type';
+        if (_selectedTruckType == null) return t.addShipmentSelectTruckTypeRequired;
         return null;
       default:
         return null;
@@ -191,11 +193,12 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
   }
 
   void _next() {
+    final t = AppLocalizations.of(context)!;
     if (_step == _totalSteps - 1) {
       _submit();
       return;
     }
-    final error = _validateStep(_step);
+    final error = _validateStep(t, _step);
     if (error != null) {
       setState(() => _errorMessage = error);
       return;
@@ -219,6 +222,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
   }
 
   Future<void> _submit() async {
+    final t = AppLocalizations.of(context)!;
     setState(() {
       _isSaving = true;
       _errorMessage = null;
@@ -254,8 +258,8 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
       if (result['success'] == true) {
         final status = result['offer']?['status'];
         final message = status == 'awaiting_manual_price'
-            ? 'Offer created — no automatic price found, CRM will set one shortly'
-            : 'Offer created — matching drivers now';
+            ? t.addShipmentSuccessNoAutoPrice
+            : t.addShipmentSuccessMatching;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message), backgroundColor: LightColors.success),
         );
@@ -264,7 +268,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
         setState(() => _errorMessage = result['message']?.toString());
       }
     } on Exception catch (e) {
-      if (mounted) setState(() => _errorMessage = 'Something went wrong: $e');
+      if (mounted) setState(() => _errorMessage = t.addShipmentSomethingWentWrong(e.toString()));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -272,22 +276,23 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: LightColors.textPrimary), onPressed: _back),
-        title: const Text('Create Shipment',
-            style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(t.addShipmentTitle,
+            style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
-        child: _zones == null ? _loadingOrErrorBody() : _wizardBody(),
+        child: _zones == null ? _loadingOrErrorBody(t) : _wizardBody(t),
       ),
     );
   }
 
-  Widget _loadingOrErrorBody() {
+  Widget _loadingOrErrorBody(AppLocalizations t) {
     if (_zonesLoadError != null) {
       return Center(
         child: Padding(
@@ -298,7 +303,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
               LightErrorBanner(message: _zonesLoadError!),
               const SizedBox(height: 16),
               LightPrimaryButton(
-                label: 'Retry',
+                label: t.commonRetry,
                 onPressed: () => setState(() {
                   _zonesLoadError = null;
                   _loadZones();
@@ -312,7 +317,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     return const Center(child: CircularProgressIndicator(color: LightColors.gold));
   }
 
-  Widget _wizardBody() {
+  Widget _wizardBody(AppLocalizations t) {
     return Column(
       children: [
         Padding(
@@ -325,28 +330,28 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
             physics: const NeverScrollableScrollPhysics(),
             onPageChanged: (i) => setState(() => _step = i),
             children: [
-              _pageScaffold(0, [_routeStep()]),
-              _pageScaffold(1, [_cargoStep()]),
-              _pageScaffold(2, [_truckAndPricingStep()]),
-              _pageScaffold(3, [_reviewStep()]),
+              _pageScaffold(t, 0, [_routeStep(t)]),
+              _pageScaffold(t, 1, [_cargoStep(t)]),
+              _pageScaffold(t, 2, [_truckAndPricingStep(t)]),
+              _pageScaffold(t, 3, [_reviewStep(t)]),
             ],
           ),
         ),
-        _bottomBar(),
+        _bottomBar(t),
       ],
     );
   }
 
-  Widget _pageScaffold(int stepIndex, List<Widget> children) {
+  Widget _pageScaffold(AppLocalizations t, int stepIndex, List<Widget> children) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_stepTitles[stepIndex],
+          Text(_stepTitles(t)[stepIndex],
               style: const TextStyle(color: LightColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text(_stepSubtitles[stepIndex], style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
+          Text(_stepSubtitles(t)[stepIndex], style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 20),
           ...children,
         ],
@@ -354,7 +359,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     );
   }
 
-  Widget _bottomBar() {
+  Widget _bottomBar(AppLocalizations t) {
     return Container(
       padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + MediaQuery.of(context).padding.bottom),
       decoration: const BoxDecoration(color: LightColors.surface, border: Border(top: BorderSide(color: LightColors.border))),
@@ -366,7 +371,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
             const SizedBox(height: 10),
           ],
           LightPrimaryButton(
-            label: _step == _totalSteps - 1 ? 'Create Offer' : 'Next',
+            label: _step == _totalSteps - 1 ? t.addShipmentCreateOfferButton : t.commonNext,
             loading: _isSaving,
             onPressed: _next,
           ),
@@ -377,7 +382,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
   // ── Step 1: Route ────────────────────────────────────────────────────
 
-  Widget _routeStep() {
+  Widget _routeStep(AppLocalizations t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -391,7 +396,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
                 Icon(_orderType == 'internal' ? Icons.map_outlined : Icons.flight_takeoff_outlined, size: 15, color: LightColors.navy),
                 const SizedBox(width: 6),
                 Text(
-                  _orderType == 'internal' ? 'Domestic shipment' : 'Cross-border shipment',
+                  _orderType == 'internal' ? t.addShipmentDomestic : t.addShipmentCrossBorder,
                   style: const TextStyle(color: LightColors.navy, fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -399,12 +404,13 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
           ),
           const SizedBox(height: 16),
         ],
-        const Text('Pickup', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(t.addShipmentPickupLabel, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         _zoneCascadePicker(
-          countryLabel: 'Pickup Country',
-          cityLabel: 'Pickup City',
-          zoneLabel: 'Pickup Zone',
+          t,
+          countryLabel: t.addShipmentPickupCountry,
+          cityLabel: t.addShipmentPickupCity,
+          zoneLabel: t.addShipmentPickupZone,
           country: _originCountry,
           city: _originCity,
           zone: _originZone,
@@ -422,16 +428,17 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
         const SizedBox(height: 10),
         buildLightTextField(
           controller: _originAddressController,
-          label: 'Pickup Address (optional)',
-          hint: 'Building, street, landmark…',
+          label: t.addShipmentPickupAddressOptional,
+          hint: t.addShipmentAddressHint,
         ),
         const SizedBox(height: 20),
-        const Text('Drop-off', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(t.addShipmentDropoffLabel, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         _zoneCascadePicker(
-          countryLabel: 'Drop-off Country',
-          cityLabel: 'Drop-off City',
-          zoneLabel: 'Drop-off Zone',
+          t,
+          countryLabel: t.addShipmentDropoffCountry,
+          cityLabel: t.addShipmentDropoffCity,
+          zoneLabel: t.addShipmentDropoffZone,
           country: _destCountry,
           city: _destCity,
           zone: _destZone,
@@ -449,8 +456,8 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
         const SizedBox(height: 10),
         buildLightTextField(
           controller: _destAddressController,
-          label: 'Drop-off Address (optional)',
-          hint: 'Building, street, landmark…',
+          label: t.addShipmentDropoffAddressOptional,
+          hint: t.addShipmentAddressHint,
         ),
       ],
     );
@@ -458,7 +465,8 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
   // Country -> City -> Zone cascade, all sourced from the real zones list
   // (GET /zones) rather than free text — see design doc points 4-13.
-  Widget _zoneCascadePicker({
+  Widget _zoneCascadePicker(
+    AppLocalizations t, {
     required String countryLabel,
     required String cityLabel,
     required String zoneLabel,
@@ -477,7 +485,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
         LightPickerField(
           label: countryLabel,
           value: country,
-          hint: 'Select a country',
+          hint: t.addShipmentSelectCountry,
           icon: Icons.public_outlined,
           onTap: () => _pickFromStrings(
             title: countryLabel,
@@ -490,7 +498,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
         LightPickerField(
           label: cityLabel,
           value: city,
-          hint: country == null ? 'Select a country first' : 'Select a city',
+          hint: country == null ? t.addShipmentSelectCountryFirst : t.addShipmentSelectCity,
           icon: Icons.location_city_outlined,
           onTap: country == null
               ? () {}
@@ -505,11 +513,12 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
         LightPickerField(
           label: zoneLabel,
           value: zone?.name,
-          hint: city == null ? 'Select a city first' : 'Select a zone',
+          hint: city == null ? t.addShipmentSelectCityFirst : t.addShipmentSelectZone,
           icon: Icons.pin_drop_outlined,
           onTap: city == null
               ? () {}
               : () => _pickZone(
+                    t,
                     title: zoneLabel,
                     options: zoneOptions,
                     selected: zone,
@@ -522,21 +531,21 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
   // ── Step 2: Cargo Details ────────────────────────────────────────────
 
-  Widget _cargoStep() {
+  Widget _cargoStep(AppLocalizations t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         buildLightTextField(
           controller: _weightController,
-          label: 'Weight (kg)',
-          hint: 'Optional',
+          label: t.addShipmentWeightKg,
+          hint: t.commonOptional,
           keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 16),
         buildLightTextField(
           controller: _descriptionController,
-          label: 'Cargo Description',
-          hint: 'Optional — what\'s being shipped',
+          label: t.addShipmentCargoDescription,
+          hint: t.addShipmentCargoDescriptionHint,
           maxLines: 3,
         ),
       ],
@@ -545,17 +554,17 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
   // ── Step 3: Truck & Pricing ───────────────────────────────────────────
 
-  Widget _truckAndPricingStep() {
+  Widget _truckAndPricingStep(AppLocalizations t) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         LightPickerField(
-          label: 'Required Truck Type',
+          label: t.addShipmentRequiredTruckType,
           value: _selectedTruckType,
-          hint: 'Select a truck type',
+          hint: t.addShipmentSelectTruckType,
           icon: Icons.local_shipping_outlined,
           onTap: () => _pickFromStrings(
-            title: 'Required Truck Type',
+            title: t.addShipmentRequiredTruckType,
             options: kTruckTypes,
             selected: _selectedTruckType,
             onSelected: (v) {
@@ -569,25 +578,25 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
           decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: LightColors.border)),
           child: Column(
             children: [
-              _switchTile('Requires special permit', _needsPermit, (v) => setState(() => _needsPermit = v)),
+              _switchTile(t.addShipmentRequiresPermit, _needsPermit, (v) => setState(() => _needsPermit = v)),
               const Divider(height: 1, color: LightColors.border),
-              _switchTile('Hazardous cargo', _isHazardous, (v) => setState(() => _isHazardous = v)),
+              _switchTile(t.addShipmentHazardousCargo, _isHazardous, (v) => setState(() => _isHazardous = v)),
               const Divider(height: 1, color: LightColors.border),
-              _switchTile('Fragile cargo', _isFragile, (v) => setState(() => _isFragile = v)),
+              _switchTile(t.addShipmentFragileCargo, _isFragile, (v) => setState(() => _isFragile = v)),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        const Text('Pricing', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(t.addShipmentPricingLabel, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
-        _pricingCard(),
+        _pricingCard(t),
       ],
     );
   }
 
-  Widget _pricingCard() {
+  Widget _pricingCard(AppLocalizations t) {
     if (_selectedTruckType == null || _originZone == null || _destZone == null) {
-      return _infoBanner('Select a pickup zone, drop-off zone, and truck type to see a price suggestion.');
+      return _infoBanner(t.addShipmentPricingSelectPrompt);
     }
     if (_pricingLoading) {
       return const Padding(
@@ -597,10 +606,10 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     }
     final suggestion = _pricingSuggestion;
     if (suggestion == null) {
-      return _infoBanner('Price suggestion not loaded yet.');
+      return _infoBanner(t.addShipmentPricingNotLoaded);
     }
     if (suggestion['success'] != true || suggestion['matched'] != true) {
-      return _infoBanner('No historical pricing for this lane — our team will review and set a price shortly after you submit.');
+      return _infoBanner(t.addShipmentPricingNoHistorical);
     }
 
     final reference = (suggestion['reference_price'] as num?)?.toDouble();
@@ -620,7 +629,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
             children: [
               const Icon(Icons.auto_graph_outlined, size: 16, color: LightColors.gold),
               const SizedBox(width: 6),
-              Text('Historical reference: ${reference != null ? 'AED ${reference.toStringAsFixed(0)}' : '—'}',
+              Text(t.addShipmentHistoricalReference(reference != null ? 'AED ${reference.toStringAsFixed(0)}' : '—'),
                   style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
               const Spacer(),
               if (confidence != null)
@@ -633,14 +642,16 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
           ),
           if (low != null && high != null) ...[
             const SizedBox(height: 4),
-            Text('Typical range: AED ${low.toStringAsFixed(0)} – ${high.toStringAsFixed(0)}${sampleSize != null ? ' ($sampleSize past trips)' : ''}',
+            Text(
+                t.addShipmentTypicalRange(
+                    'AED ${low.toStringAsFixed(0)} – ${high.toStringAsFixed(0)}${sampleSize != null ? ' (${t.addShipmentPastTrips(sampleSize is int ? sampleSize : int.tryParse(sampleSize.toString()) ?? 0)})' : ''}'),
                 style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
           ],
           const SizedBox(height: 14),
           buildLightTextField(
             controller: _yourPriceController,
-            label: 'Your Price (AED, charged to you)',
-            hint: 'Defaults to the historical reference — you may change it',
+            label: t.addShipmentYourPriceLabel,
+            hint: t.addShipmentYourPriceHint,
             keyboardType: TextInputType.number,
           ),
         ],
@@ -675,7 +686,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
 
   // ── Step 4: Review & Submit ──────────────────────────────────────────
 
-  Widget _reviewStep() {
+  Widget _reviewStep(AppLocalizations t) {
     final matched = _pricingSuggestion?['success'] == true && _pricingSuggestion?['matched'] == true;
     return Container(
       width: double.infinity,
@@ -684,16 +695,18 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _reviewRow('Type', _orderType == 'internal' ? 'Domestic' : (_orderType == 'external' ? 'Cross-border' : '—')),
-          _reviewRow('Origin', _origin.isEmpty ? '—' : _origin),
-          _reviewRow('Destination', _destination.isEmpty ? '—' : _destination),
-          _reviewRow('Weight', _weightController.text.trim().isEmpty ? '—' : '${_weightController.text.trim()} kg'),
-          _reviewRow('Description', _descriptionController.text.trim().isEmpty ? '—' : _descriptionController.text.trim()),
-          _reviewRow('Truck Type', _selectedTruckType ?? '—'),
-          _reviewRow('Special Permit', _needsPermit ? 'Yes' : 'No'),
-          _reviewRow('Hazardous', _isHazardous ? 'Yes' : 'No'),
-          _reviewRow('Fragile', _isFragile ? 'Yes' : 'No'),
-          _reviewRow('Your Price', matched && _yourPriceController.text.trim().isNotEmpty ? 'AED ${_yourPriceController.text.trim()}' : 'Set by CRM after review'),
+          _reviewRow(t.addShipmentReviewType,
+              _orderType == 'internal' ? t.addShipmentDomesticShort : (_orderType == 'external' ? t.addShipmentCrossBorderShort : '—')),
+          _reviewRow(t.addShipmentReviewOrigin, _origin.isEmpty ? '—' : _origin),
+          _reviewRow(t.addShipmentReviewDestination, _destination.isEmpty ? '—' : _destination),
+          _reviewRow(t.addShipmentReviewWeight, _weightController.text.trim().isEmpty ? '—' : '${_weightController.text.trim()} kg'),
+          _reviewRow(t.addShipmentReviewDescription, _descriptionController.text.trim().isEmpty ? '—' : _descriptionController.text.trim()),
+          _reviewRow(t.addShipmentReviewTruckType, _selectedTruckType ?? '—'),
+          _reviewRow(t.addShipmentReviewSpecialPermit, _needsPermit ? t.commonYes : t.commonNo),
+          _reviewRow(t.addShipmentReviewHazardous, _isHazardous ? t.commonYes : t.commonNo),
+          _reviewRow(t.addShipmentReviewFragile, _isFragile ? t.commonYes : t.commonNo),
+          _reviewRow(t.addShipmentReviewYourPrice,
+              matched && _yourPriceController.text.trim().isNotEmpty ? 'AED ${_yourPriceController.text.trim()}' : t.addShipmentSetByCrm),
         ],
       ),
     );
@@ -720,6 +733,7 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     required String? selected,
     required ValueChanged<String> onSelected,
   }) async {
+    final t = AppLocalizations.of(context)!;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: LightColors.surface,
@@ -731,15 +745,15 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(title, style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
             Flexible(
               child: options.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('No options available', style: TextStyle(color: LightColors.textSecondary)),
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(t.addShipmentNoOptionsAvailable, style: const TextStyle(color: LightColors.textSecondary)),
                     )
                   : ListView(
                       shrinkWrap: true,
@@ -763,7 +777,8 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
     );
   }
 
-  Future<void> _pickZone({
+  Future<void> _pickZone(
+    AppLocalizations t, {
     required String title,
     required List<ZoneOption> options,
     required ZoneOption? selected,
@@ -780,15 +795,15 @@ class _AddShipmentOfferPageState extends State<AddShipmentOfferPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(title, style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
             Flexible(
               child: options.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('No zones available for this city', style: TextStyle(color: LightColors.textSecondary)),
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Text(t.addShipmentNoZonesForCity, style: const TextStyle(color: LightColors.textSecondary)),
                     )
                   : ListView(
                       shrinkWrap: true,

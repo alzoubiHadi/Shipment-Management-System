@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/AdminDashboardService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../widgets/FmsNotificationBell.dart';
 import 'ApprovalsPage.dart';
@@ -54,24 +55,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     await _statsFuture;
   }
 
-  String get _greeting {
+  String _greeting(AppLocalizations t) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t.greetingMorning;
+    if (hour < 18) return t.greetingAfternoon;
+    return t.greetingEvening;
   }
 
-  static const _weekdayNames = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-  ];
-  static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  List<String> _weekdayNames(AppLocalizations t) => [
+        t.weekdayMonday, t.weekdayTuesday, t.weekdayWednesday, t.weekdayThursday,
+        t.weekdayFriday, t.weekdaySaturday, t.weekdaySunday,
+      ];
+  List<String> _monthNames(AppLocalizations t) => [
+        t.monthJanuary, t.monthFebruary, t.monthMarch, t.monthApril, t.monthMay, t.monthJune,
+        t.monthJuly, t.monthAugust, t.monthSeptember, t.monthOctober, t.monthNovember, t.monthDecember,
+      ];
 
-  String get _todayLabel {
+  String _todayLabel(AppLocalizations t) {
     final now = DateTime.now();
-    return '${_weekdayNames[now.weekday - 1]}, ${_monthNames[now.month - 1]} ${now.day}, ${now.year}';
+    return t.todayLabelFormat(_weekdayNames(t)[now.weekday - 1], _monthNames(t)[now.month - 1], now.day, now.year);
   }
 
   void _openTab(BuildContext context, Widget screen) {
@@ -84,6 +86,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       color: LightColors.bg,
       child: SafeArea(
@@ -111,10 +114,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('$_greeting, ${widget.user.name.split(' ').first}',
+                            Text(t.greetingComma(_greeting(t), widget.user.name.split(' ').first),
                                 style: const TextStyle(
                                     color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-                            Text(_todayLabel,
+                            Text(_todayLabel(t),
                                 style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                           ],
                         ),
@@ -141,11 +144,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           children: [
                             const Icon(Icons.error_outline, color: LightColors.error, size: 32),
                             const SizedBox(height: 8),
-                            Text('Could not load dashboard stats.\n${snapshot.error}',
+                            Text(t.couldNotLoadDashboardStats(snapshot.error.toString()),
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
                             const SizedBox(height: 12),
-                            TextButton(onPressed: _refresh, child: const Text('Retry')),
+                            TextButton(onPressed: _refresh, child: Text(t.commonRetry)),
                           ],
                         ),
                       );
@@ -167,7 +170,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             children: [
                               _StatCard(
                                 icon: Icons.fact_check_outlined,
-                                label: 'Pending Approvals',
+                                label: t.statPendingApprovals,
                                 value: stats.pendingApprovals,
                                 color: LightColors.pending,
                                 bg: LightColors.pendingBg,
@@ -175,7 +178,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               _StatCard(
                                 icon: Icons.description_outlined,
-                                label: 'Document Renewals',
+                                label: t.statDocumentRenewals,
                                 value: stats.documentRenewalsPending,
                                 color: LightColors.gold,
                                 bg: LightColors.gold.withOpacity(0.12),
@@ -183,7 +186,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               _StatCard(
                                 icon: Icons.edit_note_outlined,
-                                label: 'Changes Required',
+                                label: t.statChangesRequired,
                                 value: stats.changesRequiredTotal,
                                 color: LightColors.gold,
                                 bg: LightColors.gold.withOpacity(0.12),
@@ -191,7 +194,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               _StatCard(
                                 icon: Icons.people_alt_outlined,
-                                label: 'Active Drivers',
+                                label: t.statActiveDrivers,
                                 value: stats.driversActive,
                                 color: LightColors.success,
                                 bg: LightColors.successBg,
@@ -199,7 +202,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               _StatCard(
                                 icon: Icons.local_shipping_outlined,
-                                label: 'Available Trucks',
+                                label: t.statAvailableTrucks,
                                 value: stats.trucksAvailable,
                                 color: LightColors.navy,
                                 bg: LightColors.gold.withOpacity(0.12),
@@ -207,7 +210,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               _StatCard(
                                 icon: Icons.apartment_outlined,
-                                label: 'Active Companies',
+                                label: t.statActiveCompanies,
                                 value: stats.companiesActive,
                                 color: LightColors.success,
                                 bg: LightColors.successBg,
@@ -216,7 +219,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               _StatCard(
                                 icon: Icons.route_outlined,
-                                label: 'Active Shipments',
+                                label: t.statActiveShipments,
                                 value: stats.shipmentsActive,
                                 color: LightColors.navy,
                                 bg: LightColors.gold.withOpacity(0.12),
@@ -224,7 +227,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               _StatCard(
                                 icon: Icons.task_alt_rounded,
-                                label: 'Completed This Month',
+                                label: t.statCompletedThisMonth,
                                 value: stats.shipmentsCompletedThisMonth,
                                 color: LightColors.success,
                                 bg: LightColors.successBg,
@@ -241,8 +244,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ],
                           ),
                           const SizedBox(height: 24),
-                          const Text('Important Alerts',
-                              style: TextStyle(color: LightColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                          Text(t.importantAlerts,
+                              style: const TextStyle(color: LightColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 10),
                           if (stats.alerts.isEmpty)
                             Container(
@@ -253,12 +256,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: LightColors.border),
                               ),
-                              child: const Row(
+                              child: Row(
                                 children: [
-                                  Icon(Icons.check_circle_outline, color: LightColors.success, size: 20),
-                                  SizedBox(width: 10),
-                                  Text('All caught up — no alerts right now.',
-                                      style: TextStyle(color: LightColors.textSecondary, fontSize: 13)),
+                                  const Icon(Icons.check_circle_outline, color: LightColors.success, size: 20),
+                                  const SizedBox(width: 10),
+                                  Text(t.allCaughtUp,
+                                      style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
                                 ],
                               ),
                             )
@@ -325,17 +328,20 @@ class _StatCard extends StatelessWidget {
             border: Border.all(color: LightColors.border),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
                 child: Icon(icon, color: color, size: 18),
               ),
-              const Spacer(),
+              const SizedBox(height: 8),
               Text('$value',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(color: LightColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
               Text(label,
+                  textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: LightColors.textSecondary, fontSize: 11.5, fontWeight: FontWeight.w500)),

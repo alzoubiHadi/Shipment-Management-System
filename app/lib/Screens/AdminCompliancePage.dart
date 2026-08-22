@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ComplianceReportService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/ComplianceReport.dart';
 
 /// Super Admin (UC-25/26): review compliance reports filed against
@@ -43,6 +44,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
   }
 
   Future<void> _resolve(ComplianceReport report) async {
+    final t = AppLocalizations.of(context)!;
     String decision = 'dismiss';
     String resultingAction = 'warning';
 
@@ -51,7 +53,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: LightColors.surface,
-          title: const Text('Resolve report', style: TextStyle(color: LightColors.textPrimary)),
+          title: Text(t.resolveReportTitle, style: const TextStyle(color: LightColors.textPrimary)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,14 +62,14 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
                 value: 'dismiss',
                 groupValue: decision,
                 activeColor: LightColors.gold,
-                title: const Text('Dismiss', style: TextStyle(color: LightColors.textPrimary)),
+                title: Text(t.decisionDismiss, style: const TextStyle(color: LightColors.textPrimary)),
                 onChanged: (v) => setDialogState(() => decision = v ?? decision),
               ),
               RadioListTile<String>(
                 value: 'uphold',
                 groupValue: decision,
                 activeColor: LightColors.gold,
-                title: const Text('Uphold', style: TextStyle(color: LightColors.textPrimary)),
+                title: Text(t.decisionUphold, style: const TextStyle(color: LightColors.textPrimary)),
                 onChanged: (v) => setDialogState(() => decision = v ?? decision),
               ),
               if (decision == 'uphold')
@@ -76,10 +78,10 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
                   dropdownColor: LightColors.surface,
                   isExpanded: true,
                   style: const TextStyle(color: LightColors.textPrimary),
-                  items: const [
-                    DropdownMenuItem(value: 'warning', child: Text('Warning')),
-                    DropdownMenuItem(value: 'suspension', child: Text('Suspension')),
-                    DropdownMenuItem(value: 'ban', child: Text('Ban')),
+                  items: [
+                    DropdownMenuItem(value: 'warning', child: Text(t.actionWarning)),
+                    DropdownMenuItem(value: 'suspension', child: Text(t.actionSuspension)),
+                    DropdownMenuItem(value: 'ban', child: Text(t.actionBan)),
                   ],
                   onChanged: (v) => setDialogState(() => resultingAction = v ?? resultingAction),
                 ),
@@ -88,11 +90,11 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+              child: Text(t.commonCancel, style: const TextStyle(color: LightColors.textSecondary)),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirm', style: TextStyle(color: LightColors.gold)),
+              child: Text(t.commonConfirm, style: const TextStyle(color: LightColors.gold)),
             ),
           ],
         ),
@@ -133,7 +135,8 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
     if (result['success'] == true) _refresh();
   }
 
-  Widget _reportCard(ComplianceReport r, {bool showResolve = false, bool showAppeal = false}) {
+  Widget _reportCard(BuildContext context, ComplianceReport r, {bool showResolve = false, bool showAppeal = false}) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -149,7 +152,7 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
             children: [
               Expanded(
                 child: Text(
-                  r.driverName.isEmpty ? 'Driver #${r.driverId}' : r.driverName,
+                  r.driverName.isEmpty ? t.driverHashLabel(r.driverId.toString()) : r.driverName,
                   style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -185,10 +188,10 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
           if (showResolve) ...[
             const SizedBox(height: 10),
             Align(
-              alignment: Alignment.centerRight,
+              alignment: AlignmentDirectional.centerEnd,
               child: TextButton(
                 onPressed: () => _resolve(r),
-                child: const Text('Resolve', style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
+                child: Text(t.resolveButton, style: const TextStyle(color: LightColors.goldMuted, fontSize: 12)),
               ),
             ),
           ],
@@ -199,13 +202,13 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
               children: [
                 TextButton(
                   onPressed: () => _resolveAppeal(r, 'reject'),
-                  child: const Text('Reject appeal',
-                      style: TextStyle(color: LightColors.error, fontSize: 12)),
+                  child: Text(t.rejectAppealButton,
+                      style: const TextStyle(color: LightColors.error, fontSize: 12)),
                 ),
                 TextButton(
                   onPressed: () => _resolveAppeal(r, 'accept'),
-                  child: const Text('Accept appeal',
-                      style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
+                  child: Text(t.acceptAppealButton,
+                      style: const TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                 ),
               ],
             ),
@@ -217,21 +220,22 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.textPrimary),
-        title: const Text('Compliance', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(t.complianceTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: LightColors.gold,
           labelColor: LightColors.goldMuted,
           unselectedLabelColor: LightColors.textSecondary,
-          tabs: const [
-            Tab(text: 'Reports'),
-            Tab(text: 'Appeals'),
+          tabs: [
+            Tab(text: t.tabReports),
+            Tab(text: t.tabAppeals),
           ],
         ),
       ),
@@ -245,8 +249,8 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
               return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
-              return const Center(
-                  child: Text('Could not load reports', style: TextStyle(color: LightColors.error)));
+              return Center(
+                  child: Text(t.couldNotLoadReports, style: const TextStyle(color: LightColors.error)));
             }
 
             final all = snapshot.data ?? [];
@@ -257,30 +261,30 @@ class _AdminCompliancePageState extends State<AdminCompliancePage>
               controller: _tabController,
               children: [
                 pending.isEmpty
-                    ? ListView(children: const [
+                    ? ListView(children: [
                         Padding(
-                          padding: EdgeInsets.only(top: 60),
+                          padding: const EdgeInsets.only(top: 60),
                           child: Center(
-                              child: Text('No reports pending review',
-                                  style: TextStyle(color: LightColors.textSecondary))),
+                              child: Text(t.noReportsPendingReview,
+                                  style: const TextStyle(color: LightColors.textSecondary))),
                         ),
                       ])
                     : ListView(
                         padding: const EdgeInsets.all(16),
-                        children: pending.map((r) => _reportCard(r, showResolve: true)).toList(),
+                        children: pending.map((r) => _reportCard(context, r, showResolve: true)).toList(),
                       ),
                 appeals.isEmpty
-                    ? ListView(children: const [
+                    ? ListView(children: [
                         Padding(
-                          padding: EdgeInsets.only(top: 60),
+                          padding: const EdgeInsets.only(top: 60),
                           child: Center(
-                              child: Text('No pending appeals',
-                                  style: TextStyle(color: LightColors.textSecondary))),
+                              child: Text(t.noPendingAppeals,
+                                  style: const TextStyle(color: LightColors.textSecondary))),
                         ),
                       ])
                     : ListView(
                         padding: const EdgeInsets.all(16),
-                        children: appeals.map((r) => _reportCard(r, showAppeal: true)).toList(),
+                        children: appeals.map((r) => _reportCard(context, r, showAppeal: true)).toList(),
                       ),
               ],
             );

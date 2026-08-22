@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../API/ReportService.dart';
 import '../API/TruckService.dart';
 import '../API/config.dart';
+import '../API/error_messages.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../models/Truck.dart';
 import '../utils/logout_helper.dart';
+import '../widgets/LanguageSwitcherSheet.dart';
 import 'AddTruckPage.dart';
 import 'CompanyBalancePage.dart';
 import 'DriverBalancePage.dart';
@@ -52,15 +55,16 @@ class _ProfileState extends State<Profile> {
   @override
   Widget build(BuildContext context) {
     final role = (widget.user.role ?? '').toLowerCase();
+    final t = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text(
-          'Profile',
-          style: TextStyle(color: LightColors.cream),
+        title: Text(
+          t.profileTitle,
+          style: const TextStyle(color: LightColors.cream),
         ),
         iconTheme: const IconThemeData(color: LightColors.cream),
         actions: [logoutAction(context, light: true)],
@@ -73,22 +77,22 @@ class _ProfileState extends State<Profile> {
             _ProfileHeader(user: widget.user, role: role),
             const SizedBox(height: 24),
 
-            _SectionTitle('Contact Information'),
+            _SectionTitle(t.contactInformationTitle),
             const SizedBox(height: 12),
             _InfoTile(
               icon: Icons.email_outlined,
-              label: 'Email',
+              label: t.emailLabel,
               value: widget.user.email ?? '—',
             ),
 
             if (_isDriver) ...[
               const SizedBox(height: 24),
-              _SectionTitle('Account'),
+              _SectionTitle(t.accountSectionTitle),
               const SizedBox(height: 12),
               _NavTile(
                 icon: Icons.person_outline,
-                label: 'Personal Information',
-                subtitle: 'Name, phone & email',
+                label: t.personalInformationLabel,
+                subtitle: t.personalInformationSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => DriverPersonalInfoPage(user: widget.user)),
@@ -97,8 +101,8 @@ class _ProfileState extends State<Profile> {
               const SizedBox(height: 10),
               _NavTile(
                 icon: Icons.account_balance_outlined,
-                label: 'Bank Details',
-                subtitle: 'Where your payouts are sent',
+                label: t.bankDetailsLabel,
+                subtitle: t.bankDetailsSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DriverBankDetailsPage()),
@@ -107,8 +111,8 @@ class _ProfileState extends State<Profile> {
               const SizedBox(height: 10),
               _NavTile(
                 icon: Icons.lock_outline,
-                label: 'Change Password',
-                subtitle: 'Update your login password',
+                label: t.changePasswordLabel,
+                subtitle: t.changePasswordSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DriverChangePasswordScreen()),
@@ -117,18 +121,25 @@ class _ProfileState extends State<Profile> {
               const SizedBox(height: 10),
               _NavTile(
                 icon: Icons.support_agent_outlined,
-                label: 'Help & Support',
-                subtitle: 'Call, WhatsApp, email & FAQs',
+                label: t.helpSupportLabel,
+                subtitle: t.helpSupportSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const SupportCenterPage()),
                 ),
               ),
+              const SizedBox(height: 10),
+              _NavTile(
+                icon: Icons.language_outlined,
+                label: t.languageSettingTitle,
+                subtitle: t.languageSettingSubtitle,
+                onTap: () => showLanguagePicker(context),
+              ),
             ],
 
             if (role == 'driver' || role == 'company') ...[
               const SizedBox(height: 24),
-              _SectionTitle('Finance'),
+              _SectionTitle(t.financeSectionTitle),
               const SizedBox(height: 12),
               InkWell(
                 onTap: () => Navigator.push(
@@ -160,10 +171,10 @@ class _ProfileState extends State<Profile> {
                             color: LightColors.gold, size: 18),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'My Balance',
-                          style: TextStyle(
+                          t.myBalanceLabel,
+                          style: const TextStyle(
                               color: LightColors.cream,
                               fontSize: 14,
                               fontWeight: FontWeight.w500),
@@ -178,7 +189,7 @@ class _ProfileState extends State<Profile> {
 
             if (_isDriver) ...[
               const SizedBox(height: 24),
-              _SectionTitle('My Performance'),
+              _SectionTitle(t.myPerformanceTitle),
               const SizedBox(height: 12),
               FutureBuilder<Map<String, dynamic>>(
                 future: _reportFuture,
@@ -190,7 +201,7 @@ class _ProfileState extends State<Profile> {
                     children: [
                       Expanded(
                         child: _StatCard(
-                          label: 'Completed',
+                          label: t.statCompletedLabel,
                           value: completed.toString(),
                           color: LightColors.success,
                         ),
@@ -198,7 +209,7 @@ class _ProfileState extends State<Profile> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _StatCard(
-                          label: 'Cancelled',
+                          label: t.statCancelledLabel,
                           value: cancelled.toString(),
                           color: LightColors.error,
                         ),
@@ -208,7 +219,7 @@ class _ProfileState extends State<Profile> {
                 },
               ),
               const SizedBox(height: 24),
-              _SectionTitle('Rating & Compliance'),
+              _SectionTitle(t.ratingComplianceTitle),
               const SizedBox(height: 12),
               FutureBuilder<Map<String, dynamic>>(
                 future: _reportFuture,
@@ -257,7 +268,7 @@ class _ProfileState extends State<Profile> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              compliance,
+                              enumStatusLabel(compliance),
                               style: TextStyle(
                                   color: complianceColor,
                                   fontSize: 11,
@@ -276,12 +287,12 @@ class _ProfileState extends State<Profile> {
 
             if (_isDriver) ...[
               const SizedBox(height: 24),
-              _SectionTitle('Documents & Coverage'),
+              _SectionTitle(t.documentsCoverageTitle),
               const SizedBox(height: 12),
               _NavTile(
                 icon: Icons.description_outlined,
-                label: 'My Documents',
-                subtitle: 'License, passport, residency & more (UC-8)',
+                label: t.myDocumentsLabel,
+                subtitle: t.myDocumentsSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DriverDocumentsPage()),
@@ -290,8 +301,8 @@ class _ProfileState extends State<Profile> {
               const SizedBox(height: 10),
               _NavTile(
                 icon: Icons.local_shipping_outlined,
-                label: 'My Truck',
-                subtitle: 'Plate, capacity & document expiry',
+                label: t.myTruckLabel,
+                subtitle: t.myTruckSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DriverMyTruckPage()),
@@ -300,8 +311,8 @@ class _ProfileState extends State<Profile> {
               const SizedBox(height: 10),
               _NavTile(
                 icon: Icons.map_outlined,
-                label: 'My Destinations',
-                subtitle: 'Countries you cover — used for matching',
+                label: t.myDestinationsLabel,
+                subtitle: t.myDestinationsSubtitle,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DriverDestinationsPage()),
@@ -314,7 +325,7 @@ class _ProfileState extends State<Profile> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _SectionTitle('My Trucks'),
+                  _SectionTitle(t.myTrucksTitle),
                   // A driver registers with exactly one truck and can only
                   // ever have one (server now enforces this too) — so this
                   // button only shows up before that one truck exists, not
@@ -334,9 +345,9 @@ class _ProfileState extends State<Profile> {
                           if (added == true) _refreshTrucks();
                         },
                         icon: const Icon(Icons.add, size: 16, color: LightColors.gold),
-                        label: const Text(
-                          'Add Truck',
-                          style: TextStyle(color: LightColors.gold, fontSize: 13),
+                        label: Text(
+                          t.addTruckLabel,
+                          style: const TextStyle(color: LightColors.gold, fontSize: 13),
                         ),
                       );
                     },
@@ -361,7 +372,7 @@ class _ProfileState extends State<Profile> {
 
                   if (snapshot.hasError) {
                     return Text(
-                      'Could not load trucks',
+                      t.couldNotLoadTrucks,
                       style: const TextStyle(
                           color: LightColors.error, fontSize: 13),
                     );
@@ -378,9 +389,9 @@ class _ProfileState extends State<Profile> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: LightColors.border, width: 0.5),
                       ),
-                      child: const Text(
-                        'No trucks added yet. Add your truck so you can be matched with shipments.',
-                        style: TextStyle(color: LightColors.muted, fontSize: 13),
+                      child: Text(
+                        t.noTrucksAddedYet,
+                        style: const TextStyle(color: LightColors.muted, fontSize: 13),
                       ),
                     );
                   }
@@ -416,6 +427,24 @@ class _ProfileHeader extends StatelessWidget {
   final String role;
 
   const _ProfileHeader({required this.user, required this.role});
+
+  String _roleLabel(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    switch (role) {
+      case 'driver':
+        return t.roleDriver;
+      case 'company':
+        return t.roleCompany;
+      case 'super_admin':
+        return t.roleSuperAdmin;
+      case 'sub_admin':
+        return t.roleSubAdmin;
+      case 'admin':
+        return t.roleAdmin;
+      default:
+        return role.isEmpty ? t.roleUserFallback : role[0].toUpperCase() + role.substring(1);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -458,9 +487,7 @@ class _ProfileHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              role.isEmpty
-                  ? 'User'
-                  : role[0].toUpperCase() + role.substring(1),
+              _roleLabel(context),
               style: const TextStyle(
                 color: LightColors.gold,
                 fontSize: 11,

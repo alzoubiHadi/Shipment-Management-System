@@ -3,7 +3,15 @@ import '../API/DriverService.dart';
 import '../API/config.dart'; // Ensure AppColors is imported from here
 import '../models/Driver.dart';
 import '../models/DriverDocument.dart';
+import '../models/Truck.dart';
 
+/// Read-only "View Information" screen (Drivers list Phase 2, 2026-08-22).
+/// Shows every currently available piece of driver + truck data on one
+/// page — no approve/reject/rate/suspend/reactivate actions here. Those
+/// decisions live in RequestReviewScreen (approve/reject/request changes)
+/// and directly on the Drivers list cards (suspend/reactivate/delete).
+/// Reuses the existing Driver/Truck models and DriverService calls only;
+/// no new fields or fabricated stats are introduced.
 class DriverDetailsPage extends StatefulWidget {
   final Driver driver;
 
@@ -18,13 +26,16 @@ class DriverDetailsPage extends StatefulWidget {
 
 class _DriverDetailsPageState extends State<DriverDetailsPage> {
   late Driver driver = widget.driver;
-  bool _busy = false;
   late Future<List<DriverDocument>> _documentsFuture;
+  late Future<Truck?> _truckFuture;
+  late Future<List<String>> _destinationsFuture;
 
   @override
   void initState() {
     super.initState();
     _documentsFuture = DriverService.fetchDocumentsFor(driver.user_id);
+    _truckFuture = DriverService.fetchTruckForDriver(driver.id);
+    _destinationsFuture = DriverService.fetchDestinationsFor(driver.user_id);
   }
 
   /// 2026-08-27 (security review, item 7): documents moved to the private
@@ -37,65 +48,16 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
   Color get _approvalColor => switch (driver.approvalStatus) {
         'approved' => LightColors.success,
         'rejected' => LightColors.error,
+        'changes_required' => LightColors.goldMuted,
         _ => LightColors.info,
       };
 
   String get _approvalLabel => switch (driver.approvalStatus) {
         'approved' => 'Approved',
         'rejected' => 'Rejected',
+        'changes_required' => 'Changes requested',
         _ => 'Pending review',
       };
-
-  Future<void> _approve() async {
-    setState(() => _busy = true);
-    final result = await DriverService.approveDriver(driver.id);
-    setState(() => _busy = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? '')),
-      );
-      if (result['success'] == true) {
-        Navigator.pop(context, true);
-      }
-    }
-  }
-
-  Future<void> _reject() async {
-    final reasonCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: LightColors.surface,
-        title: const Text('Reject Driver', style: TextStyle(color: LightColors.cream)),
-        content: TextField(
-          controller: reasonCtrl,
-          style: const TextStyle(color: LightColors.cream),
-          decoration: const InputDecoration(
-            hintText: 'Reason (optional)',
-            hintStyle: TextStyle(color: LightColors.muted),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      setState(() => _busy = true);
-      await DriverService.rejectDriver(driver.id, reason: reasonCtrl.text.trim());
-      setState(() => _busy = false);
-      if (mounted) Navigator.pop(context, true);
-    }
-  }
 
   Color get _complianceColor => switch (driver.complianceStatus) {
         'active' => LightColors.success,
@@ -103,137 +65,8 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
         _ => LightColors.error,
       };
 
-  /// Super Admin (UC-25 special requirement): freeze a driver directly,
-  /// skipping the report/escalation workflow.
-  Future<void> _suspend() async {
-    final reasonCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: LightColors.surface,
-        title: const Text('Suspend Driver', style: TextStyle(color: LightColors.cream)),
-        content: TextField(
-          controller: reasonCtrl,
-          style: const TextStyle(color: LightColors.cream),
-          decoration: const InputDecoration(
-            hintText: 'Reason (required)',
-            hintStyle: TextStyle(color: LightColors.muted),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
-          ),
-          TextButton(
-            onPressed: reasonCtrl.text.trim().isEmpty
-                ? null
-                : () => Navigator.pop(ctx, true),
-            child: const Text('Suspend', style: TextStyle(color: LightColors.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || reasonCtrl.text.trim().isEmpty) return;
-
-    setState(() => _busy = true);
-    final result = await DriverService.suspendDriver(driver.id, reasonCtrl.text.trim());
-    setState(() => _busy = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']?.toString() ?? '')),
-      );
-      if (result['success'] == true) Navigator.pop(context, true);
-    }
-  }
-
-  Future<void> _reactivate() async {
-    setState(() => _busy = true);
-    final result = await DriverService.reactivateDriver(driver.id);
-    setState(() => _busy = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']?.toString() ?? '')),
-      );
-      if (result['success'] == true) Navigator.pop(context, true);
-    }
-  }
-
-  /// UC-24: Super Admin rates a driver directly, independent of any
-  /// shipment.
-  Future<void> _rate() async {
-    int score = 0;
-    final commentCtrl = TextEditingController();
-
-    final picked = await showDialog<int>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: LightColors.surface,
-          title: const Text('Rate driver', style: TextStyle(color: LightColors.cream)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (i) {
-                  final starIndex = i + 1;
-                  return IconButton(
-                    onPressed: () => setDialogState(() => score = starIndex),
-                    icon: Icon(
-                      starIndex <= score ? Icons.star : Icons.star_border,
-                      color: LightColors.gold,
-                    ),
-                  );
-                }),
-              ),
-              TextField(
-                controller: commentCtrl,
-                maxLines: 2,
-                style: const TextStyle(color: LightColors.cream),
-                decoration: const InputDecoration(
-                  hintText: 'Comment (optional)',
-                  hintStyle: TextStyle(color: LightColors.muted),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
-            ),
-            TextButton(
-              onPressed: score == 0 ? null : () => Navigator.pop(ctx, score),
-              child: const Text('Submit', style: TextStyle(color: LightColors.gold)),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (picked == null || picked == 0) return;
-
-    setState(() => _busy = true);
-    final result = await DriverService.rateDriver(
-      driverId: driver.id,
-      score: picked,
-      comment: commentCtrl.text.trim(),
-    );
-    setState(() => _busy = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']?.toString() ?? ''),
-          backgroundColor: result['success'] == true ? LightColors.success : LightColors.error,
-        ),
-      );
-    }
-  }
+  String _fmtDate(DateTime? d) =>
+      d == null ? '' : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -243,11 +76,11 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
         backgroundColor: LightColors.surface,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: LightColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
         title: const Text(
-          'Driver Details',
+          'Driver Information',
           style: TextStyle(
-            color: LightColors.cream,
+            color: LightColors.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -257,17 +90,17 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: LightColors.surfaceHigh,
+            color: LightColors.surface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: LightColors.border),
           ),
           child: Column(
             children: [
-              // Stylish Avatar
+              // Avatar
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: LightColors.surface,
+                  color: LightColors.surfaceHigh,
                   shape: BoxShape.circle,
                   border: Border.all(color: LightColors.gold, width: 2),
                 ),
@@ -285,7 +118,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: LightColors.cream,
+                  color: LightColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -293,7 +126,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                 driver.email ?? '',
                 style: const TextStyle(
                   fontSize: 14,
-                  color: LightColors.muted,
+                  color: LightColors.textSecondary,
                 ),
               ),
 
@@ -329,7 +162,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                   const Icon(Icons.star, color: LightColors.gold, size: 16),
                   const SizedBox(width: 4),
                   Text(driver.rating.toStringAsFixed(2),
-                      style: const TextStyle(color: LightColors.cream, fontSize: 13)),
+                      style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
                   const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -351,7 +184,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: LightColors.error.withOpacity(0.08),
+                    color: LightColors.errorBg,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
@@ -368,16 +201,14 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               const Divider(color: LightColors.border, thickness: 1),
               const SizedBox(height: 16),
 
-              // Uploaded documents — the admin needs to actually open and
-              // look at these to approve a join request responsibly, not
-              // just see an expiry-date text field.
+              // Uploaded driver documents.
               Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
+                alignment: AlignmentDirectional.centerStart,
+                child: const Text(
                   'Documents',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: LightColors.cream,
+                    color: LightColors.textPrimary,
                     fontSize: 15,
                   ),
                 ),
@@ -408,7 +239,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                   if (current.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('No documents uploaded yet', style: TextStyle(color: LightColors.muted, fontSize: 12)),
+                      child: Text('No documents uploaded yet', style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                     );
                   }
 
@@ -419,26 +250,26 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
-                          color: LightColors.surface,
+                          color: LightColors.surfaceHigh,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: LightColors.border, width: 0.5),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.description_outlined,
-                                color: expired ? LightColors.error : LightColors.gold, size: 18),
+                                color: expired ? LightColors.error : LightColors.goldMuted, size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(driverDocumentTypeLabel(doc.type),
-                                      style: const TextStyle(color: LightColors.cream, fontSize: 13, fontWeight: FontWeight.w600)),
+                                      style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                                   if (doc.expiryDate != null)
                                     Text(
-                                      'exp. ${doc.expiryDate!.year}-${doc.expiryDate!.month.toString().padLeft(2, '0')}-${doc.expiryDate!.day.toString().padLeft(2, '0')}',
+                                      'exp. ${_fmtDate(doc.expiryDate)}',
                                       style: TextStyle(
-                                        color: expired ? LightColors.error : LightColors.muted,
+                                        color: expired ? LightColors.error : LightColors.textSecondary,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -447,7 +278,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
                             ),
                             TextButton(
                               onPressed: () => _openFile(doc.id),
-                              child: const Text('View', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                              child: const Text('View', style: TextStyle(color: LightColors.goldMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
@@ -463,15 +294,12 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
 
               // Driver Information — same order and fields as the
               // registration form's Section 1 (DriverRegisterScreen), so
-              // what the admin reviews here always matches what the driver
-              // actually submitted. "Employment Type" used to show here
-              // too, but registration hasn't collected that field since
-              // the two-section rebuild — removed rather than showing a
-              // value the driver never actually provided.
+              // what's shown here always matches what the driver actually
+              // submitted.
               Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Driver Information',
-                    style: const TextStyle(fontWeight: FontWeight.w600, color: LightColors.cream, fontSize: 15)),
+                alignment: AlignmentDirectional.centerStart,
+                child: const Text('Driver Information',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: LightColors.textPrimary, fontSize: 15)),
               ),
               const SizedBox(height: 8),
               _buildItem("ID", driver.id?.toString()),
@@ -485,7 +313,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               _buildItem("Blood Type", driver.bloodType),
               _buildItem("Health Conditions", driver.healthConditions),
               FutureBuilder<List<String>>(
-                future: DriverService.fetchDestinationsFor(driver.user_id),
+                future: _destinationsFuture,
                 builder: (context, snapshot) {
                   final list = snapshot.data;
                   return _buildItem(
@@ -497,90 +325,54 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               _buildItem("Work Status", driver.status),
               _buildItem("User ID", driver.user_id),
 
-              // Hide password if empty or null
-              if (driver.password != null && driver.password!.isNotEmpty)
-                _buildItem("Password", "********"),
-
               const SizedBox(height: 12),
               const Divider(color: LightColors.border, thickness: 1),
               const SizedBox(height: 16),
 
-              // Truck Information — Section 2 of registration.
+              // Truck Information + Truck Documents — same data the admin
+              // review screen's Truck Info tab already fetches.
               Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Truck Information',
-                    style: const TextStyle(fontWeight: FontWeight.w600, color: LightColors.cream, fontSize: 15)),
+                alignment: AlignmentDirectional.centerStart,
+                child: const Text('Truck Information',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: LightColors.textPrimary, fontSize: 15)),
               ),
               const SizedBox(height: 8),
-              _buildItem("Truck Number", driver.truck_number),
-              _buildItem("Truck Type", driver.truck_type),
+              FutureBuilder<Truck?>(
+                future: _truckFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: CircularProgressIndicator(color: LightColors.gold),
+                    );
+                  }
 
-              if (driver.approvalStatus == 'pending') ...[
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _busy ? null : _approve,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: LightColors.success,
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 18),
-                        label: const Text('Approve'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _busy ? null : _reject,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: LightColors.error),
-                        ),
-                        icon: const Icon(Icons.cancel_outlined, size: 18, color: LightColors.error),
-                        label: const Text('Reject', style: TextStyle(color: LightColors.error)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  final truck = snapshot.data;
+                  if (truck == null) {
+                    return Column(
+                      children: [
+                        _buildItem("Truck Number", driver.truck_number),
+                        _buildItem("Truck Type", driver.truck_type),
+                      ],
+                    );
+                  }
 
-              if (driver.approvalStatus == 'approved') ...[
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _busy ? null : _rate,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: LightColors.gold),
-                        ),
-                        icon: const Icon(Icons.star_outline, size: 18, color: LightColors.gold),
-                        label: const Text('Rate', style: TextStyle(color: LightColors.gold)),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: driver.complianceStatus == 'active' || driver.complianceStatus == 'warning'
-                          ? OutlinedButton.icon(
-                              onPressed: _busy ? null : _suspend,
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: LightColors.error),
-                              ),
-                              icon: const Icon(Icons.block, size: 18, color: LightColors.error),
-                              label: const Text('Suspend', style: TextStyle(color: LightColors.error)),
-                            )
-                          : OutlinedButton.icon(
-                              onPressed: _busy ? null : _reactivate,
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: LightColors.success),
-                              ),
-                              icon: const Icon(Icons.refresh, size: 18, color: LightColors.success),
-                              label: const Text('Reactivate', style: TextStyle(color: LightColors.success)),
-                            ),
-                    ),
-                  ],
-                ),
-              ],
+                  return Column(
+                    children: [
+                      _buildItem("Plate Number", truck.truckNumber),
+                      _buildItem("Truck Type", truck.truckType),
+                      _buildItem("Refrigerated", truck.hasRefrigeration ? 'Yes' : 'No'),
+                      _buildItem("Max Load", truck.maxLoad?.toString()),
+                      _buildItem("Permit Type", truck.permitType),
+                      _buildItem("Permit Expiry", _fmtDate(truck.permitExpiry)),
+                      const SizedBox(height: 8),
+                      _buildItem("Vehicle License Expiry", _fmtDate(truck.licenseExpiry)),
+                      _buildItem("Insurance Expiry", _fmtDate(truck.insuranceExpiry)),
+                      _buildItem("Technical Inspection Expiry", _fmtDate(truck.technicalInspectionExpiry)),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -600,7 +392,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
               title,
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
-                color: LightColors.muted,
+                color: LightColors.textSecondary,
                 fontSize: 14,
               ),
             ),
@@ -609,7 +401,7 @@ class _DriverDetailsPageState extends State<DriverDetailsPage> {
             child: Text(
               (value == null || value.isEmpty) ? "-" : value,
               style: const TextStyle(
-                color: LightColors.cream,
+                color: LightColors.textPrimary,
                 fontSize: 14,
               ),
             ),

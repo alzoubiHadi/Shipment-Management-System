@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/AuthResponse.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'HomeScreen.dart';
@@ -57,7 +58,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Future<void> _handleVerify() async {
     final code = _codeCtrl.text.trim();
     if (code.length < 4) {
-      setState(() => _errorMessage = 'Enter the code we emailed you');
+      setState(() => _errorMessage = AppLocalizations.of(context)!.otpEnterCode);
       return;
     }
 
@@ -114,7 +115,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _errorMessage = e.message);
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = 'Something went wrong: $e');
+      if (mounted) setState(() => _errorMessage = AppLocalizations.of(context)!.otpSomethingWrong(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -130,7 +131,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     try {
       await ApiService.resendOtp(email: widget.email);
       if (mounted) {
-        setState(() => _infoMessage = 'A new code has been sent to ${widget.email}');
+        setState(() => _infoMessage = AppLocalizations.of(context)!.otpResentTo(widget.email));
         _startCooldown();
       }
     } on ApiException catch (e) {
@@ -142,6 +143,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -163,9 +165,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              const Text(
-                'Verify your\nemail.',
-                style: TextStyle(
+              Text(
+                t.otpTitle,
+                style: const TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w300,
                   color: LightColors.textPrimary,
@@ -175,7 +177,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'We sent a 6-digit code to ${widget.email}',
+                t.otpSubtitle(widget.email),
                 style: const TextStyle(fontSize: 14, color: LightColors.textSecondary),
               ),
               const SizedBox(height: 36),
@@ -237,8 +239,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: LightColors.textPrimary))
-                      : const Text('Verify',
-                          style: TextStyle(
+                      : Text(t.otpVerify,
+                          style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: LightColors.textPrimary)),
@@ -250,8 +252,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   onPressed: (_resending || _resendCooldown > 0) ? null : _handleResend,
                   child: Text(
                     _resendCooldown > 0
-                        ? 'Resend code in ${_resendCooldown}s'
-                        : 'Resend code',
+                        ? t.otpResendCodeIn(_resendCooldown)
+                        : t.otpResendCode,
                     style: const TextStyle(color: LightColors.goldMuted),
                   ),
                 ),

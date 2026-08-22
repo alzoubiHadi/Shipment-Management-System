@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/enum_labels.dart';
 import '../models/Shipment.dart';
 import 'PodAttachmentPage.dart';
 import 'ShipmentTrackingMapPage.dart';
@@ -89,13 +91,13 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     }
   }
 
-  String _timeAgo(DateTime? dt) {
-    if (dt == null) return 'never';
+  String _timeAgo(AppLocalizations t, DateTime? dt) {
+    if (dt == null) return t.neverLabel;
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return t.timeJustNow;
+    if (diff.inMinutes < 60) return t.timeMinutesAgo(diff.inMinutes);
+    if (diff.inHours < 24) return t.timeHoursAgo(diff.inHours);
+    return t.timeDaysAgo(diff.inDays);
   }
 
   /// Per-[Shipment.orderType] stage => raw timestamp string, in display
@@ -122,6 +124,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
         ];
 
   Future<void> _advance() async {
+    final t = AppLocalizations.of(context)!;
     setState(() => _isUpdating = true);
     final result = await _service.advanceStage(shipmentId: _shipment.id);
     if (!mounted) return;
@@ -131,12 +134,13 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
       setState(() => _shipment = Shipment.fromJson(result['shipment']));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']?.toString() ?? 'Failed')),
+        SnackBar(content: Text(result['message']?.toString() ?? t.failedGeneric)),
       );
     }
   }
 
   Future<void> _captureDelivery() async {
+    final t = AppLocalizations.of(context)!;
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(builder: (_) => const PodAttachmentPage()),
@@ -157,15 +161,14 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     if (response['success'] == true) {
       setState(() => _shipment = Shipment.fromJson(response['shipment']));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Delivery recorded — awaiting company confirmation before payout'),
+        SnackBar(
+          content: Text(t.deliveryRecordedMsg),
           backgroundColor: LightColors.success,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(response['message']?.toString() ?? 'Failed')),
+        SnackBar(content: Text(response['message']?.toString() ?? t.failedGeneric)),
       );
     }
   }
@@ -193,16 +196,16 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     }
   }
 
-  String _deliveryStatusLabel(String status) {
+  String _deliveryStatusLabel(AppLocalizations t, String status) {
     switch (status) {
       case 'awaiting_confirmation':
-        return 'Awaiting confirmation';
+        return t.deliveryStatusAwaitingConfirmation;
       case 'confirmed':
-        return 'Confirmed';
+        return t.deliveryStatusConfirmed;
       case 'disputed':
-        return 'Disputed';
+        return t.deliveryStatusDisputed;
       default:
-        return 'Not delivered';
+        return t.deliveryStatusNotDelivered;
     }
   }
 
@@ -210,31 +213,32 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
   /// fire-and-forget text log — visible to the owning company and every
   /// admin (ShipmentController::listComments).
   Future<void> _addComment() async {
+    final t = AppLocalizations.of(context)!;
     final controller = TextEditingController();
 
     final comment = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Add a comment',
-            style: TextStyle(color: LightColors.cream)),
+        title: Text(t.addCommentDialogTitle,
+            style: const TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: controller,
           maxLines: 3,
           style: const TextStyle(color: LightColors.cream),
-          decoration: const InputDecoration(
-            hintText: 'e.g. truck breakdown, road closure...',
-            hintStyle: TextStyle(color: LightColors.muted),
+          decoration: InputDecoration(
+            hintText: t.addCommentHint,
+            hintStyle: const TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
+            child: Text(t.commonCancel, style: const TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Save', style: TextStyle(color: LightColors.gold)),
+            child: Text(t.commonSave, style: const TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -251,8 +255,8 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(result['success'] == true
-            ? 'Comment added'
-            : (result['message']?.toString() ?? 'Failed to add comment')),
+            ? t.commentAddedMsg
+            : (result['message']?.toString() ?? t.failedToAddComment)),
       ),
     );
   }
@@ -265,6 +269,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final current = _shipment.currentStage;
 
     return Scaffold(
@@ -275,7 +280,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
         iconTheme: const IconThemeData(color: LightColors.cream),
         title: Text(
           _shipment.trackingNumber.isEmpty
-              ? 'Shipment Tracking'
+              ? t.shipmentTrackingTitle
               : _shipment.trackingNumber,
           style: const TextStyle(color: LightColors.cream),
         ),
@@ -284,11 +289,11 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
             IconButton(
               onPressed: _addComment,
               icon: const Icon(Icons.comment_outlined, color: LightColors.cream),
-              tooltip: 'Add comment',
+              tooltip: t.addCommentTooltip,
             ),
           if (widget.readOnly && current < _shipment.totalStages)
-            const Padding(
-              padding: EdgeInsets.only(left: 16, right: 16),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
               child: Center(
                 child: _LiveBadge(),
               ),
@@ -342,14 +347,14 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
           // needed, per the agreed redesign. An expand button opens the
           // same map fullscreen (ShipmentTrackingMapPage) for a closer
           // look.
-          _buildEmbeddedMap(),
+          _buildEmbeddedMap(t),
 
           const SizedBox(height: 24),
 
           for (int stage = 1; stage <= _shipment.totalStages; stage++)
             _StageRow(
               stage: stage,
-              label: _shipment.stageLabels[stage]!,
+              label: localizedStageLabel(_shipment.stageLabels[stage]!),
               isDone: stage <= current,
               isActive: stage == current + 1 && current < _shipment.totalStages,
               timestamp: _timestampFor(stage),
@@ -370,10 +375,10 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                 children: [
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Proof of delivery',
-                          style: TextStyle(
+                          t.proofOfDeliveryTitle,
+                          style: const TextStyle(
                             color: LightColors.muted,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -389,7 +394,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          _deliveryStatusLabel(_shipment.deliveryStatus),
+                          _deliveryStatusLabel(t, _shipment.deliveryStatus),
                           style: TextStyle(
                             color: _deliveryStatusColor(_shipment.deliveryStatus),
                             fontSize: 11,
@@ -401,7 +406,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Received by: ${_shipment.podRecipientName}',
+                    t.receivedByLabel(_shipment.podRecipientName),
                     style: const TextStyle(color: LightColors.cream, fontSize: 14),
                   ),
                   if (_shipment.podSignature.isNotEmpty) ...[
@@ -458,8 +463,8 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                             )
                           : Text(
                               current == _shipment.driverAdvanceMax
-                                  ? 'Capture proof of delivery'
-                                  : 'Mark as: ${_shipment.stageLabels[current + 1]}',
+                                  ? t.captureProofOfDeliveryButton
+                                  : t.markAsLabel(localizedStageLabel(_shipment.stageLabels[current + 1]!)),
                               style: const TextStyle(
                                 color: LightColors.deepNavy,
                                 fontWeight: FontWeight.w600,
@@ -475,7 +480,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
   /// the agreed redesign — no separate tap needed to see it). Falls back
   /// to a placeholder message when the driver hasn't reported a GPS fix
   /// yet. The expand button opens the same data fullscreen.
-  Widget _buildEmbeddedMap() {
+  Widget _buildEmbeddedMap(AppLocalizations t) {
     final hasFix =
         _shipment.driverLastLat != null && _shipment.driverLastLng != null;
     final point = hasFix
@@ -529,10 +534,10 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                 color: LightColors.surface,
                 alignment: Alignment.center,
                 padding: const EdgeInsets.all(16),
-                child: const Text(
-                  'No GPS fix yet — updates automatically once the driver reports one',
+                child: Text(
+                  t.noGpsFixUpdatesAutomatically,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: LightColors.muted, fontSize: 12),
+                  style: const TextStyle(color: LightColors.muted, fontSize: 12),
                 ),
               ),
             Positioned(
@@ -568,7 +573,7 @@ class _ShipmentTrackingPageState extends State<ShipmentTrackingPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Updated ${_timeAgo(_shipment.driverLastLocationAt)}',
+                    t.updatedAgoLabel(_timeAgo(t, _shipment.driverLastLocationAt)),
                     style: const TextStyle(color: LightColors.muted, fontSize: 10),
                   ),
                 ),
@@ -587,6 +592,7 @@ class _LiveBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -605,9 +611,9 @@ class _LiveBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          const Text(
-            'Live',
-            style: TextStyle(
+          Text(
+            t.liveLabel,
+            style: const TextStyle(
               color: LightColors.success,
               fontSize: 12,
               fontWeight: FontWeight.w600,

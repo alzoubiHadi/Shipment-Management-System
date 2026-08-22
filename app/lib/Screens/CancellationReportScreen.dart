@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/AdminShipmentService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'AdminShipmentStatusStyle.dart';
 
 /// Admin Shipments redesign (2026-08-24): opened for a cancelled item —
@@ -73,11 +74,12 @@ class _CancellationReportScreenState extends State<CancellationReportScreen> {
   }
 
   Widget _buildBody() {
+    final t = AppLocalizations.of(context)!;
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: LightColors.navy));
     }
     if (_error != null || _data == null) {
-      return Center(child: Text(_error ?? 'Not found', style: const TextStyle(color: LightColors.textSecondary)));
+      return Center(child: Text(_error ?? t.notFoundLabel, style: const TextStyle(color: LightColors.textSecondary)));
     }
 
     final data = _data!;
@@ -94,26 +96,26 @@ class _CancellationReportScreenState extends State<CancellationReportScreen> {
             children: [
               const Icon(Icons.cancel_rounded, color: LightColors.error, size: 20),
               const SizedBox(width: 6),
-              const Text('CANCELLED', style: TextStyle(color: LightColors.error, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              Text(t.cancelledLabel, style: const TextStyle(color: LightColors.error, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
             ],
           ),
           const SizedBox(height: 6),
           Text('${data['origin']} → ${data['destination']}',
               style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
-          _InfoCard(title: 'Cancellation Summary', rows: [
-            MapEntry('Created', _fmt(data['created_at'])),
-            MapEntry('Cancelled by', cancellation?['cancelled_by']?.toString() ?? '—'),
-            MapEntry('Cancelled at', _fmt(cancellation?['cancelled_at'])),
-            MapEntry('Reason', cancellation?['reason']?.toString() ?? '—'),
-            if (isShipment) MapEntry('Driver assigned', (cancellation?['driver_assigned'] == true) ? 'Yes' : 'No'),
-            if (isShipment) MapEntry('Stage reached', cancellation?['stage_reached']?.toString() ?? '—'),
+          _InfoCard(title: t.cancellationSummaryTitle, rows: [
+            MapEntry(t.fieldCreated, _fmt(data['created_at'])),
+            MapEntry(t.fieldCancelledBy, cancellation?['cancelled_by']?.toString() ?? '—'),
+            MapEntry(t.fieldCancelledAt, _fmt(cancellation?['cancelled_at'])),
+            MapEntry(t.fieldReason, cancellation?['reason']?.toString() ?? '—'),
+            if (isShipment) MapEntry(t.fieldDriverAssigned, (cancellation?['driver_assigned'] == true) ? t.commonYes : t.commonNo),
+            if (isShipment) MapEntry(t.fieldStageReached, cancellation?['stage_reached']?.toString() ?? '—'),
           ]),
           if (financial != null && (financial['price_to_client'] != null || financial['price_to_driver'] != null)) ...[
             const SizedBox(height: 16),
-            _InfoCard(title: 'Financial Impact', rows: [
-              MapEntry('Client Price', financial['price_to_client']?.toString() ?? '—'),
-              MapEntry('Driver Price', financial['price_to_driver']?.toString() ?? '—'),
+            _InfoCard(title: t.financialImpactTitle, rows: [
+              MapEntry(t.fieldClientPrice, financial['price_to_client']?.toString() ?? '—'),
+              MapEntry(t.fieldDriverPrice, financial['price_to_driver']?.toString() ?? '—'),
             ]),
           ],
         ],

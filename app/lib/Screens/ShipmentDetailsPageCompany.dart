@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../API/ComplianceReportService.dart';
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/ComplianceReport.dart';
 import '../models/Shipment.dart';
 import 'ProofOfDeliveryPage.dart';
@@ -54,6 +55,7 @@ class _ShipmentDetailsPageCompanyState
   /// UC-23: prompt the company to rate the driver right after confirming.
   /// Optional — closing the dialog without picking a star simply skips it.
   Future<void> _rateDriver() async {
+    final t = AppLocalizations.of(context)!;
     int score = 0;
     final commentController = TextEditingController();
 
@@ -62,7 +64,7 @@ class _ShipmentDetailsPageCompanyState
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: LightColors.surface,
-          title: const Text('Rate this driver', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+          title: Text(t.rateDriverTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -84,9 +86,9 @@ class _ShipmentDetailsPageCompanyState
                 controller: commentController,
                 maxLines: 2,
                 style: const TextStyle(color: LightColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Comment (optional)',
-                  hintStyle: TextStyle(color: LightColors.textSecondary),
+                decoration: InputDecoration(
+                  hintText: t.commentOptionalHint,
+                  hintStyle: const TextStyle(color: LightColors.textSecondary),
                 ),
               ),
             ],
@@ -94,11 +96,11 @@ class _ShipmentDetailsPageCompanyState
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Skip', style: TextStyle(color: LightColors.textSecondary)),
+              child: Text(t.commonSkip, style: const TextStyle(color: LightColors.textSecondary)),
             ),
             TextButton(
               onPressed: score == 0 ? null : () => Navigator.pop(context, score),
-              child: const Text('Submit', style: TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700)),
+              child: Text(t.commonSubmit, style: const TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -125,6 +127,7 @@ class _ShipmentDetailsPageCompanyState
   /// UC-25: report a compliance/safety issue against the assigned driver.
   Future<void> _reportDriver() async {
     if (_shipment.driverId == null) return;
+    final t = AppLocalizations.of(context)!;
 
     String category = ComplianceReport.categories.first;
     final descriptionController = TextEditingController();
@@ -134,7 +137,7 @@ class _ShipmentDetailsPageCompanyState
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: LightColors.surface,
-          title: const Text('Report driver', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+          title: Text(t.reportDriverTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,9 +157,9 @@ class _ShipmentDetailsPageCompanyState
                 controller: descriptionController,
                 maxLines: 3,
                 style: const TextStyle(color: LightColors.textPrimary),
-                decoration: const InputDecoration(
-                  hintText: 'Describe what happened',
-                  hintStyle: TextStyle(color: LightColors.textSecondary),
+                decoration: InputDecoration(
+                  hintText: t.describeWhatHappenedHint,
+                  hintStyle: const TextStyle(color: LightColors.textSecondary),
                 ),
               ),
             ],
@@ -164,13 +167,13 @@ class _ShipmentDetailsPageCompanyState
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+              child: Text(t.commonCancel, style: const TextStyle(color: LightColors.textSecondary)),
             ),
             TextButton(
               onPressed: descriptionController.text.trim().isEmpty
                   ? null
                   : () => Navigator.pop(context, true),
-              child: const Text('Submit', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
+              child: Text(t.commonSubmit, style: const TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -208,6 +211,7 @@ class _ShipmentDetailsPageCompanyState
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final awaitingConfirmation = _shipment.isAwaitingCompanyConfirmation;
 
     return Scaffold(
@@ -216,8 +220,8 @@ class _ShipmentDetailsPageCompanyState
         elevation: 0,
         backgroundColor: LightColors.bg,
         iconTheme: const IconThemeData(color: LightColors.textPrimary),
-        title: const Text('Shipment Details',
-            style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(t.shipmentDetailsTitle,
+            style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       bottomNavigationBar: Container(
         padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
@@ -227,7 +231,7 @@ class _ShipmentDetailsPageCompanyState
           children: [
             if (awaitingConfirmation) ...[
               LightPrimaryButton(
-                label: 'Review Proof of Delivery',
+                label: t.reviewProofOfDeliveryButton,
                 icon: Icons.fact_check_outlined,
                 color: LightColors.gold,
                 textColor: LightColors.textPrimary,
@@ -236,7 +240,7 @@ class _ShipmentDetailsPageCompanyState
               const SizedBox(height: 10),
             ],
             LightOutlineButton(
-              label: 'View Tracking Timeline',
+              label: t.viewTrackingTimelineButton,
               onPressed: () {
                 Navigator.push(
                   context,
@@ -257,7 +261,7 @@ class _ShipmentDetailsPageCompanyState
                 child: TextButton.icon(
                   onPressed: _isBusy ? null : _reportDriver,
                   icon: const Icon(Icons.flag_outlined, color: LightColors.textSecondary, size: 16),
-                  label: const Text('Report driver', style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+                  label: Text(t.reportDriverButton, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                 ),
               ),
             ],
@@ -289,35 +293,35 @@ class _ShipmentDetailsPageCompanyState
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(color: LightColors.gold.withOpacity(0.14), borderRadius: BorderRadius.circular(30)),
-                      child: const Text('Awaiting your confirmation', style: TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700, fontSize: 12)),
+                      child: Text(t.awaitingYourConfirmation, style: const TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700, fontSize: 12)),
                     ),
                   ] else if (_shipment.isDeliveryDisputed) ...[
                     const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(color: LightColors.errorBg, borderRadius: BorderRadius.circular(30)),
-                      child: const Text('Under admin review', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w700, fontSize: 12)),
+                      child: Text(t.underAdminReview, style: const TextStyle(color: LightColors.error, fontWeight: FontWeight.w700, fontSize: 12)),
                     ),
                   ],
                 ],
               ),
             ),
             const SizedBox(height: 14),
-            _section(title: 'Route', rows: [
-              ('Origin', _shipment.origin),
-              ('Destination', _shipment.destination),
+            _section(title: t.sectionRoute, rows: [
+              (t.addShipmentReviewOrigin, _shipment.origin),
+              (t.addShipmentReviewDestination, _shipment.destination),
             ]),
             const SizedBox(height: 14),
-            _section(title: 'Shipment Info', rows: [
-              ('Shipment ID', _shipment.id.toString()),
-              ('Weight', _shipment.weight.isEmpty ? '—' : _shipment.weight),
-              ('Description', _shipment.description.isEmpty ? '—' : _shipment.description),
+            _section(title: t.sectionShipmentInfo, rows: [
+              (t.fieldShipmentId, _shipment.id.toString()),
+              (t.addShipmentReviewWeight, _shipment.weight.isEmpty ? '—' : _shipment.weight),
+              (t.addShipmentReviewDescription, _shipment.description.isEmpty ? '—' : _shipment.description),
             ]),
             const SizedBox(height: 14),
-            _section(title: 'Timeline', rows: [
-              ('Created', _shipment.created_at.isEmpty ? '—' : _shipment.created_at),
-              ('Pickup Time', _shipment.pickup_time.isEmpty ? '—' : _shipment.pickup_time),
-              ('Delivered At', _shipment.delivered_at.isEmpty ? '—' : _shipment.delivered_at),
+            _section(title: t.sectionTimeline, rows: [
+              (t.fieldCreated, _shipment.created_at.isEmpty ? '—' : _shipment.created_at),
+              (t.fieldPickupTime, _shipment.pickup_time.isEmpty ? '—' : _shipment.pickup_time),
+              (t.fieldDeliveredAt, _shipment.delivered_at.isEmpty ? '—' : _shipment.delivered_at),
             ]),
             if (_shipment.isDeliveryDisputed && _shipment.disputeReason.isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -328,7 +332,7 @@ class _ShipmentDetailsPageCompanyState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Your reported problem', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
+                    Text(t.yourReportedProblem, style: const TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 6),
                     Text(_shipment.disputeReason, style: const TextStyle(color: LightColors.textPrimary)),
                   ],
@@ -359,7 +363,7 @@ class _ShipmentDetailsPageCompanyState
                   Expanded(flex: 2, child: Text(row.$1, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12.5))),
                   Expanded(
                     flex: 3,
-                    child: Text(row.$2, textAlign: TextAlign.right, style: const TextStyle(color: LightColors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    child: Text(row.$2, textAlign: TextAlign.end, style: const TextStyle(color: LightColors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),

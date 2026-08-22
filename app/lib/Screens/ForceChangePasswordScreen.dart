@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/AuthResponse.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import 'HomeScreen.dart';
 
@@ -36,12 +37,13 @@ class _ForceChangePasswordScreenState extends State<ForceChangePasswordScreen> {
   }
 
   Future<void> _handleSubmit() async {
+    final t = AppLocalizations.of(context)!;
     if (_passCtrl.text != _confirmCtrl.text) {
-      setState(() => _errorMessage = 'Passwords do not match');
+      setState(() => _errorMessage = t.passwordsDoNotMatch);
       return;
     }
     if (_currentCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
-      setState(() => _errorMessage = 'Please fill in all fields');
+      setState(() => _errorMessage = t.errorFillAllFields);
       return;
     }
 
@@ -73,6 +75,7 @@ class _ForceChangePasswordScreenState extends State<ForceChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -81,9 +84,9 @@ class _ForceChangePasswordScreenState extends State<ForceChangePasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Set a new\npassword.',
-                style: TextStyle(
+              Text(
+                t.forceChangePasswordTitle,
+                style: const TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w300,
                   color: LightColors.textPrimary,
@@ -92,21 +95,21 @@ class _ForceChangePasswordScreenState extends State<ForceChangePasswordScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'For security, you must set your own password before continuing.',
-                style: TextStyle(fontSize: 14, color: LightColors.textSecondary),
+              Text(
+                t.forceChangePasswordSubtitle,
+                style: const TextStyle(fontSize: 14, color: LightColors.textSecondary),
               ),
               const SizedBox(height: 32),
-              _field(_currentCtrl, 'Temporary password'),
+              _field(_currentCtrl, t.temporaryPasswordLabel),
               const SizedBox(height: 14),
-              _field(_passCtrl, 'New password'),
+              _field(_passCtrl, t.newPasswordLabel),
               const SizedBox(height: 6),
-              const Text(
-                'Minimum 8 characters, upper & lower case, a number and a symbol.',
-                style: TextStyle(fontSize: 11, color: LightColors.textSecondary),
+              Text(
+                t.passwordRequirementsHint,
+                style: const TextStyle(fontSize: 11, color: LightColors.textSecondary),
               ),
               const SizedBox(height: 14),
-              _field(_confirmCtrl, 'Confirm new password'),
+              _field(_confirmCtrl, t.confirmNewPasswordLabel),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 14),
                 Text(_errorMessage!,
@@ -127,8 +130,8 @@ class _ForceChangePasswordScreenState extends State<ForceChangePasswordScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.textPrimary))
-                      : const Text('Update password',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: LightColors.textPrimary)),
+                      : Text(t.updatePassword,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: LightColors.textPrimary)),
                 ),
               ),
             ],

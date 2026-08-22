@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 
 // ─── Password Strength (shared by CompanyRegisterScreen & DriverRegisterScreen) ──
 
@@ -30,12 +31,15 @@ class PasswordStrengthBar extends StatelessWidget {
         _ => Colors.transparent,
       };
 
-  String get _label => switch (strength) {
-        PasswordStrength.weak => 'Weak',
-        PasswordStrength.fair => 'Fair',
-        PasswordStrength.strong => 'Strong',
-        _ => '',
-      };
+  String _label(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return switch (strength) {
+      PasswordStrength.weak => t.passwordStrengthWeak,
+      PasswordStrength.fair => t.passwordStrengthFair,
+      PasswordStrength.strong => t.passwordStrengthStrong,
+      _ => '',
+    };
+  }
 
   int get _filled => switch (strength) {
         PasswordStrength.weak => 1,
@@ -54,7 +58,7 @@ class PasswordStrengthBar extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               height: 3,
-              margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+              margin: EdgeInsetsDirectional.only(end: i < 2 ? 4 : 0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
                 color: i < _filled ? _color : LightColors.border,
@@ -63,7 +67,7 @@ class PasswordStrengthBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        Text(_label, style: TextStyle(fontSize: 11, color: _color)),
+        Text(_label(context), style: TextStyle(fontSize: 11, color: _color)),
       ],
     );
   }
@@ -254,7 +258,8 @@ class LightStepProgress extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text('Step ${current + 1} of $total', style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+        Text(AppLocalizations.of(context)!.stepXofY(current + 1, total),
+            style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(2),

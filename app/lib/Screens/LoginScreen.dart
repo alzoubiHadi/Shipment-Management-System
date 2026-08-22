@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'LoggingInScreen.dart';
 import 'RegisterScreen.dart';
 import 'register_shared.dart';
@@ -45,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passCtrl.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Please fill in all fields');
+      setState(() => _errorMessage = AppLocalizations.of(context)!.errorFillAllFields);
       return;
     }
 
@@ -72,6 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -84,16 +86,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
                 child: Column(
                   children: [
-                    const Text(
-                      'Welcome to FMS',
+                    Text(
+                      t.loginWelcomeTitle,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: LightColors.textPrimary),
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: LightColors.textPrimary),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Sign in to access your account',
+                    Text(
+                      t.loginWelcomeSubtitle,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
+                      style: const TextStyle(fontSize: 13, color: LightColors.textSecondary),
                     ),
                     const SizedBox(height: 24),
                     Container(
@@ -110,16 +112,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           buildLightTextField(
                             controller: _emailCtrl,
-                            label: 'Email',
-                            hint: 'Enter your email',
+                            label: t.emailLabel,
+                            hint: t.emailHint,
                             keyboardType: TextInputType.emailAddress,
                             prefixIcon: const Icon(Icons.mail_outline, color: LightColors.textMuted, size: 20),
                           ),
                           const SizedBox(height: 16),
                           buildLightTextField(
                             controller: _passCtrl,
-                            label: 'Password',
-                            hint: 'Enter your password',
+                            label: t.passwordLabel,
+                            hint: t.passwordHint,
                             obscure: _obscure,
                             prefixIcon: const Icon(Icons.lock_outline, color: LightColors.textMuted, size: 20),
                             suffix: IconButton(
@@ -148,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  const Text('Remember me', style: TextStyle(fontSize: 12.5, color: LightColors.textSecondary)),
+                                  Text(t.rememberMe, style: const TextStyle(fontSize: 12.5, color: LightColors.textSecondary)),
                                 ],
                               ),
                               Material(
@@ -157,13 +159,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderRadius: BorderRadius.circular(6),
                                   onTap: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Contact your admin to reset your password')),
+                                      SnackBar(content: Text(t.forgotPasswordSnack)),
                                     );
                                   },
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                                    child: Text('Forgot Password?',
-                                        style: TextStyle(fontSize: 12.5, color: LightColors.gold, fontWeight: FontWeight.w600)),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                                    child: Text(t.forgotPassword,
+                                        style: const TextStyle(fontSize: 12.5, color: LightColors.gold, fontWeight: FontWeight.w600)),
                                   ),
                                 ),
                               ),
@@ -175,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 12),
                           ],
                           LightPrimaryButton(
-                            label: 'Log In',
+                            label: t.logIn,
                             icon: Icons.login_rounded,
                             color: LightColors.gold,
                             textColor: LightColors.textPrimary,
@@ -186,27 +188,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 28),
-                    const Row(
+                    Row(
                       children: [
                         Expanded(
                           child: _FeatureItem(
                             icon: Icons.verified_user_rounded,
-                            title: 'Secure & Reliable',
-                            description: 'Your data protected at the highest level',
+                            title: t.featureSecureTitle,
+                            description: t.featureSecureDesc,
                           ),
                         ),
                         Expanded(
                           child: _FeatureItem(
                             icon: Icons.access_time_filled_rounded,
-                            title: 'Easy Management',
-                            description: 'Track your shipments in real time',
+                            title: t.featureEasyTitle,
+                            description: t.featureEasyDesc,
                           ),
                         ),
                         Expanded(
                           child: _FeatureItem(
                             icon: Icons.bar_chart_rounded,
-                            title: 'Smart Reports',
-                            description: 'Accurate analytics and reports',
+                            title: t.featureReportsTitle,
+                            description: t.featureReportsDesc,
                           ),
                         ),
                       ],
@@ -221,13 +223,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
                           },
                           child: RichText(
-                            text: const TextSpan(
-                              style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 13, color: LightColors.textSecondary),
                               children: [
-                                TextSpan(text: "Don't have an account? "),
+                                TextSpan(text: '${t.authNoAccount} '),
                                 TextSpan(
-                                  text: 'Sign Up',
-                                  style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w700),
+                                  text: t.authSignUp,
+                                  style: const TextStyle(color: LightColors.gold, fontWeight: FontWeight.w700),
                                 ),
                               ],
                             ),

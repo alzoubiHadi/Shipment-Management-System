@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../API/NotificationBadge.dart';
 import '../API/NotificationService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/AppNotification.dart';
 import '../models/Appuser.dart';
 import 'AdminFinancePage.dart';
-import 'AdminProfileEditRequestsPage.dart';
+import 'ApprovalsPage.dart';
 import 'Companiespage.dart';
 import 'CompnayShipments.dart';
 import 'DriverBalancePage.dart';
@@ -14,6 +15,7 @@ import 'DriverComplianceReportsPage.dart';
 import 'DriverOffersPage.dart';
 import 'Driverspage.dart';
 import 'CompanyBalancePage.dart';
+import 'HomeScreen.dart';
 import 'ShipmentOffersAdminPage.dart';
 import 'AdminShipmentsScreen.dart';
 
@@ -112,8 +114,21 @@ class _NotificationsPageState extends State<NotificationsPage> {
             : const DriverBalancePage();
         break;
       case 'profile_edit_pending':
-        target = const AdminProfileEditRequestsPage();
-        break;
+        // Work Destinations has no standalone push-able page anymore (see
+        // AdminSettingsPage's 2026-08-28 docblock note) — jump straight to
+        // a fresh HomeScreen already on Approvals > Work Destinations.
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HomeScreen(
+              user: widget.user,
+              initialTabIndex: 1,
+              initialApprovalSection: ApprovalSection.destinations,
+            ),
+          ),
+          (route) => false,
+        );
+        return;
       case 'profile_edit_resolved':
         target = widget.user.role.toLowerCase() == 'company'
             ? const CompanyBalancePage()
@@ -149,28 +164,30 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
-  String _timeAgo(DateTime? dt) {
+  String _timeAgo(BuildContext context, DateTime? dt) {
     if (dt == null) return '';
+    final t = AppLocalizations.of(context)!;
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return t.timeJustNow;
+    if (diff.inMinutes < 60) return t.timeMinutesAgo(diff.inMinutes);
+    if (diff.inHours < 24) return t.timeHoursAgo(diff.inHours);
+    return t.timeDaysAgo(diff.inDays);
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.cream),
-        title: const Text('Notifications', style: TextStyle(color: LightColors.cream)),
+        title: Text(t.notificationsTitle, style: const TextStyle(color: LightColors.cream)),
         actions: [
           TextButton(
             onPressed: _markAllRead,
-            child: const Text('Mark all read', style: TextStyle(color: LightColors.gold)),
+            child: Text(t.markAllRead, style: const TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -190,7 +207,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Could not load notifications: ${snapshot.error}',
+                    t.couldNotLoadNotifications(snapshot.error.toString()),
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: LightColors.error),
                   ),
@@ -210,13 +227,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   child: Row(
                     children: [
                       _FilterChip(
-                        label: 'All',
+                        label: t.filterAll,
                         selected: _filter == _NotifFilter.all,
                         onTap: () => setState(() => _filter = _NotifFilter.all),
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Unread',
+                        label: t.filterUnread,
                         selected: _filter == _NotifFilter.unread,
                         onTap: () => setState(() => _filter = _NotifFilter.unread),
                       ),
@@ -227,7 +244,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   child: notifications.isEmpty
                       ? Center(
                           child: Text(
-                            _filter == _NotifFilter.unread ? 'No unread notifications' : 'No notifications yet',
+                            _filter == _NotifFilter.unread ? t.noUnreadNotifications : t.noNotificationsYet,
                             style: const TextStyle(color: LightColors.muted),
                           ),
                         )
@@ -289,7 +306,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                           ],
                                           const SizedBox(height: 6),
                                           Text(
-                                            _timeAgo(n.createdAt),
+                                            _timeAgo(context, n.createdAt),
                                             style: const TextStyle(color: LightColors.mutedLight, fontSize: 10),
                                           ),
                                         ],

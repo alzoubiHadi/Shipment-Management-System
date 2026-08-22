@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Shipment.dart';
 
 /// Live GPS tracking map (OpenStreetMap tiles via flutter_map — no Google
@@ -59,17 +60,18 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
     }
   }
 
-  String _timeAgo(DateTime? dt) {
-    if (dt == null) return 'never';
+  String _timeAgo(AppLocalizations t, DateTime? dt) {
+    if (dt == null) return t.neverLabel;
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return t.timeJustNow;
+    if (diff.inMinutes < 60) return t.timeMinutesAgo(diff.inMinutes);
+    if (diff.inHours < 24) return t.timeHoursAgo(diff.inHours);
+    return t.timeDaysAgo(diff.inDays);
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final hasFix = _shipment.driverLastLat != null && _shipment.driverLastLng != null;
     final point = hasFix
         ? ll.LatLng(_shipment.driverLastLat!, _shipment.driverLastLng!)
@@ -82,7 +84,7 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.cream),
         title: Text(
-          _shipment.trackingNumber.isEmpty ? 'Live Tracking' : _shipment.trackingNumber,
+          _shipment.trackingNumber.isEmpty ? t.liveTrackingTitle : _shipment.trackingNumber,
           style: const TextStyle(color: LightColors.cream),
         ),
       ),
@@ -104,7 +106,7 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
                   ),
                 ),
                 Text(
-                  hasFix ? 'Updated ${_timeAgo(_shipment.driverLastLocationAt)}' : 'No GPS fix yet',
+                  hasFix ? t.updatedAgoLabel(_timeAgo(t, _shipment.driverLastLocationAt)) : t.noGpsFixYet,
                   style: TextStyle(color: hasFix ? LightColors.muted : LightColors.error, fontSize: 11),
                 ),
               ],
@@ -144,13 +146,13 @@ class _ShipmentTrackingMapPageState extends State<ShipmentTrackingMapPage> {
                       ),
                     ],
                   )
-                : const Center(
+                : Center(
                     child: Padding(
-                      padding: EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(24),
                       child: Text(
-                        'The driver hasn\'t reported a GPS position yet — this updates automatically once they do (the app reports location while a shipment is in progress).',
+                        t.noGpsPositionYetBody,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: LightColors.muted, fontSize: 13),
+                        style: const TextStyle(color: LightColors.muted, fontSize: 13),
                       ),
                     ),
                   ),

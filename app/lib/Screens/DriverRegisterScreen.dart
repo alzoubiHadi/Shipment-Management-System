@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../API/AuthResponse.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/enum_labels.dart';
 import '../utils/countries.dart';
 import 'OtpVerificationScreen.dart';
 import 'register_shared.dart';
@@ -197,7 +199,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                           autofocus: true,
                           style: const TextStyle(color: LightColors.textPrimary),
                           decoration: InputDecoration(
-                            hintText: 'Search country',
+                            hintText: AppLocalizations.of(context)!.searchCountryHint,
                             hintStyle: const TextStyle(color: LightColors.textSecondary),
                             prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary),
                             filled: true,
@@ -286,12 +288,18 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
   String _fmtDate(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// [labelBuilder], if given, maps each raw option/key to its display
+  /// label — [selected]/[onSaved] always carry the raw values, so the
+  /// caller keeps submitting the original English/internal values
+  /// regardless of what's shown on screen (same contract as
+  /// [_pickFromList]'s labelBuilder).
   Future<void> _pickMultiSelectSheet({
     required String title,
     required List<String> options,
     required Set<String> selected,
     required void Function(Set<String>) onSaved,
     bool exclusiveFirstOption = false,
+    String Function(String)? labelBuilder,
   }) async {
     final working = {...selected};
     await showModalBottomSheet(
@@ -321,7 +329,8 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                       final isSelected = working.contains(opt);
                       return CheckboxListTile(
                         value: isSelected,
-                        title: Text(opt, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
+                        title: Text(labelBuilder == null ? opt : labelBuilder(opt),
+                            style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
                         activeColor: LightColors.gold,
                         controlAffinity: ListTileControlAffinity.leading,
                         onChanged: (v) => setSheetState(() {
@@ -352,7 +361,8 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                       onSaved(working);
                       Navigator.pop(ctx);
                     },
-                    child: const Text('Done', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
+                    child: Text(AppLocalizations.of(context)!.commonDone,
+                        style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -363,7 +373,12 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     );
   }
 
-  Future<String?> _pickFromList(String title, List<String> options) {
+  /// [labelBuilder], if given, maps each raw English option to its display
+  /// label (e.g. localizedTruckType) — the value handed back via
+  /// Navigator.pop is always the raw option itself, so the caller keeps
+  /// submitting the original English constant to the backend regardless of
+  /// what's shown on screen.
+  Future<String?> _pickFromList(String title, List<String> options, {String Function(String)? labelBuilder}) {
     return showModalBottomSheet<String>(
       context: context,
       backgroundColor: LightColors.surface,
@@ -372,9 +387,10 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         child: ListView(
           shrinkWrap: true,
           children: options
-              .map((t) => ListTile(
-                    title: Text(t, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
-                    onTap: () => Navigator.pop(ctx, t),
+              .map((opt) => ListTile(
+                    title: Text(labelBuilder == null ? opt : labelBuilder(opt),
+                        style: const TextStyle(color: LightColors.textPrimary, fontSize: 13)),
+                    onTap: () => Navigator.pop(ctx, opt),
                   ))
               .toList(),
         ),
@@ -387,49 +403,50 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   bool get _isEmailValid => RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(_emailCtrl.text.trim());
 
   String? _validateStep(int step) {
+    final t = AppLocalizations.of(context)!;
     switch (step) {
       case 0: // Account info
         if (_nameCtrl.text.trim().isEmpty ||
             _emailCtrl.text.trim().isEmpty ||
             _passCtrl.text.isEmpty ||
             _confirmCtrl.text.isEmpty) {
-          return 'Please fill in all required fields';
+          return t.validationFillRequired;
         }
-        if (!_isEmailValid) return 'Please enter a valid email address';
-        if (_passCtrl.text != _confirmCtrl.text) return 'Passwords do not match';
-        if (!_agreed) return 'Please agree to the Terms of Service and Privacy Policy';
+        if (!_isEmailValid) return t.validationInvalidEmail;
+        if (_passCtrl.text != _confirmCtrl.text) return t.passwordsDoNotMatch;
+        if (!_agreed) return t.driverValidationAgreeTerms;
         return null;
       case 1: // Driver info
         if (!isValidLocalPhoneNumber(_phoneNumberCtrl.text.trim())) {
-          return 'Please enter a valid phone number (digits only)';
+          return t.driverValidationPhone;
         }
-        if (_nationality == null) return 'Please select your nationality';
-        if (_dateOfBirth == null) return 'Please select your date of birth';
+        if (_nationality == null) return t.driverValidationNationality;
+        if (_dateOfBirth == null) return t.driverValidationDob;
         final age = _ageFrom(_dateOfBirth!);
-        if (age < 18 || age > 65) return 'Age must be between 18 and 65';
-        if (_driverLicenseCtrl.text.trim().isEmpty) return 'Please enter your driving license number';
+        if (age < 18 || age > 65) return t.driverValidationAge;
+        if (_driverLicenseCtrl.text.trim().isEmpty) return t.driverValidationLicenseNumber;
         return null;
       case 2: // Documents
         if (_licenseFile?.bytes == null || _licenseExpiry == null) {
-          return 'Please attach your driving license (front) and its expiry date';
+          return t.driverValidationLicenseDoc;
         }
         if (_passportFile?.bytes == null || _passportExpiry == null) {
-          return 'Please attach your passport and its expiry date';
+          return t.driverValidationPassportDoc;
         }
         if (_residencyFile?.bytes == null || _residencyExpiry == null) {
-          return 'Please attach your Emirates ID / residency and its expiry date';
+          return t.driverValidationResidencyDoc;
         }
         return null;
       case 3: // Health & coverage
-        if (_bloodType == null) return 'Please select your blood type';
-        if (_destinations.isEmpty) return 'Please pick at least one destination you work on';
+        if (_bloodType == null) return t.driverValidationBloodType;
+        if (_destinations.isEmpty) return t.driverValidationDestinations;
         return null;
       case 4: // Truck info
-        if (_truckType == null) return 'Please select your truck type';
-        if (_truckNumberCtrl.text.trim().isEmpty) return 'Please enter your truck plate/number';
+        if (_truckType == null) return t.driverValidationTruckType;
+        if (_truckNumberCtrl.text.trim().isEmpty) return t.driverValidationTruckPlate;
         return null;
       case 5: // Truck documents
-        if (_truckLicenseFile?.bytes == null) return 'Please attach the vehicle registration file';
+        if (_truckLicenseFile?.bytes == null) return t.driverValidationVehicleRegDoc;
         return null;
       default:
         return null;
@@ -530,7 +547,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       // propagate uncaught here — the button's spinner would clear via
       // `finally` but nothing else would happen, which looked exactly like
       // the submission was silently stuck. Always surface *something*.
-      if (mounted) setState(() => _errorMessage = 'Something went wrong while submitting: $e');
+      if (mounted) setState(() => _errorMessage = AppLocalizations.of(context)!.errorSubmitGeneric(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -538,25 +555,25 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
   // ── UI ─────────────────────────────────────────────────────────────────
 
-  static const _stepTitles = [
-    'Account Information',
-    'Driver Information',
-    'Driver Documents',
-    'Health & Coverage',
-    'Truck Information',
-    'Truck Documents',
-    'Review Your Information',
-  ];
+  List<String> _stepTitles(AppLocalizations t) => [
+        t.stepAccountInfoTitle,
+        t.driverRegStepDriverTitle,
+        t.driverRegStepDocumentsTitle,
+        t.driverRegStepHealthTitle,
+        t.driverRegStepTruckTitle,
+        t.driverRegStepTruckDocsTitle,
+        t.stepReviewTitle,
+      ];
 
-  static const _stepSubtitles = [
-    'Enter your account details',
-    'All fields are mandatory',
-    'All documents are mandatory',
-    'Tell us about your health and work coverage',
-    'Enter your truck details',
-    'All documents are mandatory',
-    'Please review all information before submitting',
-  ];
+  List<String> _stepSubtitles(AppLocalizations t) => [
+        t.stepAccountInfoSubtitle,
+        t.driverRegStepDriverSubtitle,
+        t.driverRegStepDocumentsSubtitle,
+        t.driverRegStepHealthSubtitle,
+        t.driverRegStepTruckSubtitle,
+        t.driverRegStepTruckDocsSubtitle,
+        t.stepReviewSubtitle,
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -582,33 +599,34 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  _accountInfoStep(),
-                  _driverInfoStep(),
-                  _documentsStep(),
-                  _healthStep(),
-                  _truckInfoStep(),
-                  _truckDocumentsStep(),
-                  _reviewStep(),
+                  _accountInfoStep(context),
+                  _driverInfoStep(context),
+                  _documentsStep(context),
+                  _healthStep(context),
+                  _truckInfoStep(context),
+                  _truckDocumentsStep(context),
+                  _reviewStep(context),
                 ],
               ),
             ),
-            _bottomBar(),
+            _bottomBar(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _pageScaffold(int stepIndex, List<Widget> children) {
+  Widget _pageScaffold(BuildContext context, int stepIndex, List<Widget> children) {
+    final t = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(_stepTitles[stepIndex],
+          Text(_stepTitles(t)[stepIndex],
               style: const TextStyle(color: LightColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text(_stepSubtitles[stepIndex], style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
+          Text(_stepSubtitles(t)[stepIndex], style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 22),
           ...children,
         ],
@@ -616,16 +634,17 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     );
   }
 
-  Widget _accountInfoStep() {
-    return _pageScaffold(0, [
-      buildLightTextField(controller: _nameCtrl, label: 'Full Name', hint: 'Mohamed Ali'),
+  Widget _accountInfoStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 0, [
+      buildLightTextField(controller: _nameCtrl, label: t.fullNameLabel, hint: t.fullNameHint),
       const SizedBox(height: 14),
       buildLightTextField(
-          controller: _emailCtrl, label: 'Email', hint: 'mohamed.ali@example.com', keyboardType: TextInputType.emailAddress),
+          controller: _emailCtrl, label: t.emailLabel, hint: t.driverEmailHint, keyboardType: TextInputType.emailAddress),
       const SizedBox(height: 14),
       buildLightTextField(
         controller: _passCtrl,
-        label: 'Password',
+        label: t.passwordLabel,
         hint: '••••••••••',
         obscure: _obscurePass,
         suffix: IconButton(
@@ -641,7 +660,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       const SizedBox(height: 14),
       buildLightTextField(
         controller: _confirmCtrl,
-        label: 'Confirm Password',
+        label: t.confirmPasswordLabel,
         hint: '••••••••••',
         obscure: _obscureConfirm,
         hasError: !_passwordsMatch,
@@ -653,7 +672,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       ),
       if (!_passwordsMatch) ...[
         const SizedBox(height: 6),
-        const Text('Passwords do not match', style: TextStyle(fontSize: 11, color: LightColors.error)),
+        Text(t.passwordsDoNotMatch, style: const TextStyle(fontSize: 11, color: LightColors.error)),
       ],
       const SizedBox(height: 20),
       GestureDetector(
@@ -674,10 +693,10 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
               child: _agreed ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'I agree to the Terms & Conditions',
-                style: TextStyle(fontSize: 13, color: LightColors.textSecondary, height: 1.5),
+                t.driverAgreeTerms,
+                style: const TextStyle(fontSize: 13, color: LightColors.textSecondary, height: 1.5),
               ),
             ),
           ],
@@ -686,8 +705,9 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     ]);
   }
 
-  Widget _driverInfoStep() {
-    return _pageScaffold(1, [
+  Widget _driverInfoStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 1, [
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -696,11 +716,11 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Code', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(t.codeLabel, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 InkWell(
                   onTap: () async {
-                    final picked = await _pickCountry('Phone country');
+                    final picked = await _pickCountry(t.phoneCountryTitle);
                     if (picked != null) setState(() => _phoneCountry = picked);
                   },
                   borderRadius: BorderRadius.circular(12),
@@ -720,28 +740,28 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
           const SizedBox(width: 10),
           Expanded(
             child: buildLightTextField(
-                controller: _phoneNumberCtrl, label: 'Phone Number', hint: '50 123 4567', keyboardType: TextInputType.phone),
+                controller: _phoneNumberCtrl, label: t.phoneNumberLabel, hint: t.phoneNumberHint, keyboardType: TextInputType.phone),
           ),
         ],
       ),
       const SizedBox(height: 14),
       LightPickerField(
-        label: 'Nationality',
+        label: t.nationalityLabel,
         value: _nationality?.name,
-        hint: 'Select nationality',
+        hint: t.nationalityHint,
         icon: Icons.public,
         onTap: () async {
-          final picked = await _pickCountry('Nationality');
+          final picked = await _pickCountry(t.nationalityTitle);
           if (picked != null) setState(() => _nationality = picked);
         },
       ),
       const SizedBox(height: 14),
       LightPickerField(
-        label: 'Date of Birth',
-        hint: '15 / 05 / 1992',
+        label: t.dateOfBirthLabel,
+        hint: t.dateOfBirthHint,
         value: _dateOfBirth == null
             ? null
-            : '${_dateOfBirth!.day.toString().padLeft(2, '0')} / ${_dateOfBirth!.month.toString().padLeft(2, '0')} / ${_dateOfBirth!.year}  ·  Age ${_ageFrom(_dateOfBirth!)}',
+            : '${_dateOfBirth!.day.toString().padLeft(2, '0')} / ${_dateOfBirth!.month.toString().padLeft(2, '0')} / ${_dateOfBirth!.year}  ·  ${t.ageLabel} ${_ageFrom(_dateOfBirth!)}',
         icon: Icons.cake_outlined,
         onTap: () async {
           final picked = await _pickDateOfBirth();
@@ -749,13 +769,14 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 14),
-      buildLightTextField(controller: _driverLicenseCtrl, label: 'Driver License Number', hint: 'D1234567'),
+      buildLightTextField(controller: _driverLicenseCtrl, label: t.driverLicenseNumberLabel, hint: t.driverLicenseNumberHint),
     ]);
   }
 
-  Widget _documentsStep() {
-    return _pageScaffold(2, [
-      const _SubLabel('Driving license — front'),
+  Widget _documentsStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 2, [
+      _SubLabel(t.docLicenseFront),
       const SizedBox(height: 8),
       _DocumentRow(
         fileName: _licenseFile?.name,
@@ -770,11 +791,11 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 16),
-      const _SubLabel('Driving license — back (optional)'),
+      _SubLabel(t.docLicenseBack),
       const SizedBox(height: 8),
       LightPickerField(
-        label: 'Upload',
-        hint: 'PDF/JPG/PNG',
+        label: t.commonUpload,
+        hint: t.commonUploadHintFormats,
         value: _licenseBackFile?.name,
         icon: Icons.upload_file_outlined,
         onTap: () async {
@@ -783,7 +804,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 16),
-      const _SubLabel('Passport (first page)'),
+      _SubLabel(t.docPassport),
       const SizedBox(height: 8),
       _DocumentRow(
         fileName: _passportFile?.name,
@@ -798,7 +819,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 16),
-      const _SubLabel('Emirates ID / Residency'),
+      _SubLabel(t.docResidency),
       const SizedBox(height: 8),
       _DocumentRow(
         fileName: _residencyFile?.name,
@@ -813,11 +834,11 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 16),
-      const _SubLabel('Driver photo (optional)'),
+      _SubLabel(t.docDriverPhoto),
       const SizedBox(height: 8),
       LightPickerField(
-        label: 'Upload',
-        hint: 'A clear portrait photo',
+        label: t.commonUpload,
+        hint: t.docDriverPhotoHint,
         value: _driverPhotoFile?.name,
         icon: Icons.person_outline,
         onTap: () async {
@@ -826,22 +847,24 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 14),
-      const _NoticeBanner('All documents must be clear and valid. Expired documents are not accepted.'),
+      _NoticeBanner(t.documentsNotice),
     ]);
   }
 
-  Widget _healthStep() {
-    return _pageScaffold(3, [
+  Widget _healthStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 3, [
       LightPickerField(
-        label: 'Health Status',
-        hint: 'Select any conditions',
-        value: _healthConditions.isEmpty ? null : _healthConditions.join(', '),
+        label: t.healthStatusLabel,
+        hint: t.healthStatusHint,
+        value: _healthConditions.isEmpty ? null : _healthConditions.map(localizedHealthCondition).join(', '),
         icon: Icons.health_and_safety_outlined,
         onTap: () => _pickMultiSelectSheet(
-          title: 'Health status',
+          title: t.healthStatusTitle,
           options: kHealthConditionOptions,
           selected: _healthConditions,
           exclusiveFirstOption: true,
+          labelBuilder: localizedHealthCondition,
           onSaved: (v) => setState(() => _healthConditions
             ..clear()
             ..addAll(v)),
@@ -849,29 +872,32 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
       ),
       if (_healthConditions.contains(kOtherHealthOption)) ...[
         const SizedBox(height: 10),
-        buildLightTextField(controller: _healthOtherCtrl, label: 'Describe the other condition'),
+        buildLightTextField(controller: _healthOtherCtrl, label: t.describeOtherCondition),
       ],
       const SizedBox(height: 14),
       LightPickerField(
-        label: 'Blood Type',
-        hint: 'Select blood type',
+        label: t.bloodTypeLabel,
+        hint: t.bloodTypeHint,
         value: _bloodType,
         icon: Icons.bloodtype_outlined,
         onTap: () async {
-          final picked = await _pickFromList('Blood type', kBloodTypes);
+          final picked = await _pickFromList(t.bloodTypeTitle, kBloodTypes);
           if (picked != null) setState(() => _bloodType = picked);
         },
       ),
       const SizedBox(height: 14),
       LightPickerField(
-        label: 'Work Destinations',
-        hint: 'Countries you operate in',
-        value: _destinations.isEmpty ? null : _destinations.map((k) => kDriverDestinationOptions[k]).join(', '),
+        label: t.workDestinationsLabel,
+        hint: t.workDestinationsHint,
+        value: _destinations.isEmpty
+            ? null
+            : _destinations.map((k) => localizedDestination(k, kDriverDestinationOptions[k] ?? k)).join(', '),
         icon: Icons.map_outlined,
         onTap: () => _pickMultiSelectSheet(
-          title: 'Work destinations',
+          title: t.workDestinationsTitle,
           options: kDriverDestinationOptions.keys.toList(),
           selected: _destinations,
+          labelBuilder: (key) => localizedDestination(key, kDriverDestinationOptions[key] ?? key),
           onSaved: (v) => setState(() => _destinations
             ..clear()
             ..addAll(v)),
@@ -880,28 +906,30 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     ]);
   }
 
-  Widget _truckInfoStep() {
-    return _pageScaffold(4, [
+  Widget _truckInfoStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 4, [
       LightPickerField(
-        label: 'Truck Type',
-        hint: 'Select truck type',
-        value: _truckType,
+        label: t.truckTypeLabel,
+        hint: t.truckTypeHint,
+        value: _truckType == null ? null : localizedTruckType(_truckType!),
         icon: Icons.local_shipping_outlined,
         onTap: () async {
-          final picked = await _pickFromList('Truck type', kDriverTruckTypes);
+          final picked = await _pickFromList(t.truckTypeTitle, kDriverTruckTypes, labelBuilder: localizedTruckType);
           if (picked != null) setState(() => _truckType = picked);
         },
       ),
       const SizedBox(height: 14),
-      buildLightTextField(controller: _truckNumberCtrl, label: 'Truck Plate / Number', hint: 'C 12345'),
+      buildLightTextField(controller: _truckNumberCtrl, label: t.truckPlateLabel, hint: t.truckPlateHint),
       const SizedBox(height: 14),
-      buildLightTextField(controller: _permitTypeCtrl, label: 'Permit Type (optional)'),
+      buildLightTextField(controller: _permitTypeCtrl, label: t.permitTypeLabel),
     ]);
   }
 
-  Widget _truckDocumentsStep() {
-    return _pageScaffold(5, [
-      const _SubLabel('Vehicle registration'),
+  Widget _truckDocumentsStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 5, [
+      _SubLabel(t.docVehicleReg),
       const SizedBox(height: 8),
       _DocumentRow(
         fileName: _truckLicenseFile?.name,
@@ -916,7 +944,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 16),
-      const _SubLabel('Insurance (optional)'),
+      _SubLabel(t.docInsurance),
       const SizedBox(height: 8),
       _DocumentRow(
         fileName: _truckInsuranceFile?.name,
@@ -931,7 +959,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 16),
-      const _SubLabel('Technical inspection (optional)'),
+      _SubLabel(t.docInspection),
       const SizedBox(height: 8),
       _DocumentRow(
         fileName: _truckInspectionFile?.name,
@@ -946,42 +974,47 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
         },
       ),
       const SizedBox(height: 14),
-      const _NoticeBanner('Make sure the vehicle registration is valid — expired documents are not accepted.'),
+      _NoticeBanner(t.truckDocsNotice),
     ]);
   }
 
-  Widget _reviewStep() {
-    return _pageScaffold(6, [
-      _ReviewCard(icon: Icons.person_outline, title: 'Account Information', lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
+  Widget _reviewStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 6, [
+      _ReviewCard(icon: Icons.person_outline, title: t.reviewAccountInfoTitle, lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.badge_outlined, title: 'Driver Information', lines: [
-        '${_nationality?.name ?? '—'} · Age ${_dateOfBirth == null ? '—' : _ageFrom(_dateOfBirth!)}',
-        'License #${_driverLicenseCtrl.text.trim()}',
+      _ReviewCard(icon: Icons.badge_outlined, title: t.reviewDriverInfoTitle, lines: [
+        '${_nationality?.name ?? '—'} · ${t.ageLabel} ${_dateOfBirth == null ? '—' : _ageFrom(_dateOfBirth!)}',
+        t.licenseNumberPrefix(_driverLicenseCtrl.text.trim()),
       ]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.folder_open_outlined, title: 'Driver Documents', lines: [
-        '${[
-          _licenseFile,
-          _licenseBackFile,
-          _passportFile,
-          _residencyFile,
-          _driverPhotoFile,
-        ].where((f) => f != null).length}/5 uploaded',
+      _ReviewCard(icon: Icons.folder_open_outlined, title: t.reviewDriverDocsTitle, lines: [
+        t.uploadedCountOfTotal(
+          [
+            _licenseFile,
+            _licenseBackFile,
+            _passportFile,
+            _residencyFile,
+            _driverPhotoFile,
+          ].where((f) => f != null).length,
+          5,
+        ),
       ]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.local_shipping_outlined, title: 'Truck Information', lines: [
-        '${_truckType ?? '—'} · Plate ${_truckNumberCtrl.text.trim()}',
+      _ReviewCard(icon: Icons.local_shipping_outlined, title: t.reviewTruckInfoTitle, lines: [
+        '${_truckType == null ? '—' : localizedTruckType(_truckType!)} · ${t.truckPlateLabel} ${_truckNumberCtrl.text.trim()}',
       ]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.description_outlined, title: 'Truck Documents', lines: [
-        '${[_truckLicenseFile, _truckInsuranceFile, _truckInspectionFile].where((f) => f != null).length}/3 uploaded',
+      _ReviewCard(icon: Icons.description_outlined, title: t.reviewTruckDocsTitle, lines: [
+        t.uploadedCountOfTotal([_truckLicenseFile, _truckInsuranceFile, _truckInspectionFile].where((f) => f != null).length, 3),
       ]),
       const SizedBox(height: 16),
-      const _NoticeBanner("You won't be able to edit this after submission."),
+      _NoticeBanner(t.reviewCannotEditNotice),
     ]);
   }
 
-  Widget _bottomBar() {
+  Widget _bottomBar(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: Column(
@@ -992,7 +1025,7 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
             const SizedBox(height: 12),
           ],
           LightPrimaryButton(
-            label: _step == _totalSteps - 1 ? 'Submit for Review' : 'Next',
+            label: _step == _totalSteps - 1 ? t.submitForReview : t.commonNext,
             loading: _loading,
             onPressed: _next,
           ),
@@ -1095,14 +1128,15 @@ class _DocumentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           flex: 3,
           child: LightPickerField(
-            label: 'Upload',
-            hint: 'PDF/JPG/PNG',
+            label: t.commonUpload,
+            hint: t.commonUploadHintFormats,
             value: fileName,
             icon: Icons.upload_file_outlined,
             onTap: onPickFile,
@@ -1112,8 +1146,8 @@ class _DocumentRow extends StatelessWidget {
         Expanded(
           flex: 2,
           child: LightPickerField(
-            label: 'Expiry Date',
-            hint: 'dd/mm/yyyy',
+            label: t.expiryDateLabel,
+            hint: t.expiryDateHint,
             value: expiry == null
                 ? null
                 : '${expiry!.year}-${expiry!.month.toString().padLeft(2, '0')}-${expiry!.day.toString().padLeft(2, '0')}',

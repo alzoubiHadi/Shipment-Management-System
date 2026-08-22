@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../models/ShipmentOffer.dart';
 import 'AddShipmentOfferPage.dart';
@@ -47,22 +48,23 @@ class _CompanyOffersPageState extends State<CompanyOffersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.textPrimary),
-        title: const Text('My Shipment Offers',
-            style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(t.myShipmentOffersTitle,
+            style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openCreateForm,
         backgroundColor: LightColors.gold,
         icon: const Icon(Icons.add, color: LightColors.textPrimary),
-        label: const Text(
-          'New Offer',
-          style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700),
+        label: Text(
+          t.newOfferButton,
+          style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700),
         ),
       ),
       body: RefreshIndicator(
@@ -91,9 +93,9 @@ class _CompanyOffersPageState extends State<CompanyOffersPage> {
                         children: [
                           const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 48),
                           const SizedBox(height: 16),
-                          const Text(
-                            'Failed to load offers',
-                            style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                          Text(
+                            t.failedToLoadOffers,
+                            style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -105,7 +107,7 @@ class _CompanyOffersPageState extends State<CompanyOffersPage> {
                           TextButton.icon(
                             onPressed: _refresh,
                             icon: const Icon(Icons.refresh_rounded, color: LightColors.goldMuted),
-                            label: const Text('Retry', style: TextStyle(color: LightColors.goldMuted)),
+                            label: Text(t.commonRetry, style: const TextStyle(color: LightColors.goldMuted)),
                           ),
                         ],
                       ),
@@ -115,22 +117,22 @@ class _CompanyOffersPageState extends State<CompanyOffersPage> {
                   final offers = snapshot.data ?? [];
 
                   if (offers.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.local_shipping_outlined, color: LightColors.textSecondary, size: 48),
-                          SizedBox(height: 16),
+                          const Icon(Icons.local_shipping_outlined, color: LightColors.textSecondary, size: 48),
+                          const SizedBox(height: 16),
                           Text(
-                            'No offers yet',
-                            style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                            t.noOffersYet,
+                            style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
-                            'Tap "New Offer" to request a shipment.',
+                            t.tapNewOfferHint,
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: LightColors.textSecondary, fontSize: 12),
+                            style: const TextStyle(color: LightColors.textSecondary, fontSize: 12),
                           ),
                         ],
                       ),
@@ -182,53 +184,54 @@ class _OfferCard extends StatelessWidget {
     }
   }
 
-  String get _statusLabel {
+  String _statusLabel(AppLocalizations t) {
     switch (offer.status) {
       case 'pending':
-        return 'Matching drivers';
+        return t.offerStatusMatchingDrivers;
       case 'awaiting_manual_price':
-        return 'Awaiting price';
+        return t.offerStatusAwaitingPrice;
       case 'escalated':
-        return 'Escalated';
+        return t.offerStatusEscalated;
       case 'accepted':
-        return 'Accepted';
+        return t.offerStatusAccepted;
       case 'cancelled':
-        return 'Cancelled';
+        return t.offerStatusCancelled;
       case 'expired':
-        return 'Expired';
+        return t.offerStatusExpired;
       default:
         return offer.status;
     }
   }
 
   Future<void> _raisePrice(BuildContext context) async {
+    final t = AppLocalizations.of(context)!;
     final controller = TextEditingController(text: offer.priceToClient);
     final newPrice = await showDialog<double>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Raise price to client',
-            style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: Text(t.raisePriceDialogTitle,
+            style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           style: const TextStyle(color: LightColors.textPrimary),
-          decoration: const InputDecoration(
-            labelText: 'New price (AED)',
-            labelStyle: TextStyle(color: LightColors.textSecondary),
+          decoration: InputDecoration(
+            labelText: t.newPriceAedLabel,
+            labelStyle: const TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+            child: Text(t.commonCancel, style: const TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () {
               final v = double.tryParse(controller.text.trim());
               Navigator.pop(ctx, v);
             },
-            child: const Text('Save', style: TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700)),
+            child: Text(t.commonSave, style: const TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -252,28 +255,29 @@ class _OfferCard extends StatelessWidget {
   }
 
   Future<void> _cancel(BuildContext context) async {
+    final t = AppLocalizations.of(context)!;
     final reasonController = TextEditingController();
     final reason = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Cancel offer', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: Text(t.cancelOfferDialogTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: reasonController,
           style: const TextStyle(color: LightColors.textPrimary),
-          decoration: const InputDecoration(
-            labelText: 'Reason',
-            labelStyle: TextStyle(color: LightColors.textSecondary),
+          decoration: InputDecoration(
+            labelText: t.reasonLabel,
+            labelStyle: const TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Back', style: TextStyle(color: LightColors.textSecondary)),
+            child: Text(t.commonBack, style: const TextStyle(color: LightColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, reasonController.text.trim()),
-            child: const Text('Cancel Offer', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
+            child: Text(t.cancelOfferButton, style: const TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -289,7 +293,7 @@ class _OfferCard extends StatelessWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? 'Offer cancelled' : 'Failed to cancel offer'),
+        content: Text(ok ? t.offerCancelledMsg : t.failedToCancelOffer),
         backgroundColor: ok ? LightColors.success : LightColors.error,
       ),
     );
@@ -298,6 +302,7 @@ class _OfferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final canModify = offer.isPending;
 
     return Container(
@@ -330,7 +335,7 @@ class _OfferCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _statusLabel,
+                  _statusLabel(t),
                   style: TextStyle(
                     fontSize: 10,
                     color: _statusColor,
@@ -342,14 +347,16 @@ class _OfferCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${offer.requiredTruckType} · ${offer.orderType} · ${offer.eligibleDriversCount} eligible driver(s)',
+            '${offer.requiredTruckType} · '
+            '${offer.orderType == 'internal' ? t.addShipmentDomesticShort : (offer.orderType == 'external' ? t.addShipmentCrossBorderShort : offer.orderType)} · '
+            '${t.eligibleDriversCount(offer.eligibleDriversCount)}',
             style: const TextStyle(color: LightColors.textSecondary, fontSize: 11),
           ),
           if (offer.priceToClient.isNotEmpty && offer.priceToClient != '0') ...[
             const SizedBox(height: 4),
             Text(
-              'Price to client: ${offer.priceToClient} AED'
-              '${offer.pricingMode == 'manual' ? ' (manual)' : ''}',
+              t.priceToClientLabel(offer.priceToClient) +
+                  (offer.pricingMode == 'manual' ? t.manualSuffix : ''),
               style: const TextStyle(color: LightColors.goldMuted, fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ],
@@ -360,13 +367,13 @@ class _OfferCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: () => _raisePrice(context),
                   icon: const Icon(Icons.trending_up, color: LightColors.goldMuted, size: 16),
-                  label: const Text('Raise price', style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
+                  label: Text(t.raisePriceButton, style: const TextStyle(color: LightColors.goldMuted, fontSize: 12)),
                 ),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => _cancel(context),
                   icon: const Icon(Icons.close, color: LightColors.error, size: 16),
-                  label: const Text('Cancel', style: TextStyle(color: LightColors.error, fontSize: 12)),
+                  label: Text(t.commonCancel, style: const TextStyle(color: LightColors.error, fontSize: 12)),
                 ),
               ],
             ),
@@ -377,7 +384,7 @@ class _OfferCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: () => _cancel(context),
                   icon: const Icon(Icons.close, color: LightColors.error, size: 16),
-                  label: const Text('Cancel', style: TextStyle(color: LightColors.error, fontSize: 12)),
+                  label: Text(t.commonCancel, style: const TextStyle(color: LightColors.error, fontSize: 12)),
                 ),
               ],
             ),

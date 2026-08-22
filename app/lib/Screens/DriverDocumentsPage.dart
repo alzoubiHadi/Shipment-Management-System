@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../API/DriverService.dart';
 import '../API/TruckService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/enum_labels.dart';
 import '../models/DriverDocument.dart';
 import '../models/Truck.dart';
 
@@ -55,12 +57,12 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
     await viewSecureFile(context, '$baseUrl/trucks/$truckId/file/$type');
   }
 
-  _ExpiryState _expiryState(DateTime? date) {
+  _ExpiryState _expiryState(AppLocalizations t, DateTime? date) {
     if (date == null) return _ExpiryState('—', LightColors.muted);
     final daysLeft = date.difference(DateTime.now()).inDays;
-    if (daysLeft < 0) return _ExpiryState('Expired', LightColors.error);
-    if (daysLeft <= 30) return _ExpiryState('Expires Soon', LightColors.gold);
-    return _ExpiryState('Valid', LightColors.success);
+    if (daysLeft < 0) return _ExpiryState(t.docStatusExpired, LightColors.error);
+    if (daysLeft <= 30) return _ExpiryState(t.docStatusExpiringSoon, LightColors.gold);
+    return _ExpiryState(t.docStatusValid, LightColors.success);
   }
 
   String _fmt(DateTime? d) => d == null ? '—' : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -102,28 +104,29 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
   /// separate, not-current row) takes priority over the current row's own
   /// valid/expiring_soon/expired status, since it's the more actionable
   /// thing to tell the driver about.
-  (String, Color) _documentStatusDisplay(DriverDocument? current, DriverDocument? pending) {
-    if (pending?.status == 'changes_required') return ('Changes Required', LightColors.error);
-    if (pending?.status == 'pending_review') return ('Pending Review', LightColors.info);
-    if (current == null) return ('Not Uploaded', LightColors.muted);
+  (String, Color) _documentStatusDisplay(AppLocalizations t, DriverDocument? current, DriverDocument? pending) {
+    if (pending?.status == 'changes_required') return (t.docStatusChangesRequired, LightColors.error);
+    if (pending?.status == 'pending_review') return (t.statusPendingReview, LightColors.info);
+    if (current == null) return (t.docStatusNotUploaded, LightColors.muted);
     return switch (current.status) {
-      'expired' => ('Expired', LightColors.error),
-      'expiring_soon' => ('Expiring Soon', LightColors.gold),
-      _ => ('Valid', LightColors.success),
+      'expired' => (t.docStatusExpired, LightColors.error),
+      'expiring_soon' => (t.docStatusExpiringSoon, LightColors.gold),
+      _ => (t.docStatusValid, LightColors.success),
     };
   }
 
   /// "12d left" / "Expires today" / "3d overdue" — null when there's no
   /// expiry date to compute from at all.
-  String? _daysRemainingLabel(DriverDocument? doc) {
+  String? _daysRemainingLabel(AppLocalizations t, DriverDocument? doc) {
     final days = doc?.daysRemaining;
     if (days == null) return null;
-    if (days < 0) return '${-days}d overdue';
-    if (days == 0) return 'Expires today';
-    return '${days}d left';
+    if (days < 0) return t.daysOverdue(-days);
+    if (days == 0) return t.expiresToday;
+    return t.daysLeft(days);
   }
 
   Future<void> _openUploadSheet(String type) async {
+    final t = AppLocalizations.of(context)!;
     PlatformFile? pickedFile;
     DateTime? expiryDate;
     bool saving = false;
@@ -150,7 +153,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Upload ${driverDocumentTypeLabel(type)}',
+                    t.uploadDialogTitle(localizedDriverDocType(driverDocumentTypeLabel(type))),
                     style: const TextStyle(
                         color: LightColors.cream, fontSize: 18, fontWeight: FontWeight.w700),
                   ),
@@ -188,7 +191,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              pickedFile?.name ?? 'Choose file (PDF/JPG/PNG)',
+                              pickedFile?.name ?? t.chooseFileHint,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: pickedFile == null ? LightColors.muted : LightColors.cream,
@@ -225,7 +228,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                           const SizedBox(width: 12),
                           Text(
                             expiryDate == null
-                                ? 'Expiry date (optional)'
+                                ? t.expiryDateOptionalHint
                                 : '${expiryDate!.year}-${expiryDate!.month.toString().padLeft(2, '0')}-${expiryDate!.day.toString().padLeft(2, '0')}',
                             style: TextStyle(
                               color: expiryDate == null ? LightColors.muted : LightColors.cream,
@@ -265,7 +268,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                               width: 20, height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy),
                             )
-                          : const Text('Upload', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
+                          : Text(t.uploadButton, style: const TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -278,6 +281,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
   }
 
   Future<void> _openTruckUploadSheet(String type, String label) async {
+    final t = AppLocalizations.of(context)!;
     PlatformFile? pickedFile;
     DateTime? expiryDate;
     bool saving = false;
@@ -304,7 +308,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Renew $label',
+                    t.renewDialogTitle(label),
                     style: const TextStyle(color: LightColors.cream, fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 16),
@@ -337,7 +341,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              pickedFile?.name ?? 'Choose file (PDF/JPG/PNG)',
+                              pickedFile?.name ?? t.chooseFileHint,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(color: pickedFile == null ? LightColors.muted : LightColors.cream, fontSize: 13),
                             ),
@@ -371,7 +375,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                           const SizedBox(width: 12),
                           Text(
                             expiryDate == null
-                                ? 'New expiry date'
+                                ? t.newExpiryDateHint
                                 : '${expiryDate!.year}-${expiryDate!.month.toString().padLeft(2, '0')}-${expiryDate!.day.toString().padLeft(2, '0')}',
                             style: TextStyle(color: expiryDate == null ? LightColors.muted : LightColors.cream, fontSize: 13),
                           ),
@@ -408,7 +412,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                               width: 20, height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy),
                             )
-                          : const Text('Submit for Review', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
+                          : Text(t.submitForReviewButton, style: const TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600)),
                     ),
                   ),
                 ],
@@ -422,12 +426,13 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('My Documents', style: TextStyle(color: LightColors.cream)),
+        title: Text(t.myDocumentsLabel, style: const TextStyle(color: LightColors.cream)),
         iconTheme: const IconThemeData(color: LightColors.cream),
       ),
       body: Column(
@@ -438,7 +443,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
               children: [
                 Expanded(
                   child: _DocTabChip(
-                    label: 'Driver Documents',
+                    label: t.driverDocumentsTabLabel,
                     active: _tab == DriverDocTab.driver,
                     onTap: () => setState(() => _tab = DriverDocTab.driver),
                   ),
@@ -446,7 +451,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _DocTabChip(
-                    label: 'Truck Documents',
+                    label: t.truckDocumentsTabLabel,
                     active: _tab == DriverDocTab.truck,
                     onTap: () => setState(() => _tab = DriverDocTab.truck),
                   ),
@@ -470,39 +475,40 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
       child: FutureBuilder<List<Truck>>(
         future: _trucksFuture,
         builder: (context, snapshot) {
+          final t = AppLocalizations.of(context)!;
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: LightColors.gold));
           }
           if (snapshot.hasError) {
-            return const Center(child: Text('Could not load truck documents', style: TextStyle(color: LightColors.error)));
+            return Center(child: Text(t.couldNotLoadTruckDocs, style: const TextStyle(color: LightColors.error)));
           }
 
           final trucks = snapshot.data ?? [];
           if (trucks.isEmpty) {
             return ListView(
-              children: const [
+              children: [
                 Padding(
-                  padding: EdgeInsets.only(top: 80),
-                  child: Center(child: Text('No truck registered yet', style: TextStyle(color: LightColors.muted))),
+                  padding: const EdgeInsets.only(top: 80),
+                  child: Center(child: Text(t.noTruckRegisteredYet, style: const TextStyle(color: LightColors.muted))),
                 ),
               ],
             );
           }
 
           final docs = [
-            ('license', 'Vehicle License', trucks.first.licenseExpiry, trucks.first.licenseFilePath),
-            ('insurance', 'Insurance', trucks.first.insuranceExpiry, trucks.first.insuranceFilePath),
-            ('technical_inspection', 'Technical Inspection', trucks.first.technicalInspectionExpiry, trucks.first.technicalInspectionFilePath),
+            ('license', t.vehicleLicenseLabel, trucks.first.licenseExpiry, trucks.first.licenseFilePath),
+            ('insurance', t.docTypeInsurance, trucks.first.insuranceExpiry, trucks.first.insuranceFilePath),
+            ('technical_inspection', t.docTypeTechnicalInspection, trucks.first.technicalInspectionExpiry, trucks.first.technicalInspectionFilePath),
           ];
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'Renewing a document here submits it for admin review — it applies once approved.',
-                  style: TextStyle(color: LightColors.muted, fontSize: 12),
+                  t.renewingSubmitsForReviewNote,
+                  style: const TextStyle(color: LightColors.muted, fontSize: 12),
                 ),
               ),
               for (final (typeKey, label, expiry, path) in docs)
@@ -519,8 +525,8 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                       Container(
                         width: 40,
                         height: 40,
-                        decoration: BoxDecoration(color: _expiryState(expiry).color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                        child: Icon(Icons.description_outlined, color: _expiryState(expiry).color, size: 20),
+                        decoration: BoxDecoration(color: _expiryState(t, expiry).color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                        child: Icon(Icons.description_outlined, color: _expiryState(t, expiry).color, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -533,12 +539,12 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(color: _expiryState(expiry).color.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-                                  child: Text(_expiryState(expiry).label,
-                                      style: TextStyle(color: _expiryState(expiry).color, fontSize: 10, fontWeight: FontWeight.w600)),
+                                  decoration: BoxDecoration(color: _expiryState(t, expiry).color.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                                  child: Text(_expiryState(t, expiry).label,
+                                      style: TextStyle(color: _expiryState(t, expiry).color, fontSize: 10, fontWeight: FontWeight.w600)),
                                 ),
                                 const SizedBox(width: 6),
-                                Text('exp. ${_fmt(expiry)}', style: const TextStyle(color: LightColors.muted, fontSize: 11)),
+                                Text(t.expDateLabel(_fmt(expiry)), style: const TextStyle(color: LightColors.muted, fontSize: 11)),
                               ],
                             ),
                           ],
@@ -551,12 +557,12 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                             TextButton(
                               onPressed: () => _viewFile(trucks.first.id, typeKey),
                               style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28)),
-                              child: const Text('View', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
+                              child: Text(t.viewButton, style: const TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w600)),
                             ),
                           TextButton(
                             onPressed: () => _openTruckUploadSheet(typeKey, label),
                             style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 28)),
-                            child: const Text('Renew', style: TextStyle(color: LightColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                            child: Text(t.renewButton, style: const TextStyle(color: LightColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
                           ),
                         ],
                       ),
@@ -577,12 +583,13 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
         child: FutureBuilder<List<DriverDocument>>(
           future: _documentsFuture,
           builder: (context, snapshot) {
+            final t = AppLocalizations.of(context)!;
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
               return Center(
-                child: Text('Could not load documents', style: const TextStyle(color: LightColors.error)),
+                child: Text(t.couldNotLoadDocumentsMsg, style: const TextStyle(color: LightColors.error)),
               );
             }
 
@@ -593,18 +600,18 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Missing, expired, or expiring-soon mandatory documents (license, passport, residency) will block your account from being matched with shipments until renewed and approved.',
-                    style: TextStyle(color: LightColors.muted, fontSize: 12),
+                    t.mandatoryDocsBlockNote,
+                    style: const TextStyle(color: LightColors.muted, fontSize: 12),
                   ),
                 ),
                 ...kDriverDocumentTypes.map((docType) {
                   final current = currentByType[docType.key];
                   final pending = pendingByType[docType.key];
-                  final (statusLabel, statusColor) = _documentStatusDisplay(current, pending);
-                  final daysLabel = _daysRemainingLabel(current);
+                  final (statusLabel, statusColor) = _documentStatusDisplay(t, current, pending);
+                  final daysLabel = _daysRemainingLabel(t, current);
 
                   // Renew is shown for a never-uploaded type (as "Upload"),
                   // an expiring/expired current document, or when an admin
@@ -641,7 +648,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                docType.label,
+                                localizedDriverDocType(docType.label),
                                 style: const TextStyle(
                                     color: LightColors.cream, fontSize: 14, fontWeight: FontWeight.w600),
                               ),
@@ -664,7 +671,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                                   ),
                                   if (current?.expiryDate != null)
                                     Text(
-                                      'exp. ${_fmt(current!.expiryDate)}',
+                                      t.expDateLabel(_fmt(current!.expiryDate)),
                                       style: const TextStyle(color: LightColors.muted, fontSize: 11),
                                     ),
                                   if (daysLabel != null)
@@ -685,7 +692,7 @@ class _DriverDocumentsPageState extends State<DriverDocumentsPage> {
                           TextButton(
                             onPressed: () => _openUploadSheet(docType.key),
                             child: Text(
-                              current == null ? 'Upload' : 'Renew',
+                              current == null ? t.uploadButton : t.renewButton,
                               style: const TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w600),
                             ),
                           ),

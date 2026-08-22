@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/ShipmentOffer.dart';
 import '../utils/offer_accept_flow.dart';
 import '../utils/saved_offers.dart';
@@ -48,16 +49,16 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
   }
 
   Future<void> _decline() async {
+    final t = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Decline this offer?', style: TextStyle(color: LightColors.cream)),
-        content: const Text('You won\'t be matched with this shipment again unless it\'s re-offered.',
-            style: TextStyle(color: LightColors.muted)),
+        title: Text(t.declineOfferTitle, style: const TextStyle(color: LightColors.cream)),
+        content: Text(t.declineOfferBody, style: const TextStyle(color: LightColors.muted)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Decline', style: TextStyle(color: LightColors.error))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.commonDecline, style: const TextStyle(color: LightColors.error))),
         ],
       ),
     );
@@ -72,18 +73,19 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']?.toString() ?? 'Failed to decline offer'), backgroundColor: LightColors.error),
+        SnackBar(content: Text(result['message']?.toString() ?? t.failedToDeclineOffer), backgroundColor: LightColors.error),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final offer = widget.offer;
     final requirements = [
-      if (offer.needsPermit) 'Special permit',
-      if (offer.isHazardous) 'Hazardous cargo',
-      if (offer.isFragile) 'Fragile cargo',
+      if (offer.needsPermit) t.requirementSpecialPermit,
+      if (offer.isHazardous) t.requirementHazardousCargo,
+      if (offer.isFragile) t.requirementFragileCargo,
     ];
 
     return Scaffold(
@@ -92,7 +94,7 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.cream),
-        title: const Text('Shipment Details', style: TextStyle(color: LightColors.cream)),
+        title: Text(t.shipmentDetailsTitle, style: const TextStyle(color: LightColors.cream)),
         actions: [
           IconButton(
             icon: Icon(_saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, color: LightColors.gold),
@@ -106,38 +108,38 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(color: LightColors.success.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-            child: const Text('Offered', style: TextStyle(color: LightColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
+            child: Text(t.statusOffered, style: const TextStyle(color: LightColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 10),
           Text('${offer.origin}  →  ${offer.destination}',
               style: const TextStyle(color: LightColors.cream, fontSize: 19, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
-          Text(offer.companyName.isEmpty ? '' : 'Posted by ${offer.companyName}',
+          Text(offer.companyName.isEmpty ? '' : t.postedByCompany(offer.companyName),
               style: const TextStyle(color: LightColors.muted, fontSize: 12.5)),
           const SizedBox(height: 20),
 
           _SectionCard(
-            title: 'Load Information',
+            title: t.sectionLoadInformation,
             rows: [
-              ('Order Type', offer.orderType == 'internal' ? 'Domestic' : 'Cross-border'),
-              if (offer.hasZoneRoute) ('Pickup Zone', [offer.originCity, offer.originCountry].where((s) => s != null && s.isNotEmpty).join(', ')),
-              if (offer.hasZoneRoute) ('Drop-off Zone', [offer.destinationCity, offer.destinationCountry].where((s) => s != null && s.isNotEmpty).join(', ')),
-              ('Truck Type', offer.requiredTruckType.isEmpty ? '—' : offer.requiredTruckType),
-              ('Weight', offer.weight.isEmpty ? '—' : '${offer.weight} kg'),
-              if (requirements.isNotEmpty) ('Requirements', requirements.join(', ')),
+              (t.fieldOrderType, offer.orderType == 'internal' ? t.addShipmentDomesticShort : t.addShipmentCrossBorderShort),
+              if (offer.hasZoneRoute) (t.fieldPickupZone, [offer.originCity, offer.originCountry].where((s) => s != null && s.isNotEmpty).join(', ')),
+              if (offer.hasZoneRoute) (t.fieldDropoffZone, [offer.destinationCity, offer.destinationCountry].where((s) => s != null && s.isNotEmpty).join(', ')),
+              (t.addShipmentReviewTruckType, offer.requiredTruckType.isEmpty ? '—' : offer.requiredTruckType),
+              (t.addShipmentReviewWeight, offer.weight.isEmpty ? '—' : '${offer.weight} kg'),
+              if (requirements.isNotEmpty) (t.fieldRequirements, requirements.join(', ')),
             ],
           ),
 
           if (offer.description.isNotEmpty) ...[
             const SizedBox(height: 14),
-            _SectionCard(title: 'Cargo Description', rows: [('', offer.description)], plainText: true),
+            _SectionCard(title: t.sectionCargoDescription, rows: [('', offer.description)], plainText: true),
           ],
 
           const SizedBox(height: 14),
           _SectionCard(
-            title: 'Payment',
+            title: t.sectionPayment,
             rows: [
-              ('Price to you', offer.priceToDriver.isEmpty || offer.priceToDriver == '0' ? 'To be confirmed' : '${offer.priceToDriver} AED'),
+              (t.fieldPriceToYou, offer.priceToDriver.isEmpty || offer.priceToDriver == '0' ? t.toBeConfirmed : '${offer.priceToDriver} AED'),
             ],
             highlightValue: true,
           ),
@@ -153,7 +155,7 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
                     side: const BorderSide(color: LightColors.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(_saved ? 'Saved' : 'Save', style: const TextStyle(color: LightColors.cream, fontWeight: FontWeight.w600)),
+                  child: Text(_saved ? t.commonSaved : t.commonSave, style: const TextStyle(color: LightColors.cream, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -167,7 +169,7 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
                   ),
                   child: _declining
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.error))
-                      : const Text('Decline', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w600)),
+                      : Text(t.commonDecline, style: const TextStyle(color: LightColors.error, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],
@@ -184,7 +186,7 @@ class _DriverOfferDetailsPageState extends State<DriverOfferDetailsPage> {
               ),
               child: _accepting
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.deepNavy))
-                  : const Text('Accept Shipment', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w700)),
+                  : Text(t.acceptShipmentButton, style: const TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w700)),
             ),
           ),
         ],

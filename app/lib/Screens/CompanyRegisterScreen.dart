@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../API/AuthResponse.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'OtpVerificationScreen.dart';
 import 'register_shared.dart';
 
@@ -99,24 +100,25 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
   bool get _isEmailValid => RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$').hasMatch(_emailCtrl.text.trim());
 
   String? _validateStep(int step) {
+    final t = AppLocalizations.of(context)!;
     switch (step) {
       case 0: // Account info
         if (_nameCtrl.text.trim().isEmpty ||
             _emailCtrl.text.trim().isEmpty ||
             _passCtrl.text.isEmpty ||
             _confirmCtrl.text.isEmpty) {
-          return 'Please fill in all required fields';
+          return t.validationFillRequired;
         }
-        if (!_isEmailValid) return 'Please enter a valid email address';
-        if (_passCtrl.text != _confirmCtrl.text) return 'Passwords do not match';
-        if (!_agreed) return 'Please agree to the Terms & Conditions';
+        if (!_isEmailValid) return t.validationInvalidEmail;
+        if (_passCtrl.text != _confirmCtrl.text) return t.passwordsDoNotMatch;
+        if (!_agreed) return t.validationAgreeTerms;
         return null;
       case 1: // Company information
-        if (_phoneCtrl.text.trim().isEmpty) return 'Please enter your company phone number';
-        if (_addressCtrl.text.trim().isEmpty) return 'Please enter your company address';
+        if (_phoneCtrl.text.trim().isEmpty) return t.validationCompanyPhone;
+        if (_addressCtrl.text.trim().isEmpty) return t.validationCompanyAddress;
         return null;
       case 2: // Company documents
-        if (_licenseFile?.bytes == null) return 'Please attach your trade license';
+        if (_licenseFile?.bytes == null) return t.validationAttachLicense;
         return null;
       default:
         return null;
@@ -178,25 +180,25 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _errorMessage = e.message);
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = 'Something went wrong while submitting: $e');
+      if (mounted) setState(() => _errorMessage = AppLocalizations.of(context)!.errorSubmitGeneric(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  static const _stepTitles = [
-    'Account Information',
-    'Company Information',
-    'Company Documents',
-    'Review Your Information',
-  ];
+  List<String> _stepTitles(AppLocalizations t) => [
+        t.stepAccountInfoTitle,
+        t.companyRegStepCompanyTitle,
+        t.companyRegStepDocumentsTitle,
+        t.stepReviewTitle,
+      ];
 
-  static const _stepSubtitles = [
-    'Enter your account details',
-    'Tell us about your company',
-    'All documents are mandatory',
-    'Please review all information before submitting',
-  ];
+  List<String> _stepSubtitles(AppLocalizations t) => [
+        t.stepAccountInfoSubtitle,
+        t.companyRegStepCompanySubtitle,
+        t.companyRegStepDocumentsSubtitle,
+        t.stepReviewSubtitle,
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -222,30 +224,31 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  _accountInfoStep(),
-                  _companyInfoStep(),
-                  _documentsStep(),
-                  _reviewStep(),
+                  _accountInfoStep(context),
+                  _companyInfoStep(context),
+                  _documentsStep(context),
+                  _reviewStep(context),
                 ],
               ),
             ),
-            _bottomBar(),
+            _bottomBar(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _pageScaffold(int stepIndex, List<Widget> children) {
+  Widget _pageScaffold(BuildContext context, int stepIndex, List<Widget> children) {
+    final t = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(_stepTitles[stepIndex],
+          Text(_stepTitles(t)[stepIndex],
               style: const TextStyle(color: LightColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text(_stepSubtitles[stepIndex], style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
+          Text(_stepSubtitles(t)[stepIndex], style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 22),
           ...children,
         ],
@@ -253,16 +256,17 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
     );
   }
 
-  Widget _accountInfoStep() {
-    return _pageScaffold(0, [
-      buildLightTextField(controller: _nameCtrl, label: 'Company Name', hint: 'Global Logistics LLC'),
+  Widget _accountInfoStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 0, [
+      buildLightTextField(controller: _nameCtrl, label: t.companyNameLabel, hint: t.companyNameHint),
       const SizedBox(height: 14),
       buildLightTextField(
-          controller: _emailCtrl, label: 'Email', hint: 'contact@company.com', keyboardType: TextInputType.emailAddress),
+          controller: _emailCtrl, label: t.emailLabel, hint: t.companyEmailHint, keyboardType: TextInputType.emailAddress),
       const SizedBox(height: 14),
       buildLightTextField(
         controller: _passCtrl,
-        label: 'Password',
+        label: t.passwordLabel,
         hint: '••••••••••',
         obscure: _obscurePass,
         suffix: IconButton(
@@ -278,7 +282,7 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
       const SizedBox(height: 14),
       buildLightTextField(
         controller: _confirmCtrl,
-        label: 'Confirm Password',
+        label: t.confirmPasswordLabel,
         hint: '••••••••••',
         obscure: _obscureConfirm,
         hasError: !_passwordsMatch,
@@ -290,7 +294,7 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
       ),
       if (!_passwordsMatch) ...[
         const SizedBox(height: 6),
-        const Text('Passwords do not match', style: TextStyle(fontSize: 11, color: LightColors.error)),
+        Text(t.passwordsDoNotMatch, style: const TextStyle(fontSize: 11, color: LightColors.error)),
       ],
       const SizedBox(height: 20),
       GestureDetector(
@@ -311,10 +315,10 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
               child: _agreed ? const Icon(Icons.check, size: 13, color: Colors.white) : null,
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'I agree to the Terms & Conditions and Privacy Policy',
-                style: TextStyle(fontSize: 13, color: LightColors.textSecondary, height: 1.5),
+                t.companyAgreeTerms,
+                style: const TextStyle(fontSize: 13, color: LightColors.textSecondary, height: 1.5),
               ),
             ),
           ],
@@ -323,48 +327,52 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
     ]);
   }
 
-  Widget _companyInfoStep() {
-    return _pageScaffold(1, [
-      buildLightTextField(controller: _phoneCtrl, label: 'Phone Number', hint: '+971 4 123 4567', keyboardType: TextInputType.phone),
+  Widget _companyInfoStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 1, [
+      buildLightTextField(controller: _phoneCtrl, label: t.companyPhoneLabel, hint: t.companyPhoneHint, keyboardType: TextInputType.phone),
       const SizedBox(height: 14),
-      buildLightTextField(controller: _addressCtrl, label: 'Company Address', hint: 'Street, city, country', maxLines: 3),
+      buildLightTextField(controller: _addressCtrl, label: t.companyAddressLabel, hint: t.companyAddressHint, maxLines: 3),
     ]);
   }
 
-  Widget _documentsStep() {
-    return _pageScaffold(2, [
-      const _SubLabel('Trade License'),
+  Widget _documentsStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 2, [
+      _SubLabel(t.tradeLicenseLabel),
       const SizedBox(height: 8),
       LightPickerField(
-        label: 'Upload',
-        hint: 'PDF/JPG/PNG',
+        label: t.commonUpload,
+        hint: t.commonUploadHintFormats,
         value: _licenseFile?.name,
         icon: Icons.upload_file_outlined,
         onTap: _pickLicenseFile,
       ),
       const SizedBox(height: 14),
-      const _NoticeBanner('All documents must be clear and valid. Expired documents are not accepted.'),
+      _NoticeBanner(t.documentsNotice),
     ]);
   }
 
-  Widget _reviewStep() {
-    return _pageScaffold(3, [
-      _ReviewCard(icon: Icons.person_outline, title: 'Account Information', lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
+  Widget _reviewStep(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return _pageScaffold(context, 3, [
+      _ReviewCard(icon: Icons.person_outline, title: t.reviewAccountInfoTitle, lines: [_nameCtrl.text.trim(), _emailCtrl.text.trim()]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.apartment_outlined, title: 'Company Information', lines: [
+      _ReviewCard(icon: Icons.apartment_outlined, title: t.reviewCompanyInfoTitle, lines: [
         _phoneCtrl.text.trim(),
         _addressCtrl.text.trim(),
       ]),
       const SizedBox(height: 10),
-      _ReviewCard(icon: Icons.folder_open_outlined, title: 'Company Documents', lines: [
-        _licenseFile != null ? 'Trade license uploaded' : 'No document uploaded',
+      _ReviewCard(icon: Icons.folder_open_outlined, title: t.companyRegStepDocumentsTitle, lines: [
+        _licenseFile != null ? t.tradeLicenseUploaded : t.noDocumentUploaded,
       ]),
       const SizedBox(height: 16),
-      const _NoticeBanner("You won't be able to edit this after submission."),
+      _NoticeBanner(t.reviewCannotEditNotice),
     ]);
   }
 
-  Widget _bottomBar() {
+  Widget _bottomBar(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: Column(
@@ -375,7 +383,7 @@ class _CompanyRegisterScreenState extends State<CompanyRegisterScreen> {
             const SizedBox(height: 12),
           ],
           LightPrimaryButton(
-            label: _step == _totalSteps - 1 ? 'Submit for Review' : 'Next',
+            label: _step == _totalSteps - 1 ? t.submitForReview : t.commonNext,
             loading: _loading,
             onPressed: _next,
           ),

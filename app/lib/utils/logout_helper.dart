@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/DriverLocationReporter.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../main.dart';
 
 /// Shared logout flow, reachable from every role's screens (Profile for
@@ -25,10 +26,11 @@ import '../main.dart';
 /// reporter for role == 'driver'), so this check is a no-op — always
 /// false — for company/admin, no role parameter needed here.
 Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async {
+  final t = AppLocalizations.of(context)!;
   if (DriverLocationReporter.hasActiveTrip.value) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("You can't log out while a trip is in progress. Finish or hand off the trip first."),
+      SnackBar(
+        content: Text(t.logOutBlockedActiveTrip),
       ),
     );
     return;
@@ -38,19 +40,19 @@ Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async 
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: light ? LightColors.surface : AppColors.surface,
-      title: Text('Log out', style: TextStyle(color: light ? LightColors.textPrimary : AppColors.cream)),
+      title: Text(t.logOutTitle, style: TextStyle(color: light ? LightColors.textPrimary : AppColors.cream)),
       content: Text(
-        'Are you sure you want to log out?',
+        t.logOutConfirmMessage,
         style: TextStyle(color: light ? LightColors.textSecondary : AppColors.muted),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: Text('Cancel', style: TextStyle(color: light ? LightColors.textSecondary : AppColors.muted)),
+          child: Text(t.commonCancel, style: TextStyle(color: light ? LightColors.textSecondary : AppColors.muted)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: Text('Log out', style: TextStyle(color: light ? LightColors.error : AppColors.error)),
+          child: Text(t.logOutLabel, style: TextStyle(color: light ? LightColors.error : AppColors.error)),
         ),
       ],
     ),
@@ -79,10 +81,11 @@ Widget logoutAction(BuildContext context, {bool light = false}) {
   return ValueListenableBuilder<bool>(
     valueListenable: DriverLocationReporter.hasActiveTrip,
     builder: (context, blocked, _) {
+      final t = AppLocalizations.of(context)!;
       final color = light ? LightColors.textPrimary : AppColors.cream;
       return IconButton(
         icon: Icon(Icons.logout, color: blocked ? color.withOpacity(0.35) : color),
-        tooltip: blocked ? "Log out (unavailable during an active trip)" : 'Log out',
+        tooltip: blocked ? t.logOutTooltipBlocked : t.logOutLabel,
         onPressed: () => confirmAndLogout(context, light: light),
       );
     },

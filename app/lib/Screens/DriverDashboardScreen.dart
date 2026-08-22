@@ -6,6 +6,7 @@ import '../API/NotificationService.dart';
 import '../API/ReportService.dart';
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/AppNotification.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
@@ -82,11 +83,11 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     await Future.wait([_shipmentsFuture, _reportFuture, _notificationsFuture]);
   }
 
-  String get _greeting {
+  String _greeting(AppLocalizations t) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t.greetingMorning;
+    if (hour < 18) return t.greetingAfternoon;
+    return t.greetingEvening;
   }
 
   void _openNotifications() {
@@ -103,6 +104,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -128,9 +130,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('$_greeting, ${widget.user.name.split(' ').first}',
+                            Text(t.greetingComma(_greeting(t), widget.user.name.split(' ').first),
                                 style: const TextStyle(color: LightColors.cream, fontSize: 16, fontWeight: FontWeight.w700)),
-                            const Text('Drive safe!', style: TextStyle(color: LightColors.muted, fontSize: 12)),
+                            Text(t.driveSafe, style: const TextStyle(color: LightColors.muted, fontSize: 12)),
                           ],
                         ),
                       ),
@@ -157,10 +159,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                           children: [
                             const Icon(Icons.local_shipping_rounded, color: LightColors.info, size: 18),
                             const SizedBox(width: 10),
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Active Trip — location sharing is on. Logout is unavailable until it ends.',
-                                style: TextStyle(color: LightColors.info, fontSize: 12.5, fontWeight: FontWeight.w600),
+                                t.activeTripBanner,
+                                style: const TextStyle(color: LightColors.info, fontSize: 12.5, fontWeight: FontWeight.w600),
                               ),
                             ),
                           ],
@@ -193,10 +195,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                               children: [
                                 const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 32),
                                 const SizedBox(height: 8),
-                                Text('Could not load your shipments.\n${shipSnapshot.error}',
+                                Text(t.couldNotLoadShipments(shipSnapshot.error.toString()),
                                     textAlign: TextAlign.center, style: const TextStyle(color: LightColors.muted, fontSize: 13)),
                                 const SizedBox(height: 12),
-                                TextButton(onPressed: _refresh, child: const Text('Retry')),
+                                TextButton(onPressed: _refresh, child: Text(t.commonRetry)),
                               ],
                             ),
                           );
@@ -239,7 +241,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                               ],
                               if (reportSnapshot.hasError) ...[
                                 _InlineErrorNotice(
-                                  message: 'Could not load wallet balance — showing AED 0 for now.',
+                                  message: t.couldNotLoadWalletBalance,
                                   onRetry: _refresh,
                                 ),
                                 const SizedBox(height: 10),
@@ -249,10 +251,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Quick Overview', style: TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
+                                  Text(t.quickOverview, style: const TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
                                   TextButton(
                                     onPressed: _openMyShipments,
-                                    child: const Text('View All', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
+                                    child: Text(t.viewAll, style: const TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
                                   ),
                                 ],
                               ),
@@ -265,15 +267,15 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                                 crossAxisSpacing: 12,
                                 childAspectRatio: 1.7,
                                 children: [
-                                  _StatCard(icon: Icons.route_outlined, label: 'Active Trips', value: '$active', color: LightColors.info),
-                                  _StatCard(icon: Icons.schedule_outlined, label: 'Upcoming', value: '$upcoming', color: LightColors.gold),
-                                  _StatCard(icon: Icons.task_alt_rounded, label: 'Completed', value: '$completed', color: LightColors.success),
-                                  _StatCard(icon: Icons.hourglass_bottom_rounded, label: 'Pending Payments', value: 'AED ${pendingAmount.toStringAsFixed(0)}', color: LightColors.error),
+                                  _StatCard(icon: Icons.route_outlined, label: t.statActiveTrips, value: '$active', color: LightColors.info),
+                                  _StatCard(icon: Icons.schedule_outlined, label: t.statUpcoming, value: '$upcoming', color: LightColors.gold),
+                                  _StatCard(icon: Icons.task_alt_rounded, label: t.statCompleted, value: '$completed', color: LightColors.success),
+                                  _StatCard(icon: Icons.hourglass_bottom_rounded, label: t.statPendingPayments, value: 'AED ${pendingAmount.toStringAsFixed(0)}', color: LightColors.error),
                                 ],
                               ),
                               if (current != null) ...[
                                 const SizedBox(height: 20),
-                                const Text('Current Trip', style: TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
+                                Text(t.currentTripLabel, style: const TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 10),
                                 _CurrentTripCard(shipment: current, onViewTracking: () => _openTracking(current!)),
                               ],
@@ -281,10 +283,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Recent Notifications', style: TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
+                                  Text(t.recentNotifications, style: const TextStyle(color: LightColors.cream, fontSize: 15, fontWeight: FontWeight.w700)),
                                   TextButton(
                                     onPressed: _openNotifications,
-                                    child: const Text('View All', style: TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
+                                    child: Text(t.viewAll, style: const TextStyle(color: LightColors.gold, fontSize: 12, fontWeight: FontWeight.w700)),
                                   ),
                                 ],
                               ),
@@ -294,9 +296,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                                 builder: (context, notifSnapshot) {
                                   final items = (notifSnapshot.data?.notifications ?? []).take(2).toList();
                                   if (items.isEmpty) {
-                                    return const Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 12),
-                                      child: Text('No notifications yet', style: TextStyle(color: LightColors.muted, fontSize: 12.5)),
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      child: Text(t.noNotificationsYet, style: const TextStyle(color: LightColors.muted, fontSize: 12.5)),
                                     );
                                   }
                                   return Column(
@@ -351,20 +353,21 @@ class _ComplianceBanner extends StatelessWidget {
         _ => Icons.warning_amber_rounded,
       };
 
-  String get _title => switch (status) {
-        'expiring_soon' => 'Document expiring soon',
-        'pending_review' => 'Renewal under review',
-        _ => 'Action needed',
+  String _title(AppLocalizations t) => switch (status) {
+        'expiring_soon' => t.complianceExpiringTitle,
+        'pending_review' => t.compliancePendingTitle,
+        _ => t.complianceActionTitle,
       };
 
-  String get _body => switch (status) {
-        'expiring_soon' => 'A document is expiring soon — renew it now to avoid losing new shipment offers.',
-        'pending_review' => 'Your renewal was submitted and is awaiting admin approval — you won\'t receive new shipment offers until it\'s approved.',
-        _ => 'A document has expired — renew it now to keep receiving new shipment offers.',
+  String _body(AppLocalizations t) => switch (status) {
+        'expiring_soon' => t.complianceExpiringBody,
+        'pending_review' => t.compliancePendingBody,
+        _ => t.complianceActionBody,
       };
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Material(
       color: _color.withOpacity(0.08),
       borderRadius: BorderRadius.circular(14),
@@ -382,9 +385,9 @@ class _ComplianceBanner extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_title, style: const TextStyle(color: LightColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text(_title(t), style: const TextStyle(color: LightColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
-                    Text(_body, style: const TextStyle(color: LightColors.muted, fontSize: 11.5)),
+                    Text(_body(t), style: const TextStyle(color: LightColors.muted, fontSize: 11.5)),
                   ],
                 ),
               ),
@@ -424,7 +427,8 @@ class _InlineErrorNotice extends StatelessWidget {
           TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0)),
-            child: const Text('Retry', style: TextStyle(color: LightColors.error, fontSize: 11.5, fontWeight: FontWeight.w700)),
+            child: Text(AppLocalizations.of(context)!.commonRetry,
+                style: const TextStyle(color: LightColors.error, fontSize: 11.5, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -458,7 +462,7 @@ class _WalletCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Wallet Balance', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                    Text(AppLocalizations.of(context)!.walletBalanceLabel, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
                     const SizedBox(height: 6),
                     Text('AED ${balance.toStringAsFixed(2)}',
                         style: const TextStyle(color: LightColors.gold, fontSize: 24, fontWeight: FontWeight.w800)),
@@ -564,7 +568,7 @@ class _CurrentTripCard extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onViewTracking,
               icon: const Icon(Icons.map_outlined, size: 18, color: LightColors.deepNavy),
-              label: const Text('View Tracking', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w700)),
+              label: Text(AppLocalizations.of(context)!.viewTracking, style: const TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w700)),
               style: ElevatedButton.styleFrom(backgroundColor: LightColors.gold, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
             ),
           ),

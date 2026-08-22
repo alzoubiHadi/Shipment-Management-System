@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../API/NotificationBadge.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../utils/logout_helper.dart';
 import 'ActivityLogPage.dart';
-import 'AdminProfileEditRequestsPage.dart';
 import 'AdminSettingsPage.dart';
 import 'Companiespage.dart';
 import 'Driverspage.dart';
@@ -19,11 +19,16 @@ import 'ShipmentOffersAdminPage.dart';
 /// everything else, rather than the Drawer being the only nav.
 ///
 /// Only Home/Approvals/Shipments/Finance live in HomeScreen's IndexedStack
-/// (go through [onSelectTab]); Drivers/Companies/Offers/Work Destinations/
-/// Reports/Notifications/Activity Log/Settings are full standalone pages
-/// reached via a normal push. "Work Destinations" (AdminProfileEditRequestsPage)
-/// is what's left of the old generic profile-edit-requests queue now that
-/// document renewals moved into the Approvals tab — see that page's docblock.
+/// (go through [onSelectTab]); Drivers/Companies/Offers/Reports/
+/// Notifications/Activity Log/Settings are full standalone pages reached
+/// via a normal push.
+///
+/// 2026-08-28: the standalone "Work Destinations" tile (which pushed
+/// AdminProfileEditRequestsPage, the last remaining single-category
+/// ProfileEditRequest queue) was removed — driver work-destination change
+/// requests now live inside the Approvals tab's own "Work Destinations"
+/// section, alongside every other pending decision, instead of a separate
+/// drawer page.
 class AdminDrawer extends StatelessWidget {
   final AppUser user;
   final int currentTabIndex; // 0=Home,1=Approvals,2=Shipments,3=Finance
@@ -39,13 +44,6 @@ class AdminDrawer extends StatelessWidget {
   });
 
   bool get _isSuperAdmin => user.role.toLowerCase() == 'super_admin';
-
-  // "Work Destinations" (AdminProfileEditRequestsPage) reviews the
-  // company_license/destinations categories, both gated to the finance
-  // permission on the backend now (see ProfileController::
-  // reviewPermissionFor()) — a trainer/technical_check-only sub-admin
-  // would otherwise land on a page that's permanently empty for them.
-  bool get _canReviewFinanceRequests => user.hasPermission('finance');
 
   // Reports scope tightened 2026-08-27: finance and crm only (finance
   // owns reports/financial oversight for companies and drivers; crm was
@@ -63,14 +61,15 @@ class AdminDrawer extends StatelessWidget {
   bool get _canSeeSettings => _isSuperAdmin || _canFinance;
   bool get _canFinance => user.hasPermission('finance');
 
-  String get _roleLabel {
+  String _roleLabel(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     switch (user.role.toLowerCase()) {
       case 'super_admin':
-        return 'Super Admin';
+        return t.roleSuperAdmin;
       case 'sub_admin':
-        return 'Sub Admin';
+        return t.roleSubAdmin;
       default:
-        return 'Admin';
+        return t.roleAdmin;
     }
   }
 
@@ -92,6 +91,7 @@ class AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Drawer(
       backgroundColor: LightColors.bg,
       width: 280,
@@ -123,7 +123,7 @@ class AdminDrawer extends StatelessWidget {
                         Text(user.name,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: LightColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
-                        Text(_roleLabel, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+                        Text(_roleLabel(context), style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -137,55 +137,49 @@ class AdminDrawer extends StatelessWidget {
                 children: [
                   _DrawerTile(
                     icon: Icons.dashboard_outlined,
-                    label: 'Home',
+                    label: t.navHome,
                     selected: currentTabIndex == 0,
                     onTap: () => _selectTab(context, 0),
                   ),
                   _DrawerTile(
                     icon: Icons.assignment_outlined,
-                    label: 'Approvals',
+                    label: t.navApprovals,
                     selected: currentTabIndex == 1,
                     badge: pendingRegistrations,
                     onTap: () => _selectTab(context, 1),
                   ),
                   _DrawerTile(
                     icon: Icons.people_outline,
-                    label: 'Drivers',
+                    label: t.drawerDrivers,
                     onTap: () => _push(context, Driverspage(user: user)),
                   ),
                   _DrawerTile(
                     icon: Icons.apartment_outlined,
-                    label: 'Companies',
+                    label: t.drawerCompanies,
                     onTap: () => _push(context, Companiespage(user: user)),
                   ),
                   _DrawerTile(
                     icon: Icons.local_shipping_outlined,
-                    label: 'Shipments',
+                    label: t.navShipments,
                     selected: currentTabIndex == 2,
                     onTap: () => _selectTab(context, 2),
                   ),
                   _DrawerTile(
                     icon: Icons.handshake_outlined,
-                    label: 'Offers',
+                    label: t.drawerOffers,
                     onTap: () => _push(context, const ShipmentOffersAdminPage()),
                   ),
-                  if (_canReviewFinanceRequests)
-                    _DrawerTile(
-                      icon: Icons.public_outlined,
-                      label: 'Work Destinations',
-                      onTap: () => _push(context, const AdminProfileEditRequestsPage()),
-                    ),
                   if (_canViewReports)
                     _DrawerTile(
                       icon: Icons.bar_chart_outlined,
-                      label: 'Reports',
+                      label: t.drawerReports,
                       onTap: () => _push(context, ReportsHomePage(user: user)),
                     ),
                   ValueListenableBuilder<int>(
                     valueListenable: NotificationBadge.unreadCount,
                     builder: (context, unread, _) => _DrawerTile(
                       icon: Icons.notifications_outlined,
-                      label: 'Notifications',
+                      label: t.drawerNotifications,
                       badge: unread,
                       onTap: () => _push(context, NotificationsPage(user: user)),
                     ),
@@ -193,13 +187,13 @@ class AdminDrawer extends StatelessWidget {
                   if (_isSuperAdmin)
                     _DrawerTile(
                       icon: Icons.history_rounded,
-                      label: 'Activity Log',
+                      label: t.drawerActivityLog,
                       onTap: () => _push(context, const ActivityLogPage()),
                     ),
                   if (_canSeeSettings)
                     _DrawerTile(
                       icon: Icons.settings_outlined,
-                      label: 'Settings',
+                      label: t.drawerSettings,
                       onTap: () => _push(context, AdminSettingsPage(user: user)),
                     ),
                 ],
@@ -208,7 +202,7 @@ class AdminDrawer extends StatelessWidget {
             const Divider(color: LightColors.border, height: 1),
             _DrawerTile(
               icon: Icons.logout_rounded,
-              label: 'Log Out',
+              label: t.logOutLabel,
               iconColor: LightColors.error,
               textColor: LightColors.error,
               // 2026-08-24 fix (diagnosed by user): this used to

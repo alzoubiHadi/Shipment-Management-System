@@ -362,10 +362,11 @@ class ProfileService {
     return fetchEditRequests();
   }
 
-  /// Backs both the legacy destinations-only queue (AdminProfileEditRequestsPage)
-  /// and the new Approvals "Document Renewals" tab (ApprovalsPage) — [category]
-  /// is a comma-separated list matching ProfileController::adminIndex()'s
-  /// `category` query param, e.g. 'document,truck_document,company_license'.
+  /// Backs both the Approvals "Document Renewals" tab and (2026-08-28) its
+  /// "Work Destinations" tab (ApprovalsPage) — [category] is a
+  /// comma-separated list matching ProfileController::adminIndex()'s
+  /// `category` query param, e.g. 'document,truck_document,company_license'
+  /// or 'destinations'.
   Future<List<ProfileEditRequest>> fetchEditRequests({String status = 'pending', String? category}) async {
     final params = <String, String>{'status': status};
     if (category != null && category.isNotEmpty) params['category'] = category;

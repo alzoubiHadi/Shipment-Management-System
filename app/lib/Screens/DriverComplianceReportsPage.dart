@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ComplianceReportService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/ComplianceReport.dart';
 
 /// Driver app (UC-25/26): view compliance reports filed against you and
@@ -32,30 +33,31 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
   }
 
   Future<void> _appeal(ComplianceReport report) async {
+    final t = AppLocalizations.of(context)!;
     final controller = TextEditingController();
 
     final text = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Appeal this decision', style: TextStyle(color: LightColors.cream)),
+        title: Text(t.appealThisDecisionTitle, style: const TextStyle(color: LightColors.cream)),
         content: TextField(
           controller: controller,
           maxLines: 4,
           style: const TextStyle(color: LightColors.cream),
-          decoration: const InputDecoration(
-            hintText: 'Explain why you believe this decision was wrong',
-            hintStyle: TextStyle(color: LightColors.muted),
+          decoration: InputDecoration(
+            hintText: t.appealHint,
+            hintStyle: const TextStyle(color: LightColors.muted),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back', style: TextStyle(color: LightColors.muted)),
+            child: Text(t.commonBack, style: const TextStyle(color: LightColors.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Submit appeal', style: TextStyle(color: LightColors.gold)),
+            child: Text(t.submitAppealButton, style: const TextStyle(color: LightColors.gold)),
           ),
         ],
       ),
@@ -77,12 +79,13 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Compliance Reports', style: TextStyle(color: LightColors.cream)),
+        title: Text(t.complianceReportsTitle, style: const TextStyle(color: LightColors.cream)),
         iconTheme: const IconThemeData(color: LightColors.cream),
       ),
       body: RefreshIndicator(
@@ -95,18 +98,18 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
               return const Center(child: CircularProgressIndicator(color: LightColors.gold));
             }
             if (snapshot.hasError) {
-              return const Center(
-                  child: Text('Could not load reports', style: TextStyle(color: LightColors.error)));
+              return Center(
+                  child: Text(t.couldNotLoadReports, style: const TextStyle(color: LightColors.error)));
             }
 
             final reports = snapshot.data ?? [];
             if (reports.isEmpty) {
-              return ListView(children: const [
+              return ListView(children: [
                 Padding(
-                  padding: EdgeInsets.only(top: 60),
+                  padding: const EdgeInsets.only(top: 60),
                   child: Center(
-                      child: Text('No compliance reports on file — clean record.',
-                          style: TextStyle(color: LightColors.muted))),
+                      child: Text(t.noComplianceReportsClean,
+                          style: const TextStyle(color: LightColors.muted))),
                 ),
               ]);
             }
@@ -154,22 +157,22 @@ class _DriverComplianceReportsPageState extends State<DriverComplianceReportsPag
                       Text(r.description, style: const TextStyle(color: LightColors.muted, fontSize: 13)),
                       if (r.resultingAction != null && r.resultingAction != 'none') ...[
                         const SizedBox(height: 6),
-                        Text('Action: ${r.resultingAction}',
+                        Text(t.actionLabel(r.resultingAction!),
                             style: const TextStyle(color: LightColors.error, fontSize: 12)),
                       ],
                       if (r.appealStatus != 'none') ...[
                         const SizedBox(height: 6),
-                        Text('Appeal: ${r.appealStatus}',
+                        Text(t.appealLabel(r.appealStatus),
                             style: const TextStyle(color: LightColors.info, fontSize: 12)),
                       ],
                       if (r.canAppeal) ...[
                         const SizedBox(height: 10),
                         Align(
-                          alignment: Alignment.centerRight,
+                          alignment: AlignmentDirectional.centerEnd,
                           child: TextButton(
                             onPressed: () => _appeal(r),
-                            child: const Text('Appeal',
-                                style: TextStyle(color: LightColors.gold, fontSize: 12)),
+                            child: Text(t.appealButton,
+                                style: const TextStyle(color: LightColors.gold, fontSize: 12)),
                           ),
                         ),
                       ],

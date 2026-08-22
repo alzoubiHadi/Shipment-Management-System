@@ -3,18 +3,24 @@ import '../API/DriverService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
 import '../models/Driver.dart';
-import 'AddDriverPage.dart';
+import 'DriverDetails.dart';
 import 'RequestReviewScreen.dart';
 
 /// Admin Phase 1 (2026-08-20) redesign to LightColors, matching the
 /// Registration Requests / Request Review screens already redesigned in an
-/// earlier phase. "View" now opens RequestReviewScreen.driver(driver)
-/// instead of the old dark DriverDetailsPage — that screen already renders
-/// full driver info/documents/truck tabs for any status (its Approve/
-/// Reject/Request Changes action bar only shows itself while status is
-/// 'pending'/'changes_required'), so it doubles as a plain read-only
-/// viewer for approved/rejected drivers too. DriverDetails.dart is no
-/// longer referenced from here.
+/// earlier phase.
+///
+/// Phase 2 (2026-08-22) nav rework: tapping anywhere on a driver card now
+/// opens RequestReviewScreen.driver(driver) — the original registration/
+/// review request in its final form, including the Approve/Reject/Request
+/// Changes bar for drivers still pending/changes_required. Each card keeps
+/// exactly three explicit actions: View Information (opens the read-only
+/// DriverDetailsPage — all currently available driver/truck data, no
+/// actions), Suspend/Reactivate (toggles compliance_status via the existing
+/// backend endpoints, confirmed via dialog), and Delete. The old per-card
+/// Edit/Approve/Reject icon buttons were removed — approval decisions now
+/// live only inside RequestReviewScreen, and there is no dedicated edit
+/// flow from this list anymore.
 class Driverspage extends StatefulWidget {
   final AppUser user;
   // Lets a caller (e.g. the admin drawer's "Registration Requests" shortcut)
@@ -362,244 +368,297 @@ class DriverItem extends StatelessWidget {
 
   const DriverItem({super.key, required this.driver, this.onRefresh});
 
+  bool get _isSuspended =>
+      driver.complianceStatus == 'suspended' || driver.complianceStatus == 'banned';
+
+  // Whole-card tap: opens the original registration/review request in its
+  // final form. Approve/Reject/Request Changes live inside that screen and
+  // only show themselves while status is 'pending'/'changes_required'.
+  Future<void> _openReview(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RequestReviewScreen.driver(driver)),
+    );
+    if (result == true) onRefresh?.call();
+  }
+
+  // "View Information": a plain read-only page, all currently available
+  // driver/truck data on one screen. No approve/reject/suspend actions
+  // there — those are reached via _openReview or the buttons below.
+  void _openInfo(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DriverDetailsPage(driver: driver)),
+    );
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LightColors.surface,
+        title: const Text('Delete Driver', style: TextStyle(color: LightColors.textPrimary)),
+        content: Text(
+          'Are you sure you want to delete ${driver.name}?',
+          style: const TextStyle(color: LightColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: LightColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await DriverService.deleteDriver(driver.id);
+      onRefresh?.call();
+    }
+  }
+
+  // Super Admin freezes a driver directly (compliance_status='suspended'),
+  // same DriverService.suspendDriver(id, reason) endpoint the old
+  // DriverDetailsPage action bar used — a reason is required server-side.
+  Future<void> _suspend(BuildContext context) async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: LightColors.surface,
+          title: const Text('Suspend Driver', style: TextStyle(color: LightColors.textPrimary)),
+          content: TextField(
+            controller: reasonCtrl,
+            onChanged: (_) => setDialogState(() {}),
+            style: const TextStyle(color: LightColors.textPrimary),
+            decoration: const InputDecoration(
+              hintText: 'Reason (required)',
+              hintStyle: TextStyle(color: LightColors.textSecondary),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: reasonCtrl.text.trim().isEmpty ? null : () => Navigator.pop(ctx, true),
+              child: const Text('Suspend', style: TextStyle(color: LightColors.error)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || reasonCtrl.text.trim().isEmpty) return;
+
+    final result = await DriverService.suspendDriver(driver.id, reasonCtrl.text.trim());
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? '')),
+      );
+    }
+    if (result['success'] == true) onRefresh?.call();
+  }
+
+  Future<void> _reactivate(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LightColors.surface,
+        title: const Text('Reactivate Driver', style: TextStyle(color: LightColors.textPrimary)),
+        content: Text(
+          'Reactivate ${driver.name}? They will become available for matching again.',
+          style: const TextStyle(color: LightColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reactivate', style: TextStyle(color: LightColors.success)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final result = await DriverService.reactivateDriver(driver.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? '')),
+      );
+    }
+    if (result['success'] == true) onRefresh?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: LightColors.surface,
+    return Material(
+      color: LightColors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: LightColors.border),
-      ),
-      child: Row(
-        children: [
-          // Icon badge
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: LightColors.navy.withOpacity(0.08),
-            ),
-            child: const Icon(Icons.person_outline, color: LightColors.navy, size: 20),
+        onTap: () => _openReview(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: LightColors.border),
           ),
-          const SizedBox(width: 12),
-
-          // ID + Name
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  driver.name ?? '',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LightColors.textPrimary),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'DR-${driver.id}',
-                  style: const TextStyle(fontSize: 11, color: LightColors.textSecondary),
-                ),
-                const SizedBox(height: 6),
-                _ApprovalBadge(status: driver.approvalStatus),
-                if (driver.documentIssues.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded, size: 12, color: LightColors.error),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          driver.documentIssues.join(', '),
-                          style: const TextStyle(fontSize: 10, color: LightColors.error),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Email + license + actions — width-capped so a long email/
-          // license string can never squeeze the leading Expanded name
-          // column down to near-zero.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 130),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  driver.email ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5, color: LightColors.textSecondary, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  driver.driver_license ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, color: LightColors.textSecondary),
-                ),
-                const SizedBox(height: 8),
-
-              // Action Buttons Row
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. VIEW BUTTON — opens the shared light-themed review
-                  // screen (Approve/Reject bar only shows for pending/
-                  // changes_required drivers; everything else is read-only).
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.visibility_outlined, size: 20),
-                    color: LightColors.navy,
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => RequestReviewScreen.driver(driver),
-                        ),
-                      );
-
-                      if (result == true) {
-                        onRefresh?.call();
-                      }
-                    },
+                  // Icon badge
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: LightColors.navy.withOpacity(0.08),
+                    ),
+                    child: const Icon(Icons.person_outline, color: LightColors.navy, size: 20),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
 
-                  // 2. EDIT BUTTON
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.edit_outlined, size: 20),
-                    color: LightColors.goldMuted,
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => AddDriverPage(driver: driver),
-                        ),
-                      );
-
-                      if (result != null) {
-                        onRefresh?.call();
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 8),
-
-                  // 3. DELETE BUTTON
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    color: LightColors.error,
-                    onPressed: () async {
-                      bool? confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: LightColors.surface,
-                          title: const Text('Delete Driver', style: TextStyle(color: LightColors.textPrimary)),
-                          content: Text(
-                            'Are you sure you want to delete ${driver.name}?',
-                            style: const TextStyle(color: LightColors.textSecondary),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+                  // Name + code + status
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                driver.name ?? '',
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LightColors.textPrimary),
+                              ),
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Delete', style: TextStyle(color: LightColors.error)),
-                            ),
+                            const SizedBox(width: 6),
+                            _ApprovalBadge(status: driver.approvalStatus),
                           ],
                         ),
-                      );
-
-                      if (confirm == true) {
-                        await DriverService.deleteDriver(driver.id);
-                        onRefresh?.call();
-                      }
-                    },
-                  ),
-
-                  // 4. APPROVE / REJECT — only shown for drivers still
-                  // awaiting admin review (self-registered, not yet acted on)
-                  if (driver.approvalStatus == 'pending') ...[
-                    const SizedBox(width: 8),
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.check_circle_outline, size: 20),
-                      color: LightColors.success,
-                      tooltip: 'Approve',
-                      onPressed: () async {
-                        final result = await DriverService.approveDriver(driver.id);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(result['message'] ?? '')),
-                          );
-                        }
-                        if (result['success'] == true) {
-                          onRefresh?.call();
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.cancel_outlined, size: 20),
-                      color: LightColors.error,
-                      tooltip: 'Reject',
-                      onPressed: () async {
-                        final reasonCtrl = TextEditingController();
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            backgroundColor: LightColors.surface,
-                            title: const Text('Reject Driver', style: TextStyle(color: LightColors.textPrimary)),
-                            content: TextField(
-                              controller: reasonCtrl,
-                              style: const TextStyle(color: LightColors.textPrimary),
-                              decoration: const InputDecoration(
-                                hintText: 'Reason (optional)',
-                                hintStyle: TextStyle(color: LightColors.textSecondary),
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Reject', style: TextStyle(color: LightColors.error)),
+                        const SizedBox(height: 2),
+                        Text(
+                          'DR-${driver.id}',
+                          style: const TextStyle(fontSize: 11, color: LightColors.textSecondary),
+                        ),
+                        if (driver.documentIssues.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, size: 12, color: LightColors.error),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  driver.documentIssues.join(', '),
+                                  style: const TextStyle(fontSize: 10, color: LightColors.error),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
-                        );
-
-                        if (confirmed == true) {
-                          await DriverService.rejectDriver(driver.id, reason: reasonCtrl.text.trim());
-                          onRefresh?.call();
-                        }
-                      },
+                        ],
+                      ],
                     ),
-                  ],
+                  ),
+                  const Icon(Icons.chevron_right, color: LightColors.textSecondary, size: 20),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Exactly three actions: View Information, Suspend/Reactivate, Delete.
+              Row(
+                children: [
+                  Expanded(
+                    child: _CardAction(
+                      icon: Icons.visibility_outlined,
+                      label: 'Information',
+                      color: LightColors.navy,
+                      onTap: () => _openInfo(context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _isSuspended
+                        ? _CardAction(
+                            icon: Icons.play_circle_outline,
+                            label: 'Reactivate',
+                            color: LightColors.success,
+                            onTap: () => _reactivate(context),
+                          )
+                        : _CardAction(
+                            icon: Icons.pause_circle_outline,
+                            label: 'Suspend',
+                            color: LightColors.goldMuted,
+                            onTap: () => _suspend(context),
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _CardAction(
+                      icon: Icons.delete_outline,
+                      label: 'Delete',
+                      color: LightColors.error,
+                      onTap: () => _delete(context),
+                    ),
+                  ),
                 ],
               ),
             ],
-            ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Card action chip ─────────────────────────────────────────────────────────
+
+class _CardAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CardAction({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

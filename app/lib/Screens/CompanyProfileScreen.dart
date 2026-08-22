@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../API/ProfileService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../utils/logout_helper.dart';
+import '../widgets/LanguageSwitcherSheet.dart';
 import 'CompanyBalancePage.dart';
 import 'CompanyChangePasswordScreen.dart';
 import 'NotificationsPage.dart';
@@ -45,6 +47,7 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   }
 
   Future<void> _editProfile(Map<String, dynamic> current) async {
+    final t = AppLocalizations.of(context)!;
     final nameCtrl = TextEditingController(text: current['name']?.toString() ?? '');
     final phoneCtrl = TextEditingController(text: current['phone']?.toString() ?? '');
 
@@ -52,18 +55,18 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Edit Company Info', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: Text(t.editCompanyInfoTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            buildLightTextField(controller: nameCtrl, label: 'Company Name'),
+            buildLightTextField(controller: nameCtrl, label: t.companyNameLabel),
             const SizedBox(height: 12),
-            buildLightTextField(controller: phoneCtrl, label: 'Phone', keyboardType: TextInputType.phone),
+            buildLightTextField(controller: phoneCtrl, label: t.phoneLabel, keyboardType: TextInputType.phone),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save', style: TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel, style: const TextStyle(color: LightColors.textSecondary))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.commonSave, style: const TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
         ],
       ),
     );
@@ -81,7 +84,7 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
     final now = DateTime.now();
     final expiry = await showDatePicker(
       context: context,
-      helpText: 'New trade license expiry date',
+      helpText: AppLocalizations.of(context)!.newTradeLicenseExpiryDate,
       initialDate: now.add(const Duration(days: 365)),
       firstDate: now,
       lastDate: now.add(const Duration(days: 365 * 10)),
@@ -123,27 +126,32 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   /// Compliance/Approval separation feature (2026-08-23): (label, color)
   /// for the Trade License status chip — mirrors the driver My Documents
   /// screen's status display, driven by Company.compliance_status.
-  (String, Color) _licenseStatusDisplay(String complianceStatus) => switch (complianceStatus) {
-        'action_required' => ('Expired', LightColors.error),
-        'expiring_soon' => ('Expiring Soon', LightColors.gold),
-        'pending_review' => ('Pending Review', LightColors.navy),
-        _ => ('Valid', LightColors.success),
-      };
+  (String, Color) _licenseStatusDisplay(String complianceStatus) {
+    final t = AppLocalizations.of(context)!;
+    return switch (complianceStatus) {
+      'action_required' => (t.licenseStatusExpired, LightColors.error),
+      'expiring_soon' => (t.licenseStatusExpiringSoon, LightColors.gold),
+      'pending_review' => (t.licenseStatusPendingReview, LightColors.navy),
+      _ => (t.licenseStatusValid, LightColors.success),
+    };
+  }
 
   /// "12d left" / "Expires today" / "3d overdue" — null with no expiry date.
   String? _daysRemainingLabel(DateTime? expiry) {
     if (expiry == null) return null;
+    final t = AppLocalizations.of(context)!;
     final today = DateTime.now();
-    final t = DateTime(today.year, today.month, today.day);
+    final d0 = DateTime(today.year, today.month, today.day);
     final e = DateTime(expiry.year, expiry.month, expiry.day);
-    final days = e.difference(t).inDays;
-    if (days < 0) return '${-days}d overdue';
-    if (days == 0) return 'Expires today';
-    return '${days}d left';
+    final days = e.difference(d0).inDays;
+    if (days < 0) return t.daysOverdue(-days);
+    if (days == 0) return t.expiresToday;
+    return t.daysLeft(days);
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       color: LightColors.bg,
       child: SafeArea(
@@ -195,22 +203,22 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                             color: accountStatus == 'suspended' ? LightColors.errorBg : LightColors.successBg,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(accountStatus == 'suspended' ? 'Suspended' : 'Active',
+                          child: Text(accountStatus == 'suspended' ? t.accountStatusSuspended : t.accountStatusActive,
                               style: TextStyle(color: accountStatus == 'suspended' ? LightColors.error : LightColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const _SectionLabel('Company Information'),
+                  _SectionLabel(t.companyInformationTitle),
                   const SizedBox(height: 10),
-                  _InfoRow(icon: Icons.email_outlined, label: 'Email', value: email),
+                  _InfoRow(icon: Icons.email_outlined, label: t.emailLabel, value: email),
                   const SizedBox(height: 8),
-                  _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: phone.isEmpty ? '—' : phone),
+                  _InfoRow(icon: Icons.phone_outlined, label: t.phoneLabelShort, value: phone.isEmpty ? '—' : phone),
                   const SizedBox(height: 10),
-                  LightOutlineButton(label: 'Edit Company Info', onPressed: () => _editProfile(data)),
+                  LightOutlineButton(label: t.editCompanyInfoTitle, onPressed: () => _editProfile(data)),
                   const SizedBox(height: 20),
-                  const _SectionLabel('Trade License'),
+                  _SectionLabel(t.tradeLicenseLabel),
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -229,7 +237,7 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (licensePath ?? '').isEmpty ? 'Not uploaded yet' : 'Trade license on file',
+                                (licensePath ?? '').isEmpty ? t.notUploadedYet : t.tradeLicenseOnFile,
                                 style: const TextStyle(color: LightColors.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
                               ),
                               if ((licensePath ?? '').isNotEmpty) ...[
@@ -262,40 +270,47 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
                           ),
                         ),
                         if ((licensePath ?? '').isNotEmpty)
-                          TextButton(onPressed: () => _viewLicense(licensePath, data['id']), child: const Text('View', style: TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
+                          TextButton(onPressed: () => _viewLicense(licensePath, data['id']), child: Text(t.commonView, style: const TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
                   LightOutlineButton(
-                    label: _uploadingLicense ? 'Uploading…' : ((licensePath ?? '').isEmpty ? 'Upload Trade License' : 'Renew Trade License'),
+                    label: _uploadingLicense ? t.uploadingEllipsis : ((licensePath ?? '').isEmpty ? t.uploadTradeLicense : t.renewTradeLicense),
                     onPressed: _uploadingLicense ? null : _renewLicense,
                   ),
                   const SizedBox(height: 20),
-                  const _SectionLabel('Account'),
+                  _SectionLabel(t.accountSectionTitle),
                   const SizedBox(height: 10),
                   _LinkTile(
                     icon: Icons.account_balance_wallet_outlined,
-                    label: 'Finance',
-                    subtitle: 'Balance, credit limit & top-ups',
+                    label: t.financeSectionTitle,
+                    subtitle: t.financeLinkSubtitle,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompanyBalancePage())),
                   ),
                   const SizedBox(height: 8),
                   _LinkTile(
                     icon: Icons.notifications_outlined,
-                    label: 'Notifications',
-                    subtitle: 'Shipment & account updates',
+                    label: t.drawerNotifications,
+                    subtitle: t.notificationsLinkSubtitle,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(user: widget.user))),
                   ),
                   const SizedBox(height: 8),
                   _LinkTile(
                     icon: Icons.lock_outline,
-                    label: 'Change Password',
-                    subtitle: 'Update your login password',
+                    label: t.changePasswordLabel,
+                    subtitle: t.changePasswordSubtitle,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompanyChangePasswordScreen())),
                   ),
+                  const SizedBox(height: 8),
+                  _LinkTile(
+                    icon: Icons.language_outlined,
+                    label: t.languageSettingTitle,
+                    subtitle: t.languageSettingSubtitle,
+                    onTap: () => showLanguagePicker(context),
+                  ),
                   const SizedBox(height: 24),
-                  LightOutlineButton(label: 'Log Out', color: LightColors.error, onPressed: () => confirmAndLogout(context, light: true)),
+                  LightOutlineButton(label: t.logOutLabel, color: LightColors.error, onPressed: () => confirmAndLogout(context, light: true)),
                 ],
               );
             },

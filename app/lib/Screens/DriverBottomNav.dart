@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 
 /// Bottom nav for the driver app: Home / Shipments / Wallet / Profile — no
 /// raised "+" (confirmed with the user: drivers don't create shipments,
@@ -28,6 +29,7 @@ class DriverBottomNav extends StatelessWidget {
     // padding squeeze the icon row into a fixed box, which left icons
     // under/behind the phone's system nav bar and untappable.
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final t = AppLocalizations.of(context)!;
     return Container(
       height: 64 + bottomInset,
       decoration: const BoxDecoration(
@@ -42,28 +44,28 @@ class DriverBottomNav extends StatelessWidget {
             _NavIcon(
               icon: Icons.home_outlined,
               activeIcon: Icons.home_rounded,
-              label: 'Home',
+              label: t.navHome,
               active: selectedTab == DriverNavTab.home,
               onTap: () => onSelectTab(DriverNavTab.home),
             ),
             _NavIcon(
               icon: Icons.local_shipping_outlined,
               activeIcon: Icons.local_shipping_rounded,
-              label: 'Shipments',
+              label: t.navShipments,
               active: selectedTab == DriverNavTab.shipments,
               onTap: () => onSelectTab(DriverNavTab.shipments),
             ),
             _NavIcon(
               icon: Icons.account_balance_wallet_outlined,
               activeIcon: Icons.account_balance_wallet_rounded,
-              label: 'Wallet',
+              label: t.navWallet,
               active: selectedTab == DriverNavTab.wallet,
               onTap: () => onSelectTab(DriverNavTab.wallet),
             ),
             _NavIcon(
               icon: Icons.person_outline,
               activeIcon: Icons.person_rounded,
-              label: 'Profile',
+              label: t.navProfile,
               active: selectedTab == DriverNavTab.profile,
               onTap: () => onSelectTab(DriverNavTab.profile),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'register_shared.dart';
 
 /// The 3 outcome confirmation screens from the 2026-08-21 admin dashboard
@@ -42,25 +43,25 @@ class DecisionConfirmationScreen extends StatelessWidget {
         DecisionOutcome.rejected => Icons.cancel_rounded,
       };
 
-  String get _title => switch (outcome) {
-        DecisionOutcome.approved => 'Request Approved',
-        DecisionOutcome.changesRequired => 'Changes Requested',
-        DecisionOutcome.rejected => 'Request Rejected',
+  String _title(AppLocalizations t) => switch (outcome) {
+        DecisionOutcome.approved => t.decisionApprovedTitle,
+        DecisionOutcome.changesRequired => t.decisionChangesRequestedTitle,
+        DecisionOutcome.rejected => t.decisionRejectedTitle,
       };
 
-  String get _message {
-    final who = isDriver ? 'driver' : 'company';
+  String _message(AppLocalizations t) {
     return switch (outcome) {
       DecisionOutcome.approved =>
-        '$name has been approved and can now use the app${isDriver ? ' and be matched with shipments' : ''}.',
-      DecisionOutcome.changesRequired =>
-        '$name has been notified of the changes needed and can resubmit once they\'re fixed.',
-      DecisionOutcome.rejected => '$name\'s $who registration has been rejected. They have been notified.',
+        isDriver ? t.decisionApprovedMessageDriver(name) : t.decisionApprovedMessageCompany(name),
+      DecisionOutcome.changesRequired => t.decisionChangesRequiredMessage(name),
+      DecisionOutcome.rejected =>
+        isDriver ? t.decisionRejectedMessageDriver(name) : t.decisionRejectedMessageCompany(name),
     };
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -76,16 +77,16 @@ class DecisionConfirmationScreen extends StatelessWidget {
                 child: Icon(_icon, color: _color, size: 52),
               ),
               const SizedBox(height: 24),
-              Text(_title,
+              Text(_title(t),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: LightColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
-              Text(_message,
+              Text(_message(t),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: LightColors.textSecondary, fontSize: 14, height: 1.4)),
               const SizedBox(height: 36),
               LightPrimaryButton(
-                label: 'Back to Requests',
+                label: t.backToRequestsButton,
                 color: _color,
                 onPressed: () => Navigator.pop(context, true),
               ),

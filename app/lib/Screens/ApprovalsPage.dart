@@ -33,7 +33,14 @@ import 'RequestReviewScreen.dart';
 /// only produce a dashboard alert/notification (AdminDashboardController::
 /// documentAlerts) until the owner actually uploads a renewal, at which
 /// point they appear here under Document Renewals.
-enum ApprovalSection { registrations, renewals, changes }
+///
+/// 2026-08-28: added a 4th section, Work Destinations (ProfileEditRequest
+/// category 'destinations' — a driver changing which countries they cover).
+/// This used to live on its own drawer page (AdminProfileEditRequestsPage,
+/// now removed) separate from every other approval queue; folded in here so
+/// admins have one single home for everything awaiting a decision, same
+/// gating (finance permission) as before.
+enum ApprovalSection { registrations, renewals, changes, destinations }
 
 class ApprovalsPage extends StatefulWidget {
   final AppUser user;
@@ -56,6 +63,8 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
   late ApprovalSection _section;
   late Future<List<_RegistrationItem>> _registrationsFuture;
   late Future<List<ProfileEditRequest>> _renewalsFuture;
+  late Future<List<ProfileEditRequest>> _destinationsFuture;
+  bool _destinationsBusy = false;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -71,14 +80,22 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
       widget.user.hasPermission('trainer') ||
       widget.user.hasPermission('technical_check');
 
+  // Work Destinations ('destinations' category) stayed gated to 'finance'
+  // only, same as the old AdminProfileEditRequestsPage/AdminDrawer's
+  // _canReviewFinanceRequests — see ProfileController::reviewPermissionFor().
+  bool get _canReviewDestinations => widget.user.hasPermission('finance');
+
   @override
   void initState() {
     super.initState();
-    _section = (widget.initialSection == ApprovalSection.renewals && !_canReviewRenewals)
-        ? ApprovalSection.registrations
-        : widget.initialSection;
+    _section = switch (widget.initialSection) {
+      ApprovalSection.renewals when !_canReviewRenewals => ApprovalSection.registrations,
+      ApprovalSection.destinations when !_canReviewDestinations => ApprovalSection.registrations,
+      final s => s,
+    };
     _registrationsFuture = _loadRegistrations();
     _renewalsFuture = _loadRenewals();
+    _destinationsFuture = _loadDestinations();
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
     });
@@ -102,12 +119,72 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
     return _profileService.fetchEditRequests(category: 'document,truck_document,company_license');
   }
 
+  Future<List<ProfileEditRequest>> _loadDestinations() {
+    if (!_canReviewDestinations) return Future.value(const <ProfileEditRequest>[]);
+    return _profileService.fetchEditRequests(category: 'destinations');
+  }
+
   Future<void> _refreshAll() async {
     setState(() {
       _registrationsFuture = _loadRegistrations();
       _renewalsFuture = _loadRenewals();
+      _destinationsFuture = _loadDestinations();
     });
-    await Future.wait([_registrationsFuture, _renewalsFuture]);
+    await Future.wait([_registrationsFuture, _renewalsFuture, _destinationsFuture]);
+  }
+
+  Future<void> _approveDestination(ProfileEditRequest r) async {
+    setState(() => _destinationsBusy = true);
+    final result = await _profileService.approveEditRequest(r.id);
+    if (!mounted) return;
+    setState(() => _destinationsBusy = false);
+    if (result['success'] == true) {
+      setState(() => _destinationsFuture = _loadDestinations());
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message']?.toString() ?? '')),
+    );
+  }
+
+  Future<void> _rejectDestination(ProfileEditRequest r) async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: LightColors.surface,
+        title: const Text('Reject request', style: TextStyle(color: LightColors.textPrimary)),
+        content: TextField(
+          controller: reasonCtrl,
+          style: const TextStyle(color: LightColors.textPrimary),
+          decoration: const InputDecoration(
+            hintText: 'Reason (optional)',
+            hintStyle: TextStyle(color: LightColors.textSecondary),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _destinationsBusy = true);
+    final result = await _profileService.rejectEditRequest(r.id, reason: reasonCtrl.text.trim());
+    if (!mounted) return;
+    setState(() => _destinationsBusy = false);
+    if (result['success'] == true) {
+      setState(() => _destinationsFuture = _loadDestinations());
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result['message']?.toString() ?? '')),
+    );
   }
 
   @override
@@ -212,6 +289,23 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
                       },
                     ),
                   ),
+                  if (_canReviewDestinations) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FutureBuilder<List<ProfileEditRequest>>(
+                        future: _destinationsFuture,
+                        builder: (context, snap) {
+                          final count = (snap.data ?? const []).length;
+                          return _SectionTabButton(
+                            label: 'Work\nDestinations',
+                            count: count,
+                            active: _section == ApprovalSection.destinations,
+                            onTap: () => setState(() => _section = ApprovalSection.destinations),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -266,6 +360,14 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
                     searchQuery: _searchQuery,
                     onRefresh: _refreshAll,
                     onTap: _openRenewal,
+                  ),
+                ApprovalSection.destinations => _DestinationsList(
+                    future: _destinationsFuture,
+                    searchQuery: _searchQuery,
+                    busy: _destinationsBusy,
+                    onRefresh: _refreshAll,
+                    onApprove: _approveDestination,
+                    onReject: _rejectDestination,
                   ),
               },
             ),
@@ -605,6 +707,156 @@ class _RenewalTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Work Destinations ────────────────────────────────────────────────────
+
+/// A driver changing which countries they cover (ProfileEditRequest
+/// category 'destinations') — folded into Approvals 2026-08-28, replacing
+/// the standalone AdminProfileEditRequestsPage. Unlike renewals, there's no
+/// document to compare, so Approve/Reject sit right on the card instead of
+/// pushing to a detail screen.
+class _DestinationsList extends StatelessWidget {
+  final Future<List<ProfileEditRequest>> future;
+  final String searchQuery;
+  final bool busy;
+  final Future<void> Function() onRefresh;
+  final void Function(ProfileEditRequest) onApprove;
+  final void Function(ProfileEditRequest) onReject;
+
+  const _DestinationsList({
+    required this.future,
+    required this.searchQuery,
+    required this.busy,
+    required this.onRefresh,
+    required this.onApprove,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<ProfileEditRequest>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: LightColors.gold));
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Could not load requests.\n${snapshot.error}',
+                textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary)),
+          );
+        }
+
+        var items = List<ProfileEditRequest>.from(snapshot.data ?? const [])
+          ..sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+
+        if (searchQuery.isNotEmpty) {
+          items = items.where((r) => (r.userName ?? '').toLowerCase().contains(searchQuery)).toList();
+        }
+
+        if (items.isEmpty) {
+          return RefreshIndicator(
+            color: LightColors.gold,
+            onRefresh: onRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child: Center(
+                      child: Text('No work-destination changes awaiting review.', style: TextStyle(color: LightColors.textSecondary))),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          color: LightColors.gold,
+          onRefresh: onRefresh,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, i) => _DestinationTile(
+              request: items[i],
+              busy: busy,
+              onApprove: () => onApprove(items[i]),
+              onReject: () => onReject(items[i]),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DestinationTile extends StatelessWidget {
+  final ProfileEditRequest request;
+  final bool busy;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
+
+  const _DestinationTile({required this.request, required this.busy, required this.onApprove, required this.onReject});
+
+  @override
+  Widget build(BuildContext context) {
+    final destinations = (request.payload['destinations'] as List?)?.join(', ') ?? '';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: LightColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: LightColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: LightColors.navy.withOpacity(0.08)),
+                child: const Icon(Icons.public_outlined, color: LightColors.navy, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(request.userName ?? 'User #${request.userId}',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    const Text('Work destinations change', style: TextStyle(color: LightColors.goldMuted, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(destinations.isEmpty ? '—' : destinations, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12.5)),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: busy ? null : onReject,
+                child: const Text('Reject', style: TextStyle(color: LightColors.error, fontSize: 12)),
+              ),
+              TextButton(
+                onPressed: busy ? null : onApprove,
+                child: const Text('Approve', style: TextStyle(color: LightColors.goldMuted, fontSize: 12)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -6,9 +6,12 @@ import 'package:app/models/Appuser.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
+import 'l10n/app_localizations.dart';
+import 'l10n/locale_controller.dart';
 import 'theme/FmsTheme.dart';
 
 /// Runs in a separate background isolate when a push arrives while the app
@@ -26,6 +29,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  // 2026-08-22: load the persisted language choice (SharedPreferences
+  // 'locale' key, same mechanism as token/role/id/...) before the first
+  // frame, so a returning Arabic-preferring user doesn't see a flash of
+  // English while LocaleController.locale still held its default. See
+  // l10n/locale_controller.dart.
+  await LocaleController.load();
   runApp(const MyApp());
 }
 
@@ -38,15 +47,34 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: rootNavigatorKey,
-      title: 'FMS',
-      debugShowCheckedModeBanner: false,
-      // Central theme so any stock Material widget a screen doesn't
-      // explicitly re-skin still falls back to FMS's Navy+Gold identity
-      // instead of generic Material defaults. See theme/FmsTheme.dart.
-      theme: FmsTheme.lightTheme,
-      home: const SplashPage(),
+    // 2026-08-22: rebuilds the whole MaterialApp (and therefore
+    // Localizations/Directionality below it) whenever
+    // LocaleController.setLocale() runs — e.g. from the language picker in
+    // AdminSettingsPage/Profile/CompanyProfileScreen — so switching
+    // language takes effect immediately with no app restart. See
+    // l10n/locale_controller.dart.
+    return ValueListenableBuilder<Locale>(
+      valueListenable: LocaleController.locale,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          title: 'FMS',
+          debugShowCheckedModeBanner: false,
+          // Central theme so any stock Material widget a screen doesn't
+          // explicitly re-skin still falls back to FMS's Navy+Gold identity
+          // instead of generic Material defaults. See theme/FmsTheme.dart.
+          theme: FmsTheme.lightTheme,
+          locale: locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const SplashPage(),
+        );
+      },
     );
   }
 }
@@ -173,6 +201,7 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     if (_checkingSession) {
       // Deliberately minimal (no "Welcome Back!" copy/buttons) — this is
       // only ever on screen for as long as one local prefs read plus, for
@@ -201,13 +230,13 @@ class _SplashPageState extends State<SplashPage> {
               children: [
                 const Icon(Icons.cloud_off_rounded, color: Color(0xFFD4AF37), size: 48),
                 const SizedBox(height: 20),
-                const Text(
-                  "Couldn't connect",
-                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                Text(
+                  t.couldntConnectTitle,
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "You're still signed in — this just couldn't reach the server. Check your connection and try again.",
+                  t.couldntConnectBody,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 13.5, height: 1.5),
                 ),
@@ -218,9 +247,9 @@ class _SplashPageState extends State<SplashPage> {
                   child: ElevatedButton.icon(
                     onPressed: _retrySessionCheck,
                     icon: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF0A0A0C)),
-                    label: const Text(
-                      'Retry',
-                      style: TextStyle(color: Color(0xFF0A0A0C), fontSize: 15, fontWeight: FontWeight.w700),
+                    label: Text(
+                      t.commonRetry,
+                      style: const TextStyle(color: Color(0xFF0A0A0C), fontSize: 15, fontWeight: FontWeight.w700),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFD4AF37),

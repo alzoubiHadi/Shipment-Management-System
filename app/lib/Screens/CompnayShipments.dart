@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../models/Shipment.dart';
 import 'ShipmentDetailsPageCompany.dart';
@@ -79,6 +80,7 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       color: LightColors.bg,
       child: SafeArea(
@@ -88,11 +90,11 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
-                  child: Text('My Shipments',
-                      style: TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Text(t.myShipmentsTitle,
+                      style: const TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
                 ),
               ),
 
@@ -104,7 +106,7 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
                     controller: _searchController,
                     style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: "Search by tracking #, ID, or route...",
+                      hintText: t.companyShipmentsSearchHint,
                       hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
                       prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                       filled: true,
@@ -132,13 +134,13 @@ class _CompnayshipmentsState extends State<Compnayshipments> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      _TabChip(label: 'All', active: _tab == _ShipmentTab.all, onTap: () => setState(() => _tab = _ShipmentTab.all)),
+                      _TabChip(label: t.filterAll, active: _tab == _ShipmentTab.all, onTap: () => setState(() => _tab = _ShipmentTab.all)),
                       const SizedBox(width: 8),
-                      _TabChip(label: 'Pending', active: _tab == _ShipmentTab.pending, onTap: () => setState(() => _tab = _ShipmentTab.pending)),
+                      _TabChip(label: t.tabPendingLabel, active: _tab == _ShipmentTab.pending, onTap: () => setState(() => _tab = _ShipmentTab.pending)),
                       const SizedBox(width: 8),
-                      _TabChip(label: 'Live', active: _tab == _ShipmentTab.live, onTap: () => setState(() => _tab = _ShipmentTab.live)),
+                      _TabChip(label: t.tabLiveLabel, active: _tab == _ShipmentTab.live, onTap: () => setState(() => _tab = _ShipmentTab.live)),
                       const SizedBox(width: 8),
-                      _TabChip(label: 'Delivered', active: _tab == _ShipmentTab.delivered, onTap: () => setState(() => _tab = _ShipmentTab.delivered)),
+                      _TabChip(label: t.tabDeliveredLabel, active: _tab == _ShipmentTab.delivered, onTap: () => setState(() => _tab = _ShipmentTab.delivered)),
                     ],
                   ),
                 ),
@@ -211,6 +213,7 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
       child: Column(
@@ -218,15 +221,15 @@ class _ErrorState extends StatelessWidget {
         children: [
           const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 48),
           const SizedBox(height: 16),
-          const Text('Failed to load shipments',
-              style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(t.failedToLoadShipments,
+              style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Text(message, textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 20),
           TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded, color: LightColors.goldMuted),
-            label: const Text('Retry', style: TextStyle(color: LightColors.goldMuted)),
+            label: Text(t.commonRetry, style: const TextStyle(color: LightColors.goldMuted)),
           ),
         ],
       ),
@@ -239,17 +242,18 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+    final t = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.inventory_2_outlined, color: LightColors.textSecondary, size: 48),
-          SizedBox(height: 16),
-          Text('No shipments here', style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
-          SizedBox(height: 8),
-          Text('Shipments matching this filter will appear here.',
-              textAlign: TextAlign.center, style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+          const Icon(Icons.inventory_2_outlined, color: LightColors.textSecondary, size: 48),
+          const SizedBox(height: 16),
+          Text(t.noShipmentsHere, style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(t.shipmentsMatchingFilterEmpty,
+              textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../API/AdminShipmentService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 
 /// Admin Shipments redesign (2026-08-24): opened for a delivered shipment —
 /// turns it into a reviewable trip record (Summary + full stage-by-stage
@@ -72,11 +73,12 @@ class _TripReportScreenState extends State<TripReportScreen> {
   }
 
   Widget _buildBody() {
+    final t = AppLocalizations.of(context)!;
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: LightColors.navy));
     }
     if (_error != null || _shipment == null) {
-      return Center(child: Text(_error ?? 'Not found', style: const TextStyle(color: LightColors.textSecondary)));
+      return Center(child: Text(_error ?? t.notFoundLabel, style: const TextStyle(color: LightColors.textSecondary)));
     }
 
     final s = _shipment!;
@@ -95,7 +97,7 @@ class _TripReportScreenState extends State<TripReportScreen> {
             children: [
               const Icon(Icons.check_circle_rounded, color: LightColors.success, size: 20),
               const SizedBox(width: 6),
-              const Text('DELIVERED', style: TextStyle(color: LightColors.success, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              Text(t.deliveredLabel, style: const TextStyle(color: LightColors.success, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
             ],
           ),
           const SizedBox(height: 6),
@@ -104,29 +106,29 @@ class _TripReportScreenState extends State<TripReportScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _StatCard(icon: Icons.route_rounded, label: 'Distance', value: s['distance_km'] != null ? '${s['distance_km']} km' : '—')),
+              Expanded(child: _StatCard(icon: Icons.route_rounded, label: t.statDistance, value: s['distance_km'] != null ? '${s['distance_km']} km' : '—')),
               const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.timelapse_rounded, label: 'Duration', value: s['duration_label']?.toString() ?? '—')),
+              Expanded(child: _StatCard(icon: Icons.timelapse_rounded, label: t.statDuration, value: s['duration_label']?.toString() ?? '—')),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _StatCard(icon: Icons.upload_rounded, label: 'Pickup Time', value: _fmt(s['pickup_time']))),
+              Expanded(child: _StatCard(icon: Icons.upload_rounded, label: t.statPickupTime, value: _fmt(s['pickup_time']))),
               const SizedBox(width: 10),
-              Expanded(child: _StatCard(icon: Icons.download_rounded, label: 'Delivery Time', value: _fmt(s['delivered_at']))),
+              Expanded(child: _StatCard(icon: Icons.download_rounded, label: t.statDeliveryTime, value: _fmt(s['delivered_at']))),
             ],
           ),
           const SizedBox(height: 24),
-          const Text('Trip Timeline', style: TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(t.tripTimelineTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           _VerticalTimeline(stages: stages, fmt: _fmt),
           const SizedBox(height: 24),
           if (driver != null || truck != null) ...[
-            _InfoCard(title: 'Driver & Truck', rows: [
-              if (driver != null) MapEntry('Driver', driver['name']?.toString() ?? '—'),
-              if (driver != null) MapEntry('Phone', driver['phone']?.toString() ?? '—'),
-              if (truck != null) MapEntry('Truck', '${truck['truck_type'] ?? ''} • ${truck['truck_number'] ?? ''}'),
+            _InfoCard(title: t.driverAndTruckTitle, rows: [
+              if (driver != null) MapEntry(t.fieldDriverLabel, driver['name']?.toString() ?? '—'),
+              if (driver != null) MapEntry(t.fieldPhone, driver['phone']?.toString() ?? '—'),
+              if (truck != null) MapEntry(t.fieldTruck, '${truck['truck_type'] ?? ''} • ${truck['truck_number'] ?? ''}'),
             ]),
             const SizedBox(height: 16),
           ],
@@ -135,23 +137,23 @@ class _TripReportScreenState extends State<TripReportScreen> {
             const SizedBox(height: 16),
           ],
           if (financial != null)
-            _InfoCard(title: 'Financial Summary', rows: [
-              MapEntry('Client Price', financial['price_to_client']?.toString() ?? '—'),
-              MapEntry('Driver Price', financial['price_to_driver']?.toString() ?? '—'),
-              MapEntry('Commission', financial['commission']?.toString() ?? '—'),
+            _InfoCard(title: t.financialSummaryTitle, rows: [
+              MapEntry(t.fieldClientPrice, financial['price_to_client']?.toString() ?? '—'),
+              MapEntry(t.fieldDriverPrice, financial['price_to_driver']?.toString() ?? '—'),
+              MapEntry(t.fieldCommission, financial['commission']?.toString() ?? '—'),
             ]),
           // Zones / Smart Pricing Engine snapshot (2026-08-27) — only
           // present on shipments created through the zone-based flow; the
           // historical reference this was priced against, for audit.
           if (financial != null && financial['pricing_reference'] != null) ...[
             const SizedBox(height: 16),
-            _InfoCard(title: 'Pricing Reference (Smart Pricing Engine)', rows: [
-              MapEntry('Historical reference', 'AED ${financial['pricing_reference']}'),
+            _InfoCard(title: t.pricingReferenceSectionTitle, rows: [
+              MapEntry(t.fieldHistoricalReference, 'AED ${financial['pricing_reference']}'),
               if (financial['pricing_low'] != null && financial['pricing_high'] != null)
-                MapEntry('Typical range', 'AED ${financial['pricing_low']} – ${financial['pricing_high']}'),
-              if (financial['pricing_confidence'] != null) MapEntry('Confidence', financial['pricing_confidence'].toString()),
+                MapEntry(t.fieldTypicalRange, 'AED ${financial['pricing_low']} – ${financial['pricing_high']}'),
+              if (financial['pricing_confidence'] != null) MapEntry(t.fieldConfidence, financial['pricing_confidence'].toString()),
               if (financial['market_adjustment_snapshot'] != null)
-                MapEntry('Market adjustment applied', '${financial['market_adjustment_snapshot']}%'),
+                MapEntry(t.fieldMarketAdjustmentApplied, '${financial['market_adjustment_snapshot']}%'),
             ]),
           ],
         ],
@@ -248,6 +250,7 @@ class _PodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final documentPath = pod['pod_document_path']?.toString();
     final signature = pod['pod_signature']?.toString();
     final hasDocument = documentPath != null && documentPath.isNotEmpty;
@@ -260,9 +263,9 @@ class _PodCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Proof of Delivery', style: TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+          Text(t.proofOfDeliveryTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text('Receiver: ${pod['recipient_name'] ?? '—'}', style: const TextStyle(color: LightColors.textSecondary, fontSize: 12.5)),
+          Text(t.receiverLabel(pod['recipient_name']?.toString() ?? '—'), style: const TextStyle(color: LightColors.textSecondary, fontSize: 12.5)),
           if (hasDocument && isImageDoc) ...[
             const SizedBox(height: 10),
             ClipRRect(
@@ -274,8 +277,8 @@ class _PodCard extends StatelessWidget {
                 child: Image.network(
                   storageUrl(documentPath),
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Center(
-                    child: Text('Document unavailable', style: TextStyle(color: LightColors.textSecondary, fontSize: 11)),
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Text(t.documentUnavailable, style: const TextStyle(color: LightColors.textSecondary, fontSize: 11)),
                   ),
                 ),
               ),
@@ -284,11 +287,11 @@ class _PodCard extends StatelessWidget {
             const SizedBox(height: 10),
             InkWell(
               onTap: () => launchUrl(Uri.parse(storageUrl(documentPath)), mode: LaunchMode.externalApplication),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.picture_as_pdf_outlined, color: LightColors.gold, size: 20),
-                  SizedBox(width: 6),
-                  Text('View delivery document', style: TextStyle(color: LightColors.gold, fontWeight: FontWeight.w600, fontSize: 12.5)),
+                  const Icon(Icons.picture_as_pdf_outlined, color: LightColors.gold, size: 20),
+                  const SizedBox(width: 6),
+                  Text(t.viewDeliveryDocument, style: const TextStyle(color: LightColors.gold, fontWeight: FontWeight.w600, fontSize: 12.5)),
                 ],
               ),
             ),
@@ -321,7 +324,8 @@ class _SignatureImage extends StatelessWidget {
       final bytes = base64Decode(cleaned);
       return Image.memory(bytes, fit: BoxFit.contain);
     } catch (_) {
-      return const Center(child: Text('Signature unavailable', style: TextStyle(color: LightColors.textSecondary, fontSize: 11)));
+      final t = AppLocalizations.of(context)!;
+      return Center(child: Text(t.signatureUnavailable, style: const TextStyle(color: LightColors.textSecondary, fontSize: 11)));
     }
   }
 }

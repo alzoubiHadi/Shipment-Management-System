@@ -4,6 +4,7 @@ import '../API/AdminDashboardService.dart';
 import '../API/CompanyService.dart';
 import '../API/DriverService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../models/Company.dart';
 import '../models/Driver.dart';
@@ -63,42 +64,44 @@ class _DocumentAlertsPageState extends State<DocumentAlertsPage> {
   }
 
   void _openSubject(AdminDocumentAlertItem item, _AlertsData data) {
+    final t = AppLocalizations.of(context)!;
     final screen = item.subjectType == 'company'
         ? (data.companies[item.subjectId] != null ? RequestReviewScreen.company(data.companies[item.subjectId]!) : null)
         : (data.drivers[item.subjectId] != null ? RequestReviewScreen.driver(data.drivers[item.subjectId]!) : null);
     if (screen == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not find this record')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.couldNotFindRecord)));
       return;
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  String get _title => widget.status == 'expired' ? 'Expired Documents' : 'Documents Expiring Soon';
+  String _title(AppLocalizations t) => widget.status == 'expired' ? t.expiredDocumentsTitle : t.documentsExpiringSoonTitle;
 
-  String _documentTypeLabel(String raw) {
+  String _documentTypeLabel(AppLocalizations t, String raw) {
     final base = raw.startsWith('truck_') ? raw.substring(6) : raw;
-    final prefix = raw.startsWith('truck_') ? 'Truck ' : '';
+    final isTruck = raw.startsWith('truck_');
     final label = switch (base) {
-      'license' => 'License',
-      'passport' => 'Passport',
-      'residency' => 'Residency',
-      'insurance' => 'Insurance',
-      'technical_inspection' => 'Technical Inspection',
-      'trade_license' => 'Trade License',
+      'license' => t.docTypeLicense,
+      'passport' => t.docTypePassport,
+      'residency' => t.docTypeResidency,
+      'insurance' => t.docTypeInsurance,
+      'technical_inspection' => t.docTypeTechnicalInspection,
+      'trade_license' => t.docTypeTradeLicense,
       _ => base,
     };
-    return '$prefix$label';
+    return isTruck ? t.docTypeTruckLabel(label) : label;
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.textPrimary),
-        title: Text(_title, style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(_title(t), style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: Column(
@@ -109,7 +112,7 @@ class _DocumentAlertsPageState extends State<DocumentAlertsPage> {
                 controller: _searchController,
                 style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Search by name...',
+                  hintText: t.searchByNameHint,
                   hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
                   prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary, size: 20),
                   filled: true,
@@ -130,7 +133,7 @@ class _DocumentAlertsPageState extends State<DocumentAlertsPage> {
                   }
                   if (snapshot.hasError) {
                     return Center(
-                      child: Text('Could not load list.\n${snapshot.error}',
+                      child: Text(t.couldNotLoadListError(snapshot.error.toString()),
                           textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary)),
                     );
                   }
@@ -147,10 +150,10 @@ class _DocumentAlertsPageState extends State<DocumentAlertsPage> {
                       onRefresh: _refresh,
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
+                        children: [
                           Padding(
-                            padding: EdgeInsets.only(top: 80),
-                            child: Center(child: Text('Nothing here right now.', style: TextStyle(color: LightColors.textSecondary))),
+                            padding: const EdgeInsets.only(top: 80),
+                            child: Center(child: Text(t.nothingHereRightNow, style: const TextStyle(color: LightColors.textSecondary))),
                           ),
                         ],
                       ),
@@ -201,7 +204,7 @@ class _DocumentAlertsPageState extends State<DocumentAlertsPage> {
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
                                         const SizedBox(height: 2),
-                                        Text('${_documentTypeLabel(item.documentType)} · exp. ${item.expiryDate ?? '—'}',
+                                        Text(t.docAlertSubtitle(_documentTypeLabel(t, item.documentType), item.expiryDate ?? '—'),
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(color: LightColors.textSecondary, fontSize: 11.5)),
                                       ],

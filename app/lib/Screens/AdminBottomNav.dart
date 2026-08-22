@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 
 /// Bottom nav for admin: Dashboard / Requests / Shipments / Finance / Menu
 /// (opens the AdminDrawer). Originally had a raised gold "+" FAB in the
@@ -37,6 +38,7 @@ class AdminBottomNav extends StatelessWidget {
     // icons end up under/behind the phone's system nav bar and can't be
     // tapped.
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final t = AppLocalizations.of(context)!;
     return Container(
       height: 64 + bottomInset,
       decoration: const BoxDecoration(
@@ -53,35 +55,35 @@ class AdminBottomNav extends StatelessWidget {
               _NavIcon(
                 icon: Icons.dashboard_outlined,
                 activeIcon: Icons.dashboard_rounded,
-                label: 'Dashboard',
+                label: t.navDashboard,
                 active: selectedTab == AdminNavTab.dashboard,
                 onTap: () => onSelectTab(AdminNavTab.dashboard),
               ),
               _NavIcon(
                 icon: Icons.assignment_outlined,
                 activeIcon: Icons.assignment_rounded,
-                label: 'Approvals',
+                label: t.navApprovals,
                 active: selectedTab == AdminNavTab.requests,
                 onTap: () => onSelectTab(AdminNavTab.requests),
               ),
               _NavIcon(
                 icon: Icons.local_shipping_outlined,
                 activeIcon: Icons.local_shipping_rounded,
-                label: 'Shipments',
+                label: t.navShipments,
                 active: selectedTab == AdminNavTab.shipments,
                 onTap: () => onSelectTab(AdminNavTab.shipments),
               ),
               _NavIcon(
                 icon: Icons.account_balance_wallet_outlined,
                 activeIcon: Icons.account_balance_wallet_rounded,
-                label: 'Finance',
+                label: t.navFinance,
                 active: selectedTab == AdminNavTab.finance,
                 onTap: () => onSelectTab(AdminNavTab.finance),
               ),
               _NavIcon(
                 icon: Icons.menu_rounded,
                 activeIcon: Icons.menu_rounded,
-                label: 'Menu',
+                label: t.navMenu,
                 active: false,
                 onTap: onMenu,
               ),

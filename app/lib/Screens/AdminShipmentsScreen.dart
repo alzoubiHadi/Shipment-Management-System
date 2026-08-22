@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../API/AdminShipmentService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/AdminShipmentSummary.dart';
 import '../models/Appuser.dart';
 import 'AdminShipmentStatusStyle.dart';
@@ -28,13 +29,13 @@ class AdminShipmentsScreen extends StatefulWidget {
 }
 
 class _AdminShipmentsScreenState extends State<AdminShipmentsScreen> {
-  static const _chips = [
-    ('all', 'All'),
-    ('active', 'Active'),
-    ('pending', 'Pending'),
-    ('delivered', 'Delivered'),
-    ('cancelled', 'Cancelled'),
-  ];
+  List<(String, String)> _chips(AppLocalizations t) => [
+        ('all', t.filterAll),
+        ('active', t.adminShipmentsChipActive),
+        ('pending', t.tabPendingLabel),
+        ('delivered', t.adminShipmentsChipDelivered),
+        ('cancelled', t.adminShipmentsChipCancelled),
+      ];
 
   String _selectedGroup = 'all';
   final _searchCtrl = TextEditingController();
@@ -111,6 +112,8 @@ class _AdminShipmentsScreenState extends State<AdminShipmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final chips = _chips(t);
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -120,8 +123,8 @@ class _AdminShipmentsScreenState extends State<AdminShipmentsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 children: [
-                  const Text('Shipments',
-                      style: TextStyle(color: LightColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+                  Text(t.adminShipmentsTitle,
+                      style: const TextStyle(color: LightColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
                   const Spacer(),
                   IconButton(
                     onPressed: _load,
@@ -137,7 +140,7 @@ class _AdminShipmentsScreenState extends State<AdminShipmentsScreen> {
                 onChanged: _onSearchChanged,
                 style: const TextStyle(color: LightColors.textPrimary, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Search by tracking no., company, driver...',
+                  hintText: t.adminShipmentsSearchHint,
                   hintStyle: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
                   prefixIcon: const Icon(Icons.search_rounded, color: LightColors.textSecondary, size: 20),
                   filled: true,
@@ -160,10 +163,10 @@ class _AdminShipmentsScreenState extends State<AdminShipmentsScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _chips.length,
+                itemCount: chips.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
-                  final (value, label) = _chips[i];
+                  final (value, label) = chips[i];
                   final selected = _selectedGroup == value;
                   return ChoiceChip(
                     label: Text(label),
@@ -188,14 +191,14 @@ class _AdminShipmentsScreenState extends State<AdminShipmentsScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            Expanded(child: _buildBody()),
+            Expanded(child: _buildBody(t)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(AppLocalizations t) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: LightColors.navy));
     }
@@ -211,14 +214,14 @@ class _AdminShipmentsScreenState extends State<AdminShipmentsScreen> {
               child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary)),
             ),
             const SizedBox(height: 8),
-            TextButton(onPressed: _load, child: const Text('Retry')),
+            TextButton(onPressed: _load, child: Text(t.commonRetry)),
           ],
         ),
       );
     }
     if (_items.isEmpty) {
-      return const Center(
-        child: Text('No shipments found', style: TextStyle(color: LightColors.textSecondary)),
+      return Center(
+        child: Text(t.adminShipmentsNoneFound, style: const TextStyle(color: LightColors.textSecondary)),
       );
     }
     return RefreshIndicator(
@@ -241,6 +244,7 @@ class _ShipmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -294,7 +298,7 @@ class _ShipmentCard extends StatelessWidget {
             ],
             if (item.statusGroup == 'pending') ...[
               const SizedBox(height: 6),
-              const Text('Waiting for driver', style: TextStyle(color: LightColors.pending, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(t.adminShipmentsWaitingForDriver, style: const TextStyle(color: LightColors.pending, fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ],
         ),

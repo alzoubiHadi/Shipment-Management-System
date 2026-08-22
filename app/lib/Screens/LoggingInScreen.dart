@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../API/AuthResponse.dart';
 import '../API/config.dart';
 import '../API/error_messages.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
@@ -149,6 +150,7 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -163,14 +165,14 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
                 child: const Icon(Icons.local_shipping_rounded, color: LightColors.gold, size: 44),
               ),
               const SizedBox(height: 28),
-              const Text(
-                'Logging you in...',
-                style: TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+              Text(
+                t.loggingInTitle,
+                style: const TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Please wait a moment',
-                style: TextStyle(color: LightColors.textSecondary, fontSize: 13),
+              Text(
+                t.loggingInSubtitle,
+                style: const TextStyle(color: LightColors.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 28),
               SizedBox(
@@ -181,7 +183,7 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
                     (i) => Expanded(
                       child: Container(
                         height: 4,
-                        margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
+                        margin: EdgeInsetsDirectional.only(end: i < 2 ? 6 : 0),
                         decoration: BoxDecoration(
                           color: i == 0 ? LightColors.gold : LightColors.border,
                           borderRadius: BorderRadius.circular(2),

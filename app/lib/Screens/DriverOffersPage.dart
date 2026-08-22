@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../API/DriverService.dart';
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/ShipmentOffer.dart';
 import '../utils/offer_accept_flow.dart';
 import '../utils/saved_offers.dart';
@@ -109,6 +110,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
   }
 
   Future<void> _toggleAvailability(bool value) async {
+    final t = AppLocalizations.of(context)!;
     setState(() {
       _isUpdatingAvailability = true;
       _isAvailable = value;
@@ -122,7 +124,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
     if (result['success'] != true) {
       setState(() => _isAvailable = !value);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']?.toString() ?? 'Could not update status'), backgroundColor: LightColors.error),
+        SnackBar(content: Text(result['message']?.toString() ?? t.couldNotUpdateStatus), backgroundColor: LightColors.error),
       );
     }
   }
@@ -173,20 +175,21 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       appBar: AppBar(
         backgroundColor: LightColors.bg,
         elevation: 0,
-        title: const Text('Available Shipments', style: TextStyle(color: LightColors.cream)),
+        title: Text(t.availableShipmentsTitle, style: const TextStyle(color: LightColors.cream)),
         iconTheme: const IconThemeData(color: LightColors.cream),
         actions: [
           if (_isAvailable != null)
             Padding(
-              padding: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsetsDirectional.only(end: 4),
               child: Row(
                 children: [
-                  Text(_isAvailable! ? 'Available' : 'Unavailable',
+                  Text(_isAvailable! ? t.availabilityAvailable : t.availabilityUnavailable,
                       style: TextStyle(color: _isAvailable! ? LightColors.success : LightColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
                   Switch(value: _isAvailable!, activeColor: LightColors.gold, onChanged: _isUpdatingAvailability ? null : _toggleAvailability),
                 ],
@@ -208,7 +211,7 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                       controller: _searchController,
                       style: const TextStyle(color: LightColors.cream, fontSize: 14),
                       decoration: InputDecoration(
-                        hintText: 'Search by location, load type...',
+                        hintText: t.searchByLocationLoadType,
                         hintStyle: const TextStyle(color: LightColors.muted, fontSize: 13),
                         prefixIcon: const Icon(Icons.search, color: LightColors.muted, size: 20),
                         filled: true,
@@ -232,11 +235,11 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                         child: Row(
                           children: [
-                            _TabChip(label: 'All ($allCount)', active: _tab == _OfferTab.all, onTap: () => setState(() => _tab = _OfferTab.all)),
+                            _TabChip(label: t.tabAllCount(allCount), active: _tab == _OfferTab.all, onTap: () => setState(() => _tab = _OfferTab.all)),
                             const SizedBox(width: 8),
-                            _TabChip(label: 'Nearby ($nearbyCount)', active: _tab == _OfferTab.nearby, onTap: () => setState(() => _tab = _OfferTab.nearby)),
+                            _TabChip(label: t.tabNearbyCount(nearbyCount), active: _tab == _OfferTab.nearby, onTap: () => setState(() => _tab = _OfferTab.nearby)),
                             const SizedBox(width: 8),
-                            _TabChip(label: 'Saved ($savedCount)', active: _tab == _OfferTab.saved, onTap: () => setState(() => _tab = _OfferTab.saved)),
+                            _TabChip(label: t.tabSavedCount(savedCount), active: _tab == _OfferTab.saved, onTap: () => setState(() => _tab = _OfferTab.saved)),
                           ],
                         ),
                       );
@@ -254,9 +257,9 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                         );
                       }
                       if (snapshot.hasError) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 80),
-                          child: Center(child: Text('Could not load offers', style: TextStyle(color: LightColors.error))),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 80),
+                          child: Center(child: Text(t.couldNotLoadOffers, style: const TextStyle(color: LightColors.error))),
                         );
                       }
 
@@ -267,9 +270,9 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
                           child: Center(
                             child: Text(
                               switch (_tab) {
-                                _OfferTab.saved => 'No saved offers yet.',
-                                _OfferTab.nearby => 'No nearby offers with pickup coordinates right now.',
-                                _OfferTab.all => 'No matching offers right now.',
+                                _OfferTab.saved => t.noSavedOffersYet,
+                                _OfferTab.nearby => t.noNearbyOffersRightNow,
+                                _OfferTab.all => t.noMatchingOffersRightNow,
                               },
                               textAlign: TextAlign.center,
                               style: const TextStyle(color: LightColors.muted),
@@ -375,6 +378,7 @@ class _OfferCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: LightColors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: LightColors.border, width: 0.5)),
@@ -396,11 +400,11 @@ class _OfferCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '${offer.requiredTruckType} · ${offer.orderType == 'internal' ? 'Domestic' : 'Cross-border'}'
-            '${offer.needsPermit ? " · permit" : ""}'
-            '${offer.isHazardous ? " · hazardous" : ""}'
-            '${offer.isFragile ? " · fragile" : ""}'
-            '${distanceKm != null ? " · ${distanceKm!.toStringAsFixed(0)} km away" : ""}',
+            '${offer.requiredTruckType} · ${offer.orderType == 'internal' ? t.addShipmentDomesticShort : t.addShipmentCrossBorderShort}'
+            '${offer.needsPermit ? " · ${t.tagPermit}" : ""}'
+            '${offer.isHazardous ? " · ${t.tagHazardous}" : ""}'
+            '${offer.isFragile ? " · ${t.tagFragile}" : ""}'
+            '${distanceKm != null ? " · ${t.distanceKmAway(distanceKm!.toStringAsFixed(0))}" : ""}',
             style: const TextStyle(color: LightColors.muted, fontSize: 12),
           ),
           if (offer.description.isNotEmpty) ...[
@@ -409,7 +413,7 @@ class _OfferCard extends StatelessWidget {
           ],
           if (offer.priceToDriver.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text('Price: ${offer.priceToDriver} AED', style: const TextStyle(color: LightColors.gold, fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(t.priceLabelAed(offer.priceToDriver), style: const TextStyle(color: LightColors.gold, fontSize: 13, fontWeight: FontWeight.w600)),
           ],
           const SizedBox(height: 10),
           Row(
@@ -422,7 +426,7 @@ class _OfferCard extends StatelessWidget {
                     side: const BorderSide(color: LightColors.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('Details', style: TextStyle(color: LightColors.cream, fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: Text(t.detailsButton, style: const TextStyle(color: LightColors.cream, fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -434,7 +438,7 @@ class _OfferCard extends StatelessWidget {
                     backgroundColor: LightColors.gold,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text('Accept', style: TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: Text(t.acceptButton, style: const TextStyle(color: LightColors.deepNavy, fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
               ),
             ],

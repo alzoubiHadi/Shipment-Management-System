@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
-import '../API/CompanyService.dart';
 import '../API/config.dart';
 import '../models/Company.dart';
 
+/// Read-only "Company Information" screen (Companies list Phase 3,
+/// 2026-08-22). Shows every currently available piece of company data on
+/// one page — no approve/reject/suspend/reactivate/edit controls here.
+/// Approve/Reject/Request Changes live in RequestReviewScreen, and
+/// Suspend/Reactivate/Delete live directly on the Companies list cards.
+/// Reuses only the existing Company model fields; no new fields or
+/// fabricated statistics are introduced (the Company model doesn't carry
+/// shipment/driver counts or a rating, so no stats section is shown).
 class CompanyDetailsPage extends StatefulWidget {
   final Company company;
 
@@ -17,7 +24,6 @@ class CompanyDetailsPage extends StatefulWidget {
 
 class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   late Company company = widget.company;
-  bool _busy = false;
 
   Color get _statusColor =>
       company.accountStatus == 'suspended' ? LightColors.error : LightColors.success;
@@ -25,84 +31,16 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   Color get _approvalColor => switch (company.approvalStatus) {
         'approved' => LightColors.success,
         'rejected' => LightColors.error,
+        'changes_required' => LightColors.goldMuted,
         _ => LightColors.info,
       };
 
   String get _approvalLabel => switch (company.approvalStatus) {
         'approved' => 'Approved',
         'rejected' => 'Rejected',
+        'changes_required' => 'Changes requested',
         _ => 'Pending review',
       };
-
-  /// UC-5: Super Admin final approval of a self-registered company.
-  Future<void> _approve() async {
-    setState(() => _busy = true);
-    final result = await CompanyService.approveCompany(company.id);
-    setState(() => _busy = false);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result['message']?.toString() ?? '')),
-    );
-    if (result['success'] == true) {
-      setState(() {
-        company = company.copyWith(
-          approvalStatus: 'approved',
-          clearRejectionReason: true,
-        );
-      });
-    }
-  }
-
-  /// UC-5: Super Admin outright rejects a self-registered company.
-  Future<void> _reject() async {
-    final reasonCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: LightColors.surface,
-        title: const Text('Reject Company', style: TextStyle(color: LightColors.cream)),
-        content: TextField(
-          controller: reasonCtrl,
-          style: const TextStyle(color: LightColors.cream),
-          decoration: const InputDecoration(
-            hintText: 'Reason (optional)',
-            hintStyle: TextStyle(color: LightColors.muted),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject', style: TextStyle(color: LightColors.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    setState(() => _busy = true);
-    final success = await CompanyService.rejectCompany(company.id, reason: reasonCtrl.text.trim());
-    setState(() => _busy = false);
-
-    if (!mounted) return;
-    if (success) {
-      setState(() {
-        company = company.copyWith(
-          approvalStatus: 'rejected',
-          rejectionReason: reasonCtrl.text.trim(),
-        );
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not reject company')),
-      );
-    }
-  }
 
   /// 2026-08-27 (security review, item 7): the license file moved to the
   /// private disk, so it's fetched through the authenticated
@@ -110,82 +48,11 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   Future<void> _openLicense() async {
     final path = company.licenseFilePath;
     if (path == null || path.isEmpty) return;
-
     await viewSecureFile(context, '$baseUrl/companies/${company.id}/license/file');
   }
 
-  /// UC-27: Super Admin temporarily suspends a company account.
-  Future<void> _suspend() async {
-    final reasonCtrl = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: LightColors.surface,
-        title: const Text('Suspend Company', style: TextStyle(color: LightColors.cream)),
-        content: TextField(
-          controller: reasonCtrl,
-          style: const TextStyle(color: LightColors.cream),
-          decoration: const InputDecoration(
-            hintText: 'Reason (required)',
-            hintStyle: TextStyle(color: LightColors.muted),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: LightColors.muted)),
-          ),
-          TextButton(
-            onPressed: reasonCtrl.text.trim().isEmpty
-                ? null
-                : () => Navigator.pop(ctx, true),
-            child: const Text('Suspend', style: TextStyle(color: LightColors.error)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || reasonCtrl.text.trim().isEmpty) return;
-
-    setState(() => _busy = true);
-    final result = await CompanyService.suspendCompany(
-      companyId: company.id,
-      reason: reasonCtrl.text.trim(),
-    );
-    setState(() => _busy = false);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result['message']?.toString() ?? '')),
-    );
-    if (result['success'] == true) {
-      setState(() {
-        company = company.copyWith(
-          accountStatus: 'suspended',
-          suspensionReason: reasonCtrl.text.trim(),
-        );
-      });
-    }
-  }
-
-  Future<void> _activate() async {
-    setState(() => _busy = true);
-    final result = await CompanyService.activateCompany(company.id);
-    setState(() => _busy = false);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result['message']?.toString() ?? '')),
-    );
-    if (result['success'] == true) {
-      setState(() {
-        company = company.copyWith(
-          accountStatus: 'active',
-          clearSuspensionReason: true,
-        );
-      });
-    }
-  }
+  String _fmtDate(DateTime? d) =>
+      d == null ? '' : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -195,11 +62,11 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
         backgroundColor: LightColors.surface,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: LightColors.cream),
+        iconTheme: const IconThemeData(color: LightColors.textPrimary),
         title: const Text(
-          'Company Details',
+          'Company Information',
           style: TextStyle(
-            color: LightColors.cream,
+            color: LightColors.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -209,11 +76,9 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: LightColors.surfaceHigh,
+            color: LightColors.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: LightColors.border,
-            ),
+            border: Border.all(color: LightColors.border),
           ),
           child: Column(
             children: [
@@ -221,12 +86,9 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: LightColors.surface,
+                  color: LightColors.surfaceHigh,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: LightColors.gold,
-                    width: 2,
-                  ),
+                  border: Border.all(color: LightColors.gold, width: 2),
                 ),
                 child: const Icon(
                   Icons.business,
@@ -236,27 +98,25 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
               ),
               const SizedBox(height: 20),
 
-              // Company Name
+              // Company Name + code
               Text(
                 company.name,
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: LightColors.cream,
+                  color: LightColors.textPrimary,
                 ),
               ),
-
               const SizedBox(height: 4),
-
               Text(
-                company.email,
+                'CO-${company.id}',
                 style: const TextStyle(
-                  fontSize: 14,
-                  color: LightColors.muted,
+                  fontSize: 13,
+                  color: LightColors.textSecondary,
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -286,27 +146,78 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                 ],
               ),
 
+              if (company.approvalStatus == 'rejected' &&
+                  (company.rejectionReason ?? '').isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Reason: ${company.rejectionReason}',
+                  style: const TextStyle(fontSize: 12, color: LightColors.error),
+                ),
+              ],
+
               const SizedBox(height: 24),
-              const Divider(
-                color: LightColors.border,
-                thickness: 1,
-              ),
+              const Divider(color: LightColors.border, thickness: 1),
               const SizedBox(height: 16),
 
-              _buildItem("ID", company.id),
+              // Basic company information
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: const Text('Basic Information',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: LightColors.textPrimary, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
+              _buildItem("Company Name", company.name),
+              _buildItem("Company Code", 'CO-${company.id}'),
+              _buildItem("Registered On", _fmtDate(company.createdAt)),
+
+              const SizedBox(height: 12),
+              const Divider(color: LightColors.border, thickness: 1),
+              const SizedBox(height: 16),
+
+              // Contact information
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: const Text('Contact Information',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: LightColors.textPrimary, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
+              _buildItem("Email", company.email),
               _buildItem("Phone", company.phone),
-              _buildItem("User ID", company.user_id),
 
-              if (company.password.isNotEmpty)
-                _buildItem("Password", "********"),
+              const SizedBox(height: 12),
+              const Divider(color: LightColors.border, thickness: 1),
+              const SizedBox(height: 16),
 
-              if (company.accountStatus == 'suspended' &&
-                  (company.suspensionReason ?? '').isNotEmpty)
+              // Account status
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: const Text('Account Status',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: LightColors.textPrimary, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
+              _buildItem("Approval Status", _approvalLabel),
+              _buildItem("Account Status", company.accountStatus == 'suspended' ? 'Suspended' : 'Active'),
+              if (company.accountStatus == 'suspended' && (company.suspensionReason ?? '').isNotEmpty)
                 _buildItem("Suspension Reason", company.suspensionReason),
+              _buildItem(
+                "Compliance Status",
+                company.complianceStatus == 'action_required' ? 'Action required' : 'Active',
+              ),
 
-              if (company.approvalStatus == 'rejected' &&
-                  (company.rejectionReason ?? '').isNotEmpty)
-                _buildItem("Rejection Reason", company.rejectionReason),
+              const SizedBox(height: 12),
+              const Divider(color: LightColors.border, thickness: 1),
+              const SizedBox(height: 16),
+
+              // Additional information currently available from the API
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: const Text('Additional Information',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: LightColors.textPrimary, fontSize: 15)),
+              ),
+              const SizedBox(height: 8),
+              _buildItem("Balance", company.balance.toStringAsFixed(2)),
+              _buildItem("Credit Limit", company.creditLimit.toStringAsFixed(2)),
+              _buildItem("User ID", company.user_id),
 
               if ((company.licenseFilePath ?? '').isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -318,65 +229,12 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                       side: const BorderSide(color: LightColors.gold),
                     ),
                     icon: const Icon(Icons.description_outlined, size: 18, color: LightColors.gold),
-                    label: const Text('View Trade License', style: TextStyle(color: LightColors.gold)),
+                    label: const Text('View Trade License', style: TextStyle(color: LightColors.goldMuted)),
                   ),
                 ),
               ] else if (company.approvalStatus == 'pending') ...[
                 const SizedBox(height: 8),
                 _buildItem("Trade License", "Not provided"),
-              ],
-
-              if (company.approvalStatus == 'pending') ...[
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _busy ? null : _approve,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: LightColors.success,
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 18),
-                        label: const Text('Approve'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _busy ? null : _reject,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: LightColors.error),
-                        ),
-                        icon: const Icon(Icons.cancel_outlined, size: 18, color: LightColors.error),
-                        label: const Text('Reject', style: TextStyle(color: LightColors.error)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              if (company.approvalStatus == 'approved') ...[
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: company.accountStatus == 'suspended'
-                      ? OutlinedButton.icon(
-                          onPressed: _busy ? null : _activate,
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: LightColors.success),
-                          ),
-                          icon: const Icon(Icons.refresh, size: 18, color: LightColors.success),
-                          label: const Text('Activate', style: TextStyle(color: LightColors.success)),
-                        )
-                      : OutlinedButton.icon(
-                          onPressed: _busy ? null : _suspend,
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: LightColors.error),
-                          ),
-                          icon: const Icon(Icons.block, size: 18, color: LightColors.error),
-                          label: const Text('Suspend', style: TextStyle(color: LightColors.error)),
-                        ),
-                ),
               ],
             ],
           ),
@@ -397,7 +255,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
               title,
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
-                color: LightColors.muted,
+                color: LightColors.textSecondary,
                 fontSize: 14,
               ),
             ),
@@ -406,7 +264,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
             child: Text(
               (value == null || value.isEmpty) ? "-" : value,
               style: const TextStyle(
-                color: LightColors.cream,
+                color: LightColors.textPrimary,
                 fontSize: 14,
               ),
             ),

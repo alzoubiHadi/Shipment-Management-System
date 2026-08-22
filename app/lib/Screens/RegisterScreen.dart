@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'CompanyRegisterScreen.dart';
 import 'DriverRegisterScreen.dart';
 
@@ -18,6 +19,7 @@ class RegisterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: LightColors.bg,
       body: SafeArea(
@@ -33,9 +35,9 @@ class RegisterScreen extends StatelessWidget {
                     color: LightColors.navy,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'FMS',
-                    style: TextStyle(
+                  child: Text(
+                    t.appName,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
@@ -45,9 +47,9 @@ class RegisterScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 40),
-              const Text(
-                'Create your\naccount.',
-                style: TextStyle(
+              Text(
+                t.createAccountTitle,
+                style: const TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.w300,
                   color: LightColors.textPrimary,
@@ -56,9 +58,9 @@ class RegisterScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Choose the kind of account you need',
-                style: TextStyle(fontSize: 14, color: LightColors.textSecondary),
+              Text(
+                t.createAccountSubtitle,
+                style: const TextStyle(fontSize: 14, color: LightColors.textSecondary),
               ),
               const SizedBox(height: 40),
               Expanded(
@@ -67,8 +69,8 @@ class RegisterScreen extends StatelessWidget {
                     Expanded(
                       child: _RoleCard(
                         icon: Icons.apartment_rounded,
-                        title: 'Company',
-                        subtitle: 'Ship your cargo — request trucks and track deliveries',
+                        title: t.roleCompanyTitle,
+                        subtitle: t.roleCompanySubtitle,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const CompanyRegisterScreen()),
@@ -79,8 +81,8 @@ class RegisterScreen extends StatelessWidget {
                     Expanded(
                       child: _RoleCard(
                         icon: Icons.local_shipping_rounded,
-                        title: 'Individual (Driver)',
-                        subtitle: 'Drive your own truck — get matched with shipments',
+                        title: t.roleDriverTitle,
+                        subtitle: t.roleDriverSubtitle,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const DriverRegisterScreen()),
@@ -94,9 +96,9 @@ class RegisterScreen extends StatelessWidget {
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Already have an account? Sign in',
-                    style: TextStyle(fontSize: 13, color: LightColors.textSecondary),
+                  child: Text(
+                    t.alreadyHaveAccount,
+                    style: const TextStyle(fontSize: 13, color: LightColors.textSecondary),
                   ),
                 ),
               ),

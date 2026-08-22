@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/ProfileService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/ProfileEditRequest.dart';
 
 /// Document Renewals detail screen (Unified Approvals, 2026-08-22) — shown
@@ -56,23 +57,24 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
   }
 
   Future<void> _requestChanges() async {
+    final t = AppLocalizations.of(context)!;
     final reasonCtrl = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Request changes', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: Text(t.requestChangesDialogTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: reasonCtrl,
           style: const TextStyle(color: LightColors.textPrimary),
-          decoration: const InputDecoration(
-            hintText: 'Reason (e.g. blurry photo, wrong document, expired)',
-            hintStyle: TextStyle(color: LightColors.textSecondary),
+          decoration: InputDecoration(
+            hintText: t.requestChangesReasonHint,
+            hintStyle: const TextStyle(color: LightColors.textSecondary),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: LightColors.textSecondary))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send Back', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w700))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel, style: const TextStyle(color: LightColors.textSecondary))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.sendBackButton, style: const TextStyle(color: LightColors.error, fontWeight: FontWeight.w700))),
         ],
       ),
     );
@@ -97,6 +99,7 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final r = widget.request;
     final old = r.oldDocument;
     final newExpiry = r.payload['expiry_date']?.toString();
@@ -109,37 +112,37 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
         backgroundColor: LightColors.bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: LightColors.textPrimary),
-        title: const Text('Document Renewal', style: TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+        title: Text(t.documentRenewalTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(r.userName ?? 'User #${r.userId}', style: const TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(r.userName ?? t.userHashLabel(r.userId.toString()), style: const TextStyle(color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
             Text(r.documentTypeLabel, style: const TextStyle(color: LightColors.goldMuted, fontSize: 13, fontWeight: FontWeight.w600)),
             const SizedBox(height: 20),
 
-            const Text('Old Document', style: TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+            Text(t.oldDocumentTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             _DocumentCard(
               rows: old == null
-                  ? const [MapEntry('Status', 'No previous document on file')]
+                  ? [MapEntry(t.fieldStatus, t.noPreviousDocument)]
                   : [
-                      MapEntry('Expiry Date', _fmt(old['expiry_date']?.toString())),
-                      MapEntry('Status', (old['status']?.toString() ?? '—')),
+                      MapEntry(t.fieldExpiryDate, _fmt(old['expiry_date']?.toString())),
+                      MapEntry(t.fieldStatus, (old['status']?.toString() ?? '—')),
                     ],
               onPreview: old?['id'] != null ? () => _openFile(old!['id']?.toString()) : null,
             ),
             const SizedBox(height: 20),
 
-            const Text('New Document', style: TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+            Text(t.newDocumentTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             _DocumentCard(
               rows: [
-                MapEntry('New Expiry Date', _fmt(newExpiry)),
-                MapEntry('Submitted', _fmt(r.createdAt?.toIso8601String())),
-                const MapEntry('Status', 'Pending Review'),
+                MapEntry(t.fieldNewExpiryDate, _fmt(newExpiry)),
+                MapEntry(t.fieldSubmitted, _fmt(r.createdAt?.toIso8601String())),
+                MapEntry(t.fieldStatus, t.statusPendingReview),
               ],
               onPreview: newFile != null ? () => _openFile(newDocumentId) : null,
             ),
@@ -156,7 +159,7 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Request Changes'),
+                    child: Text(t.requestChangesButton),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -171,7 +174,7 @@ class _DocumentRenewalReviewScreenState extends State<DocumentRenewalReviewScree
                     ),
                     child: _busy
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.textPrimary))
-                        : const Text('Approve', style: TextStyle(fontWeight: FontWeight.w700)),
+                        : Text(t.approveButton, style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -191,6 +194,7 @@ class _DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -219,11 +223,11 @@ class _DocumentCard extends StatelessWidget {
           if (onPreview != null) ...[
             const SizedBox(height: 4),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
                 onPressed: onPreview,
                 icon: const Icon(Icons.open_in_new_rounded, size: 16, color: LightColors.goldMuted),
-                label: const Text('Preview Document', style: TextStyle(color: LightColors.goldMuted, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                label: Text(t.previewDocumentButton, style: const TextStyle(color: LightColors.goldMuted, fontSize: 12.5, fontWeight: FontWeight.w600)),
               ),
             ),
           ],

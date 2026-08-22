@@ -140,9 +140,16 @@ class MatchingService
      * shipment_offers.origin_country/destination_country — e.g. 'UAE',
      * 'KSA', 'QATAR') to the DriverDestination::DESTINATIONS key a driver
      * actually selects in their profile (e.g. 'internal_uae',
-     * 'saudi_arabia', 'qatar'). Covers the 9 countries present in the
-     * zones dataset; Egypt/Lebanon/Yemen resolve via the legacy
-     * Destinations::CITY_TO_COUNTRY path below instead.
+     * 'saudi_arabia', 'qatar').
+     *
+     * 2026-08-28: added LEBANON/EGYPT/YEMEN now that
+     * 2026_08_28_000001_seed_baseline_governorate_zones.php gives every one
+     * of the 11 DriverDestination countries at least baseline zones —
+     * before this, an offer with a structured LEBANON/EGYPT/YEMEN
+     * origin/destination_country would silently resolve to `null` here
+     * (falling out of requiredCountriesFor()'s array_filter) instead of
+     * actually requiring that leg, since those 3 only ever resolved via the
+     * legacy Destinations::CITY_TO_COUNTRY string-match path below.
      */
     private const ZONE_COUNTRY_TO_DRIVER_KEY = [
         'UAE' => 'internal_uae',
@@ -154,6 +161,9 @@ class MatchingService
         'SYRIA' => 'syria',
         'IRAQ' => 'iraq',
         'QATAR' => 'qatar',
+        'LEBANON' => 'lebanon',
+        'EGYPT' => 'egypt',
+        'YEMEN' => 'yemen',
     ];
 
     /**

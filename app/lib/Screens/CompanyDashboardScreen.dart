@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../API/CompanyService.dart';
 import '../API/ShipmentServices.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
 import '../models/Company.dart';
 import '../models/Shipment.dart';
@@ -60,11 +61,11 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
     await Future.wait([_future, _companyFuture]);
   }
 
-  String get _greeting {
+  String _greeting(AppLocalizations t) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t.greetingMorning;
+    if (hour < 18) return t.greetingAfternoon;
+    return t.greetingEvening;
   }
 
   void _createShipment(BuildContext context) {
@@ -75,10 +76,10 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsPage(user: widget.user)));
   }
 
-  String _blockedCreateShipmentMessage(String status) => switch (status) {
-        'expiring_soon' => 'Your trade license is expiring soon — renew it to avoid losing the ability to create shipments.',
-        'pending_review' => 'Your trade license renewal is still pending admin review.',
-        _ => 'Your trade license has expired — renew it to create new shipments.',
+  String _blockedCreateShipmentMessage(AppLocalizations t, String status) => switch (status) {
+        'expiring_soon' => t.blockedCreateShipmentExpiring,
+        'pending_review' => t.blockedCreateShipmentPending,
+        _ => t.blockedCreateShipmentExpired,
       };
 
   void _openOffers(BuildContext context) {
@@ -98,6 +99,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
       Navigator.push(context, MaterialPageRoute(builder: (_) => ShipmentTrackingPage(shipment: live.first, readOnly: true)));
       return;
     }
+    final t = AppLocalizations.of(context)!;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: LightColors.surface,
@@ -106,11 +108,11 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
               child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Track a Shipment', style: TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(t.trackAShipmentTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
               ),
             ),
             Flexible(
@@ -138,6 +140,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       color: LightColors.bg,
       child: SafeArea(
@@ -156,11 +159,11 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('$_greeting, ${widget.user.name.split(' ').first}',
+                            Text(t.greetingComma(_greeting(t), widget.user.name.split(' ').first),
                                 style: const TextStyle(
                                     color: LightColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-                            const Text('Here\'s what\'s moving today',
-                                style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+                            Text(t.companyHomeSubtitle,
+                                style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
                           ],
                         ),
                       ),
@@ -190,10 +193,10 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                           children: [
                             const Icon(Icons.cloud_off_rounded, color: LightColors.error, size: 32),
                             const SizedBox(height: 8),
-                            Text('Could not load shipments.\n${snapshot.error}',
+                            Text(t.couldNotLoadShipments(snapshot.error.toString()),
                                 textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary, fontSize: 13)),
                             const SizedBox(height: 12),
-                            TextButton(onPressed: _refresh, child: const Text('Retry')),
+                            TextButton(onPressed: _refresh, child: Text(t.commonRetry)),
                           ],
                         ),
                       );
@@ -240,19 +243,19 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                             crossAxisSpacing: 12,
                             childAspectRatio: 1.6,
                             children: [
-                              _StatCard(icon: Icons.local_shipping_outlined, label: 'Active Shipments', value: active, color: LightColors.navy, bg: LightColors.gold.withOpacity(0.12)),
-                              _StatCard(icon: Icons.route_outlined, label: 'In Transit', value: inTransit, color: LightColors.success, bg: LightColors.successBg),
-                              _StatCard(icon: Icons.pending_actions_outlined, label: 'Pending', value: pending, color: LightColors.pending, bg: LightColors.pendingBg),
-                              _StatCard(icon: Icons.task_alt_rounded, label: 'Delivered', value: delivered, color: LightColors.success, bg: LightColors.successBg),
+                              _StatCard(icon: Icons.local_shipping_outlined, label: t.statActiveShipments, value: active, color: LightColors.navy, bg: LightColors.gold.withOpacity(0.12)),
+                              _StatCard(icon: Icons.route_outlined, label: t.statInTransit, value: inTransit, color: LightColors.success, bg: LightColors.successBg),
+                              _StatCard(icon: Icons.pending_actions_outlined, label: t.statPending, value: pending, color: LightColors.pending, bg: LightColors.pendingBg),
+                              _StatCard(icon: Icons.task_alt_rounded, label: t.statDelivered, value: delivered, color: LightColors.success, bg: LightColors.successBg),
                             ],
                           ),
                           const SizedBox(height: 18),
                           LightPrimaryButton(
-                            label: complianceStatus != 'active' ? 'Create Shipment (Blocked)' : 'Create Shipment',
+                            label: complianceStatus != 'active' ? t.createShipmentBlocked : t.createShipment,
                             icon: Icons.add_rounded,
                             onPressed: complianceStatus != 'active'
                                 ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(_blockedCreateShipmentMessage(complianceStatus))),
+                                      SnackBar(content: Text(_blockedCreateShipmentMessage(t, complianceStatus))),
                                     )
                                 : () => _createShipment(context),
                           ),
@@ -261,25 +264,25 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen> {
                             child: TextButton.icon(
                               onPressed: () => _openOffers(context),
                               icon: const Icon(Icons.handshake_outlined, size: 16, color: LightColors.goldMuted),
-                              label: const Text('View My Offers', style: TextStyle(color: LightColors.goldMuted, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                              label: Text(t.viewMyOffers, style: const TextStyle(color: LightColors.goldMuted, fontSize: 12.5, fontWeight: FontWeight.w600)),
                             ),
                           ),
                           const SizedBox(height: 14),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Recent Shipments',
-                                  style: TextStyle(color: LightColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                              Text(t.recentShipments,
+                                  style: const TextStyle(color: LightColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
                               TextButton(
                                 onPressed: widget.onOpenShipments,
-                                child: const Text('View All', style: TextStyle(color: LightColors.goldMuted, fontSize: 12, fontWeight: FontWeight.w700)),
+                                child: Text(t.viewAll, style: const TextStyle(color: LightColors.goldMuted, fontSize: 12, fontWeight: FontWeight.w700)),
                               ),
                             ],
                           ),
                           if (recentTop.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 20),
-                              child: Center(child: Text('No shipments yet', style: TextStyle(color: LightColors.textSecondary))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Center(child: Text(t.noShipmentsYet, style: const TextStyle(color: LightColors.textSecondary))),
                             )
                           else
                             ...recentTop.map((s) => Padding(
@@ -335,20 +338,21 @@ class _ComplianceBanner extends StatelessWidget {
         _ => Icons.warning_amber_rounded,
       };
 
-  String get _title => switch (status) {
-        'expiring_soon' => 'Trade license expiring soon',
-        'pending_review' => 'Renewal under review',
-        _ => 'Action Required',
+  String _title(AppLocalizations t) => switch (status) {
+        'expiring_soon' => t.companyComplianceExpiringTitle,
+        'pending_review' => t.companyCompliancePendingTitle,
+        _ => t.companyComplianceActionTitle,
       };
 
-  String get _body => switch (status) {
-        'expiring_soon' => 'Renew it before it expires to avoid losing the ability to create new shipments.',
-        'pending_review' => 'Your renewed trade license was submitted and is awaiting admin approval.',
-        _ => 'Renew your Trade License to create new shipments.',
+  String _body(AppLocalizations t) => switch (status) {
+        'expiring_soon' => t.companyComplianceExpiringBody,
+        'pending_review' => t.companyCompliancePendingBody,
+        _ => t.companyComplianceActionBody,
       };
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Material(
       color: _bg,
       borderRadius: BorderRadius.circular(14),
@@ -366,9 +370,9 @@ class _ComplianceBanner extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_title, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text(_title(t), style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
-                    Text(_body, style: const TextStyle(color: LightColors.textSecondary, fontSize: 11.5)),
+                    Text(_body(t), style: const TextStyle(color: LightColors.textSecondary, fontSize: 11.5)),
                   ],
                 ),
               ),
@@ -388,6 +392,7 @@ class _LiveTrackingBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Material(
       color: LightColors.navy,
       borderRadius: BorderRadius.circular(16),
@@ -411,12 +416,12 @@ class _LiveTrackingBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      count == 1 ? 'Track Live Shipment' : 'Track $count Live Shipments',
+                      count == 1 ? t.trackLiveShipmentOne : t.trackLiveShipmentsMany(count),
                       style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
-                    const Text('On the road now — tap to view the live map',
-                        style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+                    Text(t.onTheRoadNow,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
                   ],
                 ),
               ),

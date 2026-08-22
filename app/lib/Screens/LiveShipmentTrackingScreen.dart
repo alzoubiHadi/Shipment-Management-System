@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../API/AdminShipmentService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'AdminShipmentStatusStyle.dart';
 
 /// Admin Shipments redesign (2026-08-24): opened for an active shipment
@@ -63,14 +64,14 @@ class _LiveShipmentTrackingScreenState extends State<LiveShipmentTrackingScreen>
     return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  String _agoLabel(dynamic raw) {
+  String _agoLabel(AppLocalizations t, dynamic raw) {
     final dt = DateTime.tryParse(raw?.toString() ?? '');
-    if (dt == null) return 'no update yet';
+    if (dt == null) return t.noUpdateYet;
     final diff = DateTime.now().toUtc().difference(dt.toUtc());
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return t.timeJustNow;
+    if (diff.inMinutes < 60) return t.minAgoFull(diff.inMinutes);
+    if (diff.inHours < 24) return t.timeHoursAgo(diff.inHours);
+    return t.timeDaysAgo(diff.inDays);
   }
 
   @override
@@ -89,11 +90,12 @@ class _LiveShipmentTrackingScreenState extends State<LiveShipmentTrackingScreen>
   }
 
   Widget _buildBody() {
+    final t = AppLocalizations.of(context)!;
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: LightColors.navy));
     }
     if (_error != null || _shipment == null) {
-      return Center(child: Text(_error ?? 'Not found', style: const TextStyle(color: LightColors.textSecondary)));
+      return Center(child: Text(_error ?? t.notFoundLabel, style: const TextStyle(color: LightColors.textSecondary)));
     }
 
     final s = _shipment!;
@@ -108,7 +110,7 @@ class _LiveShipmentTrackingScreenState extends State<LiveShipmentTrackingScreen>
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildMap(s, driver),
+          _buildMap(t, s, driver),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -126,52 +128,52 @@ class _LiveShipmentTrackingScreenState extends State<LiveShipmentTrackingScreen>
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text('Last location update: ${_agoLabel(driver?['last_location_at'])}',
+                Text(t.lastLocationUpdateLabel(_agoLabel(t, driver?['last_location_at'])),
                     style: const TextStyle(color: LightColors.textSecondary, fontSize: 11.5)),
               ],
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Shipment Progress', style: TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(t.shipmentProgressTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           _VerticalTimeline(stages: stages, fmt: _fmt),
           const SizedBox(height: 8),
           _Section(
-            title: 'Shipment Details',
+            title: t.sectionShipmentDetails,
             children: [
-              _row('Weight', s['weight']?.toString() ?? '—'),
-              _row('Order Type', s['order_type']?.toString() ?? '—'),
-              _row('Description', s['description']?.toString() ?? '—'),
-              _row('Needs Permit', s['needs_permit'] == true ? 'Yes' : 'No'),
-              _row('Hazardous', s['is_hazardous'] == true ? 'Yes' : 'No'),
-              _row('Fragile', s['is_fragile'] == true ? 'Yes' : 'No'),
+              _row(t.addShipmentReviewWeight, s['weight']?.toString() ?? '—'),
+              _row(t.fieldOrderType, s['order_type']?.toString() ?? '—'),
+              _row(t.addShipmentReviewDescription, s['description']?.toString() ?? '—'),
+              _row(t.fieldNeedsPermit, s['needs_permit'] == true ? t.commonYes : t.commonNo),
+              _row(t.addShipmentReviewHazardous, s['is_hazardous'] == true ? t.commonYes : t.commonNo),
+              _row(t.addShipmentReviewFragile, s['is_fragile'] == true ? t.commonYes : t.commonNo),
             ],
           ),
           if (driver != null || truck != null)
             _Section(
-              title: 'Driver & Truck',
+              title: t.driverAndTruckTitle,
               children: [
-                if (driver != null) _row('Driver', driver['name']?.toString() ?? '—'),
-                if (driver != null) _row('Phone', driver['phone']?.toString() ?? '—'),
-                if (driver != null) _row('Rating', driver['rating']?.toString() ?? '—'),
-                if (truck != null) _row('Truck', '${truck['truck_type'] ?? ''} • ${truck['truck_number'] ?? ''}'),
+                if (driver != null) _row(t.fieldDriverLabel, driver['name']?.toString() ?? '—'),
+                if (driver != null) _row(t.fieldPhone, driver['phone']?.toString() ?? '—'),
+                if (driver != null) _row(t.fieldRating, driver['rating']?.toString() ?? '—'),
+                if (truck != null) _row(t.fieldTruck, '${truck['truck_type'] ?? ''} • ${truck['truck_number'] ?? ''}'),
               ],
             ),
           if (company != null)
             _Section(
-              title: 'Company',
+              title: t.companySectionTitle,
               children: [
-                _row('Name', company['name']?.toString() ?? '—'),
-                _row('Phone', company['phone']?.toString() ?? '—'),
+                _row(t.fieldName, company['name']?.toString() ?? '—'),
+                _row(t.fieldPhone, company['phone']?.toString() ?? '—'),
               ],
             ),
           if (financial != null)
             _Section(
-              title: 'Financial Summary',
+              title: t.financialSummaryTitle,
               children: [
-                _row('Client Price', financial['price_to_client']?.toString() ?? '—'),
-                _row('Driver Price', financial['price_to_driver']?.toString() ?? '—'),
-                _row('Commission', financial['commission']?.toString() ?? '—'),
+                _row(t.fieldClientPrice, financial['price_to_client']?.toString() ?? '—'),
+                _row(t.fieldDriverPrice, financial['price_to_driver']?.toString() ?? '—'),
+                _row(t.fieldCommission, financial['commission']?.toString() ?? '—'),
               ],
             ),
         ],
@@ -192,7 +194,7 @@ class _LiveShipmentTrackingScreenState extends State<LiveShipmentTrackingScreen>
     );
   }
 
-  Widget _buildMap(Map<String, dynamic> s, Map<String, dynamic>? driver) {
+  Widget _buildMap(AppLocalizations t, Map<String, dynamic> s, Map<String, dynamic>? driver) {
     final points = <ll.LatLng>[];
     final markers = <Marker>[];
 
@@ -221,8 +223,8 @@ class _LiveShipmentTrackingScreenState extends State<LiveShipmentTrackingScreen>
                 color: LightColors.surface,
                 alignment: Alignment.center,
                 padding: const EdgeInsets.all(16),
-                child: const Text('No location data available for this shipment yet',
-                    textAlign: TextAlign.center, style: TextStyle(color: LightColors.textSecondary, fontSize: 12)),
+                child: Text(t.noLocationDataYet,
+                    textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12)),
               )
             : FlutterMap(
                 options: MapOptions(initialCenter: center, initialZoom: 6),

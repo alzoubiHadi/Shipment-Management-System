@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../API/AdminShipmentService.dart';
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
+import '../l10n/app_localizations.dart';
 import 'AdminShipmentStatusStyle.dart';
 
 /// Admin Shipments redesign (2026-08-24): opened when the admin taps a
@@ -52,22 +53,23 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
   }
 
   Future<void> _cancel() async {
+    final t = AppLocalizations.of(context)!;
     final reasonCtrl = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LightColors.surface,
-        title: const Text('Cancel this offer?', style: TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: Text(t.cancelThisOfferTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
         content: TextField(
           controller: reasonCtrl,
           style: const TextStyle(color: LightColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'Cancellation reason'),
+          decoration: InputDecoration(hintText: t.cancellationReasonHint),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Back')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonBack)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cancel offer', style: TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
+            child: Text(t.cancelOfferButton, style: const TextStyle(color: LightColors.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -79,10 +81,10 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
     if (!mounted) return;
     setState(() => _cancelling = false);
     if (ok) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer cancelled')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.offerCancelledMsg)));
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not cancel the offer'), backgroundColor: LightColors.error));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.couldNotCancelOffer), backgroundColor: LightColors.error));
     }
   }
 
@@ -101,11 +103,12 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
   }
 
   Widget _buildBody() {
+    final t = AppLocalizations.of(context)!;
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: LightColors.navy));
     }
     if (_error != null || _offer == null) {
-      return Center(child: Text(_error ?? 'Not found', style: const TextStyle(color: LightColors.textSecondary)));
+      return Center(child: Text(_error ?? t.notFoundLabel, style: const TextStyle(color: LightColors.textSecondary)));
     }
 
     final offer = _offer!;
@@ -160,12 +163,12 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
                 children: [
                   const Icon(Icons.local_shipping_outlined, size: 44, color: LightColors.pending),
                   const SizedBox(height: 12),
-                  const Text('Waiting for Driver', style: TextStyle(color: LightColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                  Text(t.waitingForDriverCardTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('We are finding the best matched drivers for this shipment.',
-                        textAlign: TextAlign.center, style: TextStyle(color: LightColors.textSecondary, fontSize: 12.5)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(t.findingBestMatchedDrivers,
+                        textAlign: TextAlign.center, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12.5)),
                   ),
                 ],
               ),
@@ -173,37 +176,37 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _StatBox(label: 'Eligible Drivers', value: '${eligibleCount ?? '—'}')),
+                Expanded(child: _StatBox(label: t.statEligibleDrivers, value: '${eligibleCount ?? '—'}')),
                 const SizedBox(width: 10),
-                Expanded(child: _StatBox(label: 'Offers Sent', value: '$offersSent')),
+                Expanded(child: _StatBox(label: t.statOffersSent, value: '$offersSent')),
                 const SizedBox(width: 10),
-                Expanded(child: _StatBox(label: 'Current Round', value: '${offer['matching_round'] ?? 0}')),
+                Expanded(child: _StatBox(label: t.statCurrentRound, value: '${offer['matching_round'] ?? 0}')),
               ],
             ),
           ] else if (cancellation != null) ...[
-            _InfoCard(title: 'Cancellation', rows: [
-              MapEntry('Reason', cancellation['reason']?.toString() ?? '—'),
-              MapEntry('Cancelled by', cancellation['cancelled_by']?.toString() ?? '—'),
-              MapEntry('Cancelled at', _fmt(cancellation['cancelled_at'])),
+            _InfoCard(title: t.cancellationSectionTitle, rows: [
+              MapEntry(t.fieldReason, cancellation['reason']?.toString() ?? '—'),
+              MapEntry(t.fieldCancelledBy, cancellation['cancelled_by']?.toString() ?? '—'),
+              MapEntry(t.fieldCancelledAt, _fmt(cancellation['cancelled_at'])),
             ]),
           ],
           if (pricingReference != null) ...[
             const SizedBox(height: 16),
-            _InfoCard(title: 'Pricing Reference (Smart Pricing Engine)', rows: [
-              MapEntry('Historical reference', 'AED ${pricingReference.toString()}'),
+            _InfoCard(title: t.pricingReferenceSectionTitle, rows: [
+              MapEntry(t.fieldHistoricalReference, 'AED ${pricingReference.toString()}'),
               if (financial?['pricing_low'] != null && financial?['pricing_high'] != null)
-                MapEntry('Typical range', 'AED ${financial!['pricing_low']} – ${financial['pricing_high']}'),
-              if (financial?['pricing_confidence'] != null) MapEntry('Confidence', financial!['pricing_confidence'].toString()),
+                MapEntry(t.fieldTypicalRange, 'AED ${financial!['pricing_low']} – ${financial['pricing_high']}'),
+              if (financial?['pricing_confidence'] != null) MapEntry(t.fieldConfidence, financial!['pricing_confidence'].toString()),
               if (financial?['market_adjustment_snapshot'] != null)
-                MapEntry('Market adjustment applied', '${financial!['market_adjustment_snapshot']}%'),
-              MapEntry('Company was charged', financial?['price_to_client'] != null ? 'AED ${financial!['price_to_client']}' : '—'),
+                MapEntry(t.fieldMarketAdjustmentApplied, '${financial!['market_adjustment_snapshot']}%'),
+              MapEntry(t.fieldCompanyWasCharged, financial?['price_to_client'] != null ? 'AED ${financial!['price_to_client']}' : '—'),
             ]),
           ],
           const SizedBox(height: 24),
-          const Text('Matching Timeline', style: TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(t.matchingTimelineTitle, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           if (rounds.isEmpty)
-            const Text('No matching rounds yet.', style: TextStyle(color: LightColors.textSecondary, fontSize: 12.5))
+            Text(t.noMatchingRoundsYet, style: const TextStyle(color: LightColors.textSecondary, fontSize: 12.5))
           else
             ...rounds.map((r) => _RoundTile(round: r)),
           if (offer['status'] == 'pending') ...[
@@ -220,7 +223,7 @@ class _MatchingStatusScreenState extends State<MatchingStatusScreen> {
                 ),
                 child: _cancelling
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: LightColors.error))
-                    : const Text('Cancel Offer'),
+                    : Text(t.cancelOfferButton),
               ),
             ),
           ],
@@ -264,12 +267,17 @@ class _RoundTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final outcome = round['outcome']?.toString() ?? 'waiting';
     final (icon, color, label) = switch (outcome) {
-      'accepted' => (Icons.check_circle, LightColors.success, 'Accepted${round['accepted_by_driver_name'] != null ? ' by ${round['accepted_by_driver_name']}' : ''}'),
-      'no_acceptance' => (Icons.remove_circle_outline, LightColors.textSecondary, 'No acceptance'),
-      'escalated' => (Icons.priority_high_rounded, LightColors.error, 'Escalated'),
-      _ => (Icons.access_time_rounded, LightColors.pending, 'Waiting for response'),
+      'accepted' => (
+          Icons.check_circle,
+          LightColors.success,
+          round['accepted_by_driver_name'] != null ? t.roundAcceptedBy(round['accepted_by_driver_name'].toString()) : t.roundAccepted,
+        ),
+      'no_acceptance' => (Icons.remove_circle_outline, LightColors.textSecondary, t.roundNoAcceptance),
+      'escalated' => (Icons.priority_high_rounded, LightColors.error, t.offerStatusEscalated),
+      _ => (Icons.access_time_rounded, LightColors.pending, t.roundWaitingForResponse),
     };
 
     return Padding(
@@ -283,7 +291,7 @@ class _RoundTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Round ${round['round_number']} • ${round['driver_count']} driver(s) notified',
+                Text(t.roundNotifiedLabel(round['round_number'].toString(), round['driver_count'].toString()),
                     style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
                 Text(label, style: TextStyle(color: color, fontSize: 12)),
               ],
