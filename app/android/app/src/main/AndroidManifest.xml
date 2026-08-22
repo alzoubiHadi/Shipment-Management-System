@@ -38,14 +38,11 @@
         android:label="FMS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
-        <!-- The server is plain HTTP (no SSL certificate) since it's only
-             reachable on the local network during development. Modern
-             Android blocks plain HTTP by default in release builds (this is
-             why the phone's browser could reach the API but the installed
-             app could not) — this flag explicitly allows it. For a real
-             production deployment the server should move to HTTPS and this
-             flag should be removed. -->
+        android:usesCleartextTraffic="false">
+        <!-- 2026-08-28: baseUrl (config.dart) now points at the deployed
+             HTTPS backend (Render), so plain-HTTP is no longer needed —
+             cleartext traffic is disabled. Only re-enable this if a local
+             LAN "http://<IP>:8000/api" dev backend is used again. -->
 
         <activity
             android:name=".MainActivity"

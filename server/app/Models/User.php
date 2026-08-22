@@ -28,6 +28,7 @@ class User extends Authenticatable
         'is_suspended',
         'otp_code',
         'otp_expires_at',
+        'otp_attempts',
         'fcm_token',
         'avatar_path',
     ];
@@ -42,6 +43,7 @@ class User extends Authenticatable
         'remember_token',
         'otp_code',
         'otp_expires_at',
+        'otp_attempts',
     ];
 
     /**

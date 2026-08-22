@@ -56,7 +56,6 @@ class ShipmentService {
       },
     );
 
-    print(response.body);
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);
@@ -85,7 +84,6 @@ class ShipmentService {
         'Authorization': 'Bearer $token',
       },
     );
-    print(response.body);
 
 
     if (response.statusCode == 200) {
@@ -116,7 +114,6 @@ class ShipmentService {
         'Authorization': 'Bearer $token',
       },
     );
-    print(response.body);
 
 
     if (response.statusCode == 200) {
@@ -147,7 +144,6 @@ class ShipmentService {
         'Authorization': 'Bearer $token',
       },
     );
-    print(response.body);
 
 
     if (response.statusCode == 200) {

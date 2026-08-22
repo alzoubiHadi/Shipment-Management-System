@@ -32,9 +32,20 @@ Route::get('/ping', function () {
 });
 
 Route::post('/register', [UserController::class, 'register']);
-Route::post('/login', [UserController::class, 'login']);
-Route::post('/verify-otp', [UserController::class, 'verifyOtp']);
-Route::post('/resend-otp', [UserController::class, 'resendOtp']);
+
+// 2026-08-28 (security): brute-force protection. Laravel's built-in
+// ThrottleRequests middleware keys by IP for guest requests, returning 429
+// once the limit is hit within the rolling window (per-minute here).
+// - login: 6 attempts/min — generous enough for a genuine typo or two,
+//   tight enough to make password guessing impractical.
+// - verify-otp: 6 attempts/min — paired with the per-account otp_attempts
+//   lockout below (5 wrong codes -> must resend) so this is a second,
+//   IP-level backstop against distributed guessing across many accounts.
+// - resend-otp: 3 attempts/min — this one sends an email, so it also
+//   guards against using the endpoint to spam a mailbox.
+Route::post('/login', [UserController::class, 'login'])->middleware('throttle:6,1');
+Route::post('/verify-otp', [UserController::class, 'verifyOtp'])->middleware('throttle:6,1');
+Route::post('/resend-otp', [UserController::class, 'resendOtp'])->middleware('throttle:3,1');
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {

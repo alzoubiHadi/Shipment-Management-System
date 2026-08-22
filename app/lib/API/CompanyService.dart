@@ -202,7 +202,6 @@ class CompanyService {
         'Authorization': 'Bearer $token',
       },
     );
-    print(response.body);
 
 
     if (response.statusCode == 200) {
@@ -232,7 +231,6 @@ class CompanyService {
         'Authorization': 'Bearer $token',
       },
     );
-    print(response.body);
 
 
     if (response.statusCode == 200) {
@@ -270,7 +268,6 @@ class CompanyService {
         }),
       );
 
-      print(response.body);
 
       final data = jsonDecode(response.body);
 
@@ -329,7 +326,6 @@ class CompanyService {
         }),
       );
 
-      print(response.body);
 
       final data = jsonDecode(response.body);
 
@@ -382,7 +378,6 @@ class CompanyService {
         },
       );
 
-      print(response.body);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -403,7 +398,6 @@ class CompanyService {
         },
       );
 
-      print(response.body);
 
       return response.statusCode == 200;
     } catch (e) {

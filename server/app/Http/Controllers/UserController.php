@@ -19,6 +19,13 @@ use Illuminate\Validation\ValidationException;
 class UserController extends Controller
 {
     /**
+     * 2026-08-28 (security): max wrong-code guesses allowed against a
+     * single OTP before verifyOtp() locks it out — see that method and
+     * the otp_attempts migration/column for the full rationale.
+     */
+    private const MAX_OTP_ATTEMPTS = 5;
+
+    /**
      * Self-registration for companies and drivers (UC-2/UC-3). Anyone can
      * create their own account this way — the admin never creates a
      * company's or a driver's account. Every driver is an independent
@@ -179,6 +186,7 @@ class UserController extends Controller
                 'password' => Hash::make($validated['password']),
                 'otp_code' => $otp,
                 'otp_expires_at' => now()->addMinutes(10),
+                'otp_attempts' => 0,
             ]);
 
             $driver = null;
@@ -317,7 +325,22 @@ class UserController extends Controller
             return response()->json(['success' => false, 'message' => 'This code has expired. Please request a new one.'], 422);
         }
 
+        // 2026-08-28 (security): per-account guess limit, independent of
+        // the IP-based /verify-otp throttle in routes/api.php — this is
+        // what stops someone from guessing a single known account's
+        // 6-digit code across many IPs. Once tripped, the stored code is
+        // cleared so even the correct code no longer works; resendOtp()
+        // is the only way forward, and it resets otp_attempts back to 0.
+        if ($user->otp_attempts >= self::MAX_OTP_ATTEMPTS) {
+            $user->update(['otp_code' => null, 'otp_expires_at' => null]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Too many incorrect attempts. Please request a new code.',
+            ], 429);
+        }
+
         if (! hash_equals($user->otp_code, $validated['otp_code'])) {
+            $user->increment('otp_attempts');
             return response()->json(['success' => false, 'message' => 'Incorrect verification code.'], 422);
         }
 
@@ -325,6 +348,7 @@ class UserController extends Controller
             'email_verified_at' => now(),
             'otp_code' => null,
             'otp_expires_at' => null,
+            'otp_attempts' => 0,
         ]);
 
         // Only now — not at register() — because the account row already
@@ -374,7 +398,11 @@ class UserController extends Controller
         }
 
         $otp = $this->generateOtp();
-        $user->update(['otp_code' => $otp, 'otp_expires_at' => now()->addMinutes(10)]);
+        $user->update([
+            'otp_code' => $otp,
+            'otp_expires_at' => now()->addMinutes(10),
+            'otp_attempts' => 0,
+        ]);
         $user->notify(new OtpCodeNotification($otp));
 
         return response()->json(['success' => true, 'message' => 'A new verification code has been sent.'], 200);

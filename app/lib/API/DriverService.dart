@@ -25,7 +25,6 @@ class DriverService {
       },
     );
 
-    print(response.body);
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);
@@ -53,7 +52,6 @@ class DriverService {
       },
     );
 
-    print(response.body);
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);
@@ -96,7 +94,6 @@ class DriverService {
         }),
       );
 
-      print(response.body);
 
       final data = jsonDecode(response.body);
 
@@ -161,7 +158,6 @@ class DriverService {
         }),
       );
 
-      print(response.body);
 
       final data = jsonDecode(response.body);
 
@@ -214,7 +210,6 @@ class DriverService {
         },
       );
 
-      print(response.body);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -235,7 +230,6 @@ class DriverService {
         },
       );
 
-      print(response.body);
 
       return response.statusCode == 200;
     } catch (e) {
@@ -260,7 +254,6 @@ class DriverService {
         },
       );
 
-      print(response.body);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -294,7 +287,6 @@ class DriverService {
         body: jsonEncode({'reason': reason}),
       );
 
-      print(response.body);
       return response.statusCode == 200;
     } catch (e) {
       print(e);
