@@ -10,6 +10,7 @@ import '../models/DriverDocument.dart';
 import '../models/DriverRating.dart';
 import '../models/Truck.dart';
 import 'config.dart';
+import 'error_messages.dart';
 
 class DriverService {
   Future<List<Driver>> fetchDriver() async {
@@ -125,12 +126,12 @@ class DriverService {
       return {
         'success': false,
         'message':
-        data['message'] ?? 'Server Error (${response.statusCode})',
+        apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
       return {
         'success': false,
-        'message': e.toString(),
+        'message': networkErrorMessage(e),
       };
     }
   }
@@ -190,12 +191,12 @@ class DriverService {
       return {
         'success': false,
         'message':
-        data['message'] ?? 'Server Error (${response.statusCode})',
+        apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
       return {
         'success': false,
-        'message': e.toString(),
+        'message': networkErrorMessage(e),
       };
     }
   }
@@ -272,7 +273,7 @@ class DriverService {
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -324,10 +325,10 @@ class DriverService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -375,10 +376,10 @@ class DriverService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -398,10 +399,10 @@ class DriverService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -431,11 +432,11 @@ class DriverService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 201,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'driver_rating': data['driver_rating'],
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -460,10 +461,10 @@ class DriverService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -494,10 +495,10 @@ class DriverService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -609,7 +610,7 @@ class DriverService {
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -698,7 +699,7 @@ class DriverService {
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 

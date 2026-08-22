@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
+import 'error_messages.dart';
 
 class FinancialAdjustmentService {
   Future<Map<String, String>> _authHeaders({bool json = false}) async {
@@ -63,7 +64,7 @@ class FinancialAdjustmentService {
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -76,10 +77,10 @@ class FinancialAdjustmentService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -92,10 +93,10 @@ class FinancialAdjustmentService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 }

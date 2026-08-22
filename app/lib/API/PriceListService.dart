@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/PriceListEntry.dart';
 import 'config.dart';
+import 'error_messages.dart';
 
 /// Zones / Smart Pricing Engine (2026-08-27) — one zone-based lane row from
 /// `GET /price-list/zone-lanes`, used by the Admin "Market Adjustment"
@@ -157,11 +158,11 @@ class PriceListService {
 
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'entry': data['entry'] != null ? ZoneLaneEntry.fromJson(data['entry']) : null,
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -191,7 +192,7 @@ class PriceListService {
 
     return {
       'success': response.statusCode == 200,
-      'message': data['message'] ?? 'Server Error (${response.statusCode})',
+      'message': apiErrorMessage(data, response.statusCode),
       'updated': data['updated'] ?? 0,
       'skipped': data['skipped'] is List
           ? List<String>.from(data['skipped'])

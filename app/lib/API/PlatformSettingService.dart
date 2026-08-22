@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
+import 'error_messages.dart';
 
 /// A single row from `GET /platform-settings` — always a string `value`
 /// (the backend stores everything as text; callers parse to num/etc as
@@ -63,10 +64,10 @@ class PlatformSettingService {
 
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 }

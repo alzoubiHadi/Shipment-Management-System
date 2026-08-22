@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/PaymentOrder.dart';
 import 'config.dart';
+import 'error_messages.dart';
 
 /// UC-28/UC-29: company balance top-up requests.
 class PaymentOrderService {
@@ -47,11 +48,11 @@ class PaymentOrderService {
 
       return {
         'success': response.statusCode == 201,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'order': data['order'],
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -120,11 +121,11 @@ class PaymentOrderService {
 
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'order': data['order'],
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 }

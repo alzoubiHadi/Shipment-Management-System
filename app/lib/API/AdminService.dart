@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/SubAdmin.dart';
 import 'config.dart';
+import 'error_messages.dart';
 
 /// UC-6: Super Admin creates/manages composable sub-admin accounts.
 class AdminService {
@@ -84,7 +85,7 @@ class AdminService {
       }
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -102,10 +103,10 @@ class AdminService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -119,11 +120,11 @@ class AdminService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'temporary_password': data['temporary_password'],
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -136,10 +137,10 @@ class AdminService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -152,10 +153,10 @@ class AdminService {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 

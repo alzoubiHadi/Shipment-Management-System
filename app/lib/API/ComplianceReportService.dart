@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/ComplianceReport.dart';
 import 'config.dart';
+import 'error_messages.dart';
 
 /// UC-25/UC-26: filing, reviewing, and appealing driver compliance/safety
 /// reports.
@@ -54,10 +55,10 @@ class ComplianceReportService {
 
       return {
         'success': response.statusCode == 201,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -145,11 +146,11 @@ class ComplianceReportService {
 
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'report': data['report'],
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 }

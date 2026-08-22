@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/Driver.dart';
 import '../models/Shipment.dart';
 import 'config.dart';
+import 'error_messages.dart';
 
 
 class ShipmentService {
@@ -33,15 +34,14 @@ class ShipmentService {
       }),
     );
 
-    print(response.statusCode);
-    print(response.body);
-
     if (response.statusCode == 200) {
       return true;
     } else {
-      throw Exception(
-        'Failed to assign driver (HTTP ${response.statusCode}): ${response.body}',
-      );
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {}
+      throw Exception(apiErrorMessage(data, response.statusCode, fallback: 'Could not assign driver'));
     }
   }
   Future<List<Driver>> fetchDrivers() async {
@@ -195,11 +195,15 @@ class ShipmentService {
         return true;
       }
 
-      throw Exception(
-        'Failed: ${response.statusCode}\n${response.body}',
-      );
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {}
+      throw Exception(apiErrorMessage(data, response.statusCode));
+    } on Exception {
+      rethrow;
     } catch (e) {
-      throw Exception(e.toString());
+      throw Exception(networkErrorMessage(e));
     }
   }
   Future<bool> refuseShipment({required int shipmentId, required int status,}) async {
@@ -226,11 +230,15 @@ class ShipmentService {
         return true;
       }
 
-      throw Exception(
-        'Failed: ${response.statusCode}\n${response.body}',
-      );
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {}
+      throw Exception(apiErrorMessage(data, response.statusCode));
+    } on Exception {
+      rethrow;
     } catch (e) {
-      throw Exception(e.toString());
+      throw Exception(networkErrorMessage(e));
     }
   }
   Future<bool> acceptShipment({required int shipmentId, required int status,}) async {
@@ -257,11 +265,15 @@ class ShipmentService {
         return true;
       }
 
-      throw Exception(
-        'Failed: ${response.statusCode}\n${response.body}',
-      );
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {}
+      throw Exception(apiErrorMessage(data, response.statusCode));
+    } on Exception {
+      rethrow;
     } catch (e) {
-      throw Exception(e.toString());
+      throw Exception(networkErrorMessage(e));
     }
   }
   /// Re-fetch a single shipment by its tracking number. Used to poll for
@@ -313,10 +325,10 @@ class ShipmentService {
 
       return {
         'success': false,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -355,7 +367,7 @@ class ShipmentService {
         };
       }
 
-      String message = data['message'] ?? 'Server Error (${response.statusCode})';
+      String message = apiErrorMessage(data, response.statusCode);
       if (data['errors'] != null) {
         (data['errors'] as Map).forEach((key, value) {
           message += '\n${(value as List).first}';
@@ -364,7 +376,7 @@ class ShipmentService {
 
       return {'success': false, 'message': message};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -388,11 +400,11 @@ class ShipmentService {
 
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'shipment': data['shipment'],
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -421,11 +433,11 @@ class ShipmentService {
 
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
         'shipment': data['shipment'],
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -457,10 +469,10 @@ class ShipmentService {
 
       return {
         'success': response.statusCode == 201,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -487,10 +499,10 @@ class ShipmentService {
 
       return {
         'success': response.statusCode == 201,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -522,11 +534,15 @@ class ShipmentService {
         return true;
       }
 
-      throw Exception(
-        'Failed: ${response.statusCode}\n${response.body}',
-      );
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {}
+      throw Exception(apiErrorMessage(data, response.statusCode));
+    } on Exception {
+      rethrow;
     } catch (e) {
-      throw Exception(e.toString());
+      throw Exception(networkErrorMessage(e));
     }
   }
 

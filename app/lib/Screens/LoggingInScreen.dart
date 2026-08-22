@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/AuthResponse.dart';
 import '../API/config.dart';
+import '../API/error_messages.dart';
 import '../models/Appuser.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
@@ -139,7 +140,10 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
     } on ApiException catch (e) {
       if (mounted) Navigator.pop(context, e.message);
     } catch (e) {
-      if (mounted) Navigator.pop(context, 'Could not connect: $e');
+      // ApiService.login() already converts network/parsing failures into a
+      // friendly ApiException — this only catches anything unexpected that
+      // slips past that (see AuthResponse.dart's networkErrorMessage()).
+      if (mounted) Navigator.pop(context, networkErrorMessage(e));
     }
   }
 

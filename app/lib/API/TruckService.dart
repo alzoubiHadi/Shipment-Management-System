@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/Truck.dart';
 import 'config.dart';
+import 'error_messages.dart';
 
 class TruckService {
   Future<List<Truck>> fetchMyTrucks() async {
@@ -115,10 +116,10 @@ class TruckService {
 
       return {
         'success': false,
-        'message': data['message'] ?? 'Server Error (${response.statusCode})',
+        'message': apiErrorMessage(data, response.statusCode),
       };
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 
@@ -169,9 +170,9 @@ class TruckService {
         return {'success': false, 'message': message};
       }
 
-      return {'success': false, 'message': data['message'] ?? 'Server Error (${response.statusCode})'};
+      return {'success': false, 'message': apiErrorMessage(data, response.statusCode)};
     } catch (e) {
-      return {'success': false, 'message': e.toString()};
+      return {'success': false, 'message': networkErrorMessage(e)};
     }
   }
 }

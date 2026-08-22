@@ -1,5 +1,0 @@
-Redesign Welcome/Login into one screen per user mockup
-
-Replaced the old two-step flow (dark Welcome Back hero screen with a Log In button, then a separate LoginScreen with the actual form) with a single light-themed screen matching the user's mockup: hero banner (world-map/road/truck image with the FMS logo overlaid), Arabic "Welcome to FMS" headline, a white card with email/password fields plus Remember me and Forgot password plus a gold Log In button, a 3-item feature strip (Secure and reliable / Easy management / Smart reports), a Sign Up link, and a navy wave footer accent.
-
-main.dart's SplashPage is now purely a session gate (checking / offline-retry / else) that renders LoginScreen directly instead of building the old marketing hero inline. Removed the now-dead AnimationController/fadeIn/slideUp entrance animation and the Create New Account outline button along with it (RegisterScreen import moved to LoginScreen, which already had its own Sign Up link).

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 
 import 'config.dart';
+import 'error_messages.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -140,7 +141,22 @@ class ApiService {
   /// actually useful part — this pulls every per-field reason out so the
   /// screen can show e.g. "The password must contain at least one symbol."
   /// instead of a dead-end "Validation failed."
-  static String _errorMessage(Map<String, dynamic> json, String fallback) {
+  ///
+  /// [statusCode]/[context] route 401s through the shared session/login
+  /// wording in error_messages.dart instead of the backend's raw text
+  /// (e.g. "Unauthenticated." or "The provided credentials are incorrect."),
+  /// and are ignored for every other status code.
+  static String _errorMessage(
+    Map<String, dynamic> json,
+    String fallback, {
+    int? statusCode,
+    String context = 'default',
+  }) {
+    if (statusCode == 401) {
+      return context == 'login'
+          ? 'Incorrect email or password. Please try again.'
+          : 'Your session has expired. Please log in again.';
+    }
     final errors = json['errors'];
     if (errors is Map) {
       final details = errors.values
@@ -179,7 +195,6 @@ class ApiService {
       final response = await http
           .post(uri, headers: _headers, body: body)
           .timeout(const Duration(seconds: 60));
-      print(response.body);
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -188,15 +203,14 @@ class ApiService {
 
       // Server returned an error message
       throw ApiException(
-        _errorMessage(json, 'Login failed'),
+        _errorMessage(json, 'Login failed', statusCode: response.statusCode, context: 'login'),
         statusCode: response.statusCode,
         requiresOtpVerification: json['requires_otp_verification'] == true,
       );
     } on ApiException {
       rethrow;
     } catch (e) {
-      // TEMPORARY diagnostic — see the register() function below for why.
-      throw ApiException('Could not connect: $e');
+      throw ApiException(networkErrorMessage(e));
     }
   }
 
@@ -251,14 +265,11 @@ class ApiService {
         );
       }
 
-      throw ApiException(_errorMessage(json, 'Registration failed'), statusCode: response.statusCode);
+      throw ApiException(_errorMessage(json, 'Registration failed', statusCode: response.statusCode), statusCode: response.statusCode);
     } on ApiException {
       rethrow;
     } catch (e) {
-      // TEMPORARY diagnostic: show the real error instead of the generic
-      // message, so we can see exactly what's failing this time (server
-      // error page instead of JSON, timeout, socket error, etc).
-      throw ApiException('Could not connect: $e');
+      throw ApiException(networkErrorMessage(e));
     }
   }
 
@@ -378,11 +389,11 @@ class ApiService {
         );
       }
 
-      throw ApiException(_errorMessage(json, 'Registration failed'), statusCode: response.statusCode);
+      throw ApiException(_errorMessage(json, 'Registration failed', statusCode: response.statusCode), statusCode: response.statusCode);
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Could not connect: $e');
+      throw ApiException(networkErrorMessage(e));
     }
   }
 
@@ -407,11 +418,11 @@ class ApiService {
         return AuthResponse.fromJson(json);
       }
 
-      throw ApiException(_errorMessage(json, 'Verification failed'), statusCode: response.statusCode);
+      throw ApiException(_errorMessage(json, 'Verification failed', statusCode: response.statusCode), statusCode: response.statusCode);
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Could not connect: $e');
+      throw ApiException(networkErrorMessage(e));
     }
   }
 
@@ -426,12 +437,12 @@ class ApiService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200) {
-        throw ApiException(_errorMessage(json, 'Could not resend code'), statusCode: response.statusCode);
+        throw ApiException(_errorMessage(json, 'Could not resend code', statusCode: response.statusCode), statusCode: response.statusCode);
       }
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Could not connect: $e');
+      throw ApiException(networkErrorMessage(e));
     }
   }
 
@@ -460,12 +471,12 @@ class ApiService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200) {
-        throw ApiException(_errorMessage(json, 'Could not change password'), statusCode: response.statusCode);
+        throw ApiException(_errorMessage(json, 'Could not change password', statusCode: response.statusCode), statusCode: response.statusCode);
       }
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Could not connect: $e');
+      throw ApiException(networkErrorMessage(e));
     }
   }
 }

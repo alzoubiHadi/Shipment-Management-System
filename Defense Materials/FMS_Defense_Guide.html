@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دليل مناقشة مشروع التخرج — نظام إدارة الشحن الذكي (FMS)</title>
+<style>
+  :root{
+    --navy:#0B1F3A;
+    --navy2:#16213E;
+    --gold:#D4AF37;
+    --gold-muted:#B8962E;
+    --bg:#F7F8FA;
+    --surface:#FFFFFF;
+    --border:#E3E5EA;
+    --text:#14161A;
+    --text2:#4B5563;
+    --text-muted:#8A8F98;
+    --success:#16A34A;
+    --success-bg:#E9F8EF;
+    --warn:#B8962E;
+    --warn-bg:#FEF3E2;
+    --danger:#DC2626;
+    --danger-bg:#FDECEC;
+    --info:#2563EB;
+    --info-bg:#EAF1FE;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Segoe UI','Tahoma','Arial',sans-serif;
+    line-height:1.85;
+    font-size:16px;
+  }
+  .cover{
+    background:linear-gradient(160deg,var(--navy) 0%,var(--navy2) 60%,#1c2b4a 100%);
+    color:#fff;
+    padding:70px 40px 60px;
+    text-align:center;
+    position:relative;
+  }
+  .cover::after{
+    content:"";
+    display:block;
+    height:6px;
+    width:120px;
+    background:var(--gold);
+    margin:26px auto 0;
+    border-radius:3px;
+  }
+  .cover .kicker{
+    letter-spacing:2px;
+    color:var(--gold);
+    font-weight:700;
+    font-size:14px;
+    text-transform:uppercase;
+  }
+  .cover h1{
+    font-size:34px;
+    margin:14px 0 6px;
+    font-weight:800;
+  }
+  .cover h2{
+    font-size:18px;
+    font-weight:400;
+    color:#cfd6e6;
+    margin:0 0 22px;
+    direction:ltr;
+  }
+  .cover .meta{
+    display:flex;
+    justify-content:center;
+    gap:36px;
+    flex-wrap:wrap;
+    margin-top:30px;
+    font-size:14px;
+    color:#dfe4ee;
+  }
+  .cover .meta div b{
+    display:block;
+    color:var(--gold);
+    font-size:12px;
+    letter-spacing:1px;
+    margin-bottom:4px;
+    font-weight:700;
+  }
+  .wrap{
+    max-width:980px;
+    margin:0 auto;
+    padding:40px 26px 90px;
+  }
+  .toc{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:26px 30px;
+    margin-top:-46px;
+    box-shadow:0 10px 30px rgba(11,31,58,.08);
+  }
+  .toc h3{margin-top:0;color:var(--navy2);font-size:16px;letter-spacing:.5px;}
+  .toc ol{margin:0;padding-inline-start:22px;columns:2;column-gap:30px;}
+  .toc li{margin-bottom:8px;font-size:14.5px;}
+  .toc a{color:var(--text2);text-decoration:none;}
+  .toc a:hover{color:var(--navy2);text-decoration:underline;}
+
+  section{margin-top:56px;}
+  .sec-head{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:22px;
+  }
+  .sec-num{
+    background:var(--navy2);
+    color:var(--gold);
+    font-weight:800;
+    font-size:15px;
+    width:38px;height:38px;
+    border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    flex:none;
+  }
+  .sec-head h2{
+    margin:0;
+    font-size:23px;
+    color:var(--navy2);
+  }
+  .sec-head .sub{
+    font-size:13.5px;
+    color:var(--text-muted);
+    margin-top:2px;
+    direction:ltr;
+    text-align:right;
+  }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:22px 26px;
+    margin-bottom:18px;
+  }
+  .card h3{
+    margin-top:0;
+    color:var(--navy2);
+    font-size:17px;
+    border-bottom:2px solid var(--bg);
+    padding-bottom:10px;
+  }
+  .card h4{color:var(--navy2);font-size:15px;margin-bottom:6px;}
+
+  code, .code-inline{
+    direction:ltr;
+    unicode-bidi:embed;
+    background:#F0F1F4;
+    color:#a3223e;
+    border-radius:5px;
+    padding:2px 7px;
+    font-family:'Consolas','Courier New',monospace;
+    font-size:13.5px;
+  }
+  pre{
+    direction:ltr;
+    text-align:left;
+    background:#0f172a;
+    color:#e2e8f0;
+    border-radius:10px;
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:13px;
+    line-height:1.7;
+    font-family:'Consolas','Courier New',monospace;
+  }
+  pre .c1{color:#94a3b8;}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:14px 0;
+    font-size:14.5px;
+  }
+  table th{
+    background:var(--navy2);
+    color:#fff;
+    padding:10px 12px;
+    text-align:right;
+    font-weight:600;
+  }
+  table td{
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+  }
+  table tr:nth-child(even) td{background:#FAFBFC;}
+  table.weights td.pct, table.weights th.pct{text-align:center;font-weight:700;color:var(--navy2);}
+
+  .badge{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+  }
+  .b-gold{background:#FBF3D9;color:var(--gold-muted);}
+  .b-navy{background:var(--info-bg);color:var(--info);}
+  .b-green{background:var(--success-bg);color:var(--success);}
+  .b-red{background:var(--danger-bg);color:var(--danger);}
+
+  .steps{counter-reset:step;list-style:none;padding:0;margin:14px 0;}
+  .steps li{
+    counter-increment:step;
+    position:relative;
+    padding-inline-start:44px;
+    margin-bottom:14px;
+    min-height:30px;
+  }
+  .steps li::before{
+    content:counter(step);
+    position:absolute;
+    right:0;top:0;
+    width:30px;height:30px;
+    background:var(--navy2);
+    color:var(--gold);
+    border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:14px;
+  }
+
+  .flow{
+    display:flex;
+    align-items:stretch;
+    gap:10px;
+    flex-wrap:wrap;
+    margin:18px 0;
+  }
+  .flow .fbox{
+    flex:1 1 150px;
+    background:var(--bg);
+    border:1.5px solid var(--border);
+    border-radius:10px;
+    padding:14px;
+    text-align:center;
+    font-size:13.5px;
+  }
+  .flow .fbox b{display:block;color:var(--navy2);margin-bottom:4px;font-size:14px;}
+  .flow .arrow{
+    align-self:center;
+    color:var(--gold-muted);
+    font-size:20px;
+    font-weight:800;
+  }
+
+  .qa{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    margin-bottom:14px;
+    overflow:hidden;
+  }
+  .qa .q{
+    background:linear-gradient(90deg,var(--navy2),var(--navy));
+    color:#fff;
+    padding:13px 20px;
+    font-weight:700;
+    font-size:15px;
+    display:flex;
+    gap:10px;
+  }
+  .qa .q .qmark{color:var(--gold);flex:none;}
+  .qa .a{padding:14px 20px;color:var(--text2);font-size:14.5px;}
+  .qa .a b{color:var(--navy2);}
+  .qa .a ul{margin:6px 0;padding-inline-start:20px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr;} .toc ol{columns:1;}}
+
+  .note{
+    border-inline-start:4px solid var(--gold);
+    background:#FFFBEF;
+    padding:12px 18px;
+    border-radius:6px;
+    font-size:14px;
+    color:#6b5717;
+    margin:14px 0;
+  }
+  .tip{
+    border-inline-start:4px solid var(--info);
+    background:var(--info-bg);
+    padding:12px 18px;
+    border-radius:6px;
+    font-size:14px;
+    color:#1e429f;
+    margin:14px 0;
+  }
+
+  footer{
+    text-align:center;
+    color:var(--text-muted);
+    font-size:12.5px;
+    padding:30px;
+    border-top:1px solid var(--border);
+    margin-top:60px;
+  }
+
+  @media print{
+    body{background:#fff;}
+    .cover{padding:40px 20px;}
+    section{page-break-inside:avoid;}
+    .card{box-shadow:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="kicker">مشروع تخرج — هندسة البرمجيات ونظم المعلومات</div>
+  <h1>دليل مناقشة مشروع التخرج</h1>
+  <h2>Smart Freight Management System (FMS)</h2>
+  <div class="meta">
+    <div><b>الجامعة</b>جامعة دمشق — كلية الهندسة المعلوماتية</div>
+    <div><b>إعداد</b>محمد نورالدين الحموي &amp; محمد مصطفى الزعبي</div>
+    <div><b>التاريخ</b>آب 2026</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="toc">
+    <h3>محتويات الدليل</h3>
+    <ol>
+      <li><a href="#s1">نظرة عامة سريعة على النظام</a></li>
+      <li><a href="#s2">خوارزمية التسعير الذكي (Smart Pricing Engine)</a></li>
+      <li><a href="#s3">خوارزمية المطابقة الذكية (Matching Algorithm)</a></li>
+      <li><a href="#s4">أهم مفاهيم Flutter المطبقة (قسم التطبيق المحمول)</a></li>
+      <li><a href="#s5">الأسئلة المتوقعة من لجنة المناقشة</a></li>
+    </ol>
+  </div>
+
+  <!-- ============ SECTION 1 ============ -->
+  <section id="s1">
+    <div class="sec-head">
+      <div class="sec-num">1</div>
+      <div>
+        <h2>نظرة عامة سريعة على النظام</h2>
+      </div>
+    </div>
+    <div class="card">
+      <p>
+        FMS هو نظام متكامل لإدارة عمليات الشحن البري (داخل الإمارات وعبر الحدود لدول الخليج والمنطقة)، يربط بين ثلاثة أطراف رئيسية:
+        <b>الشركات</b> (تُنشئ طلبات شحن)، <b>السائقين</b> (يستقبلون العروض وينفذون الرحلات)، و<b>الإدارة</b> (Super Admin وSub-Admins بصلاحيات محددة).
+        النظام مبني من طبقتين:
+      </p>
+      <div class="grid2">
+        <div class="note" style="border-inline-start-color:var(--info);background:var(--info-bg);color:#1e429f;">
+          <b>الخادم (Backend)</b><br>
+          Laravel 12 + PostgreSQL (مستضاف على Render)، يوفر REST API مصادَق عليه عبر Laravel Sanctum (Bearer Token).
+        </div>
+        <div class="note">
+          <b>التطبيق المحمول (Frontend)</b><br>
+          Flutter/Dart، تطبيق واحد بثلاث واجهات مبنية على الدور (Driver / Company / Admin)، متصل بالـ API عبر حزمة <span class="code-inline">http</span>.
+        </div>
+      </div>
+      <p>أهم ما يميز النظام هو عمليتان ذكيتان تعملان تلقائيًا دون تدخل بشري في الحالة العادية:</p>
+      <table>
+        <tr><th style="width:30%">العملية</th><th>الوظيفة</th></tr>
+        <tr><td><b>محرك التسعير الذكي</b><br><span class="code-inline">PricingService</span></td><td>يقترح سعرًا للشحنة تلقائيًا اعتمادًا على بيانات تاريخية مقسّمة حسب المناطق الجغرافية (Zones)، بدل تسعير يدوي لكل طلب.</td></tr>
+        <tr><td><b>محرك المطابقة الذكي</b><br><span class="code-inline">MatchingService</span></td><td>يختار أنسب السائقين لعرض شحنة معيّن ويرسل لهم إشعارًا بالتتابع على شكل دفعات، بدل أن يبحث الأدمن يدويًا عن سائق مناسب.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 2: PRICING ============ -->
+  <section id="s2">
+    <div class="sec-head">
+      <div class="sec-num">2</div>
+      <div>
+        <h2>خوارزمية التسعير الذكي</h2>
+        <div class="sub">App\Services\PricingService.php</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>الفكرة العامة</h3>
+      <p>
+        بدل الاعتماد على جدول تسعير ثابت (وجهة واحدة ⇄ سعر ثابت)، ينقسم النظام جغرافيًا إلى <b>مناطق (Zones)</b>. كل زوج
+        (منطقة انطلاق ⇄ منطقة وصول ⇄ نوع الشاحنة) يملك سجلًا تاريخيًا في جدول <span class="code-inline">price_list_entries</span>
+        يحسب منه سعر مرجعي (Reference Price) بناءً على متوسط تكاليف الرحلات السابقة الفعلية على هذا الخط، بدل رقم يضعه الأدمن يدويًا لكل حالة.
+      </p>
+      <p>عند إنشاء الشركة لعرض شحنة جديد، يعمل النظام على 3 مستويات ترتيبية للبحث عن سعر مناسب:</p>
+
+      <div class="flow">
+        <div class="fbox"><b>المستوى 1</b>تطابق دقيق للخط<br><span class="code-inline">origin_zone_id + destination_zone_id + truck_type</span></div>
+        <div class="arrow">◀</div>
+        <div class="fbox"><b>المستوى 2</b>تراجع لمستوى الدولة (Fallback)<br><span class="code-inline">origin_country + destination_country + truck_type</span></div>
+        <div class="arrow">◀</div>
+        <div class="fbox"><b>المستوى 3</b>لا يوجد تطابق<br>تسعير يدوي من CRM Admin</div>
+      </div>
+
+      <ul>
+        <li><b>المستوى الأول — الخط الدقيق:</b> إذا وُجد سجل نشط لهذا الثلاثي بالضبط في <span class="code-inline">price_list_entries</span>، يُستخدم <span class="code-inline">reference_price</span> الخاص به، بعد تطبيق نسبة تعديل السوق الخاصة بهذا الخط (<span class="code-inline">market_adjustment_percent</span>) التي يتحكم بها الأدمن.</li>
+        <li><b>المستوى الثاني — تراجع لمستوى الدولة:</b> إن لم يوجد تاريخ كافٍ لهذا الخط تحديدًا (منطقة نادرة الاستخدام مثلًا)، يبحث النظام في جدول احتياطي <span class="code-inline">fallback_pricing</span> عن سعر مرجعي على مستوى (دولة الانطلاق ⇄ دولة الوصول)، وتكون درجة الثقة هنا محدودة إلى "متوسطة" (Medium) دائمًا لأنه تقدير أخشن.</li>
+        <li><b>المستوى الثالث — لا تسعير تلقائي:</b> إذا لم يتطابق أي من المستويين، تدخل الشحنة بحالة <span class="badge b-warn" style="background:var(--warn-bg);color:var(--warn);">awaiting_manual_price</span> ويُخطَر CRM Admin فورًا لوضع سعر يدوي (كل هذا محسوب من طرف الخادم فقط، ولا يُثق أبدًا بأي سعر يرسله التطبيق).</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>معادلة السعر المقترح</h3>
+      <pre>SuggestedPrice = ReferencePrice × (1 + MarketAdjustmentPercent / 100)</pre>
+      <p>
+        هذا هو الرقم الذي تراه الشركة كـ "السعر المقترح" قبل تأكيد الطلب (شاشة Pricing Preview). تستطيع الشركة تعديله يدويًا (رفعًا أو خفضًا)
+        عبر حقل <span class="code-inline">company_selected_price</span>، لكن الخادم دائمًا يعيد حساب <b>سعر السائق</b> اعتمادًا على السعر النهائي الذي اختارته الشركة فعليًا، وليس على الاقتراح وحده.
+      </p>
+      <pre>PriceToDriver = ClientPrice − (ClientPrice × MarginPercent / 100)</pre>
+      <p>
+        حيث <span class="code-inline">MarginPercent</span> هي نسبة هامش الربح التي تضبطها الإدارة مركزيًا (افتراضيًا 20%) عبر <span class="code-inline">PlatformSetting</span>،
+        وتُحفَظ لقطة (Snapshot) من هذه النسبة مع كل عرض شحنة حتى لو تغيّرت لاحقًا، حفاظًا على سجل مالي دقيق وقابل للتدقيق.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>الحجز المالي (Credit Reservation)</h3>
+      <p>
+        بمجرد تسعير العرض، يُحجَز مبلغه من سقف رصيد الشركة الائتماني فورًا (<span class="code-inline">financial_status = reserved</span>) — دون خصم فعلي بعد —
+        لمنع الشركة من إنشاء عدة عروض متتالية تتجاوز مجتمعةً حدها الائتماني الحقيقي. الخصم الفعلي (Ledger Entry من نوع
+        <span class="code-inline">SHIPMENT_CHARGE</span>) لا يحدث إلا عند قبول سائق للعرض فعليًا. لمنع تسابق عمليات إنشاء عروض متزامنة
+        (Race Condition) على نفس الشركة، يُقفَل سجل الشركة (<span class="code-inline">lockForUpdate()</span>) أثناء فحص الأهلية الائتمانية وإنشاء العرض ضمن معاملة قاعدة بيانات واحدة (DB Transaction).
+      </p>
+      <div class="tip">💡 نقطة قوة تقنية يمكن ذكرها في المناقشة: هذا يحل مشكلة كلاسيكية في الأنظمة المالية (Double-Spending / Race Condition) بأسلوب قفل صفوف قاعدة البيانات، وليس فقط بمنطق على مستوى التطبيق.</div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3: MATCHING ============ -->
+  <section id="s3">
+    <div class="sec-head">
+      <div class="sec-num">3</div>
+      <div>
+        <h2>خوارزمية المطابقة الذكية</h2>
+        <div class="sub">App\Services\MatchingService.php</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>التصميم العام: خطوتان منفصلتان تمامًا</h3>
+      <p>
+        الخوارزمية مصممة على مبدأ الفصل الكامل بين <b>الأهلية</b> و<b>الترتيب</b> — وهذا مقصود ومهم جدًا لشرحه للجنة:
+      </p>
+      <div class="flow">
+        <div class="fbox" style="background:var(--danger-bg);border-color:#f3c6c6;">
+          <b>الخطوة 1 — أهلية صارمة (Hard Gate)</b>
+          السائق إما يحقق <u>كل</u> الشروط أو يُستبعد كليًا. لا توجد "درجة جزئية" هنا إطلاقًا — إنها فلترة ثنائية (Pass/Fail).
+        </div>
+        <div class="arrow">◀</div>
+        <div class="fbox" style="background:var(--success-bg);border-color:#bfe8cc;">
+          <b>الخطوة 2 — ترتيب مرجّح (Weighted Ranking)</b>
+          من بين السائقين الذين اجتازوا الخطوة 1 فقط، يُحسب لكل واحد منهم درجة مركّبة بين 0 و1 لتحديد أولوية الإرسال.
+        </div>
+      </div>
+      <p>هذا الفصل يمنع أي انحياز في السجل الاحصائي (مثل تقييم مرتفع) من "تعويض" نقص جوهري (مستند منتهي الصلاحية مثلًا) — الأمان والامتثال دائمًا لهما الأولوية المطلقة على جودة الترتيب.</p>
+    </div>
+
+    <div class="card">
+      <h3>الخطوة 1 — بوابات الأهلية الصارمة <span class="code-inline">eligibleDriversQuery()</span></h3>
+      <p>يجب أن يحقق السائق <b>كل</b> الشروط التالية معًا ليكون مرشحًا أصلًا:</p>
+      <ul class="steps">
+        <li><b>الحالة والموافقة:</b> <span class="code-inline">status = available</span> و<span class="code-inline">approval_status = approved</span>.</li>
+        <li>
+          <b>الامتثال (Compliance):</b> <span class="badge b-green">active</span> يُقبل دائمًا.
+          <span class="badge" style="background:var(--warn-bg);color:var(--warn-muted, #8a6d1f);">expiring_soon</span>
+          يُقبل فقط إن لم تكن أي وثيقة حرجة (للسائق أو لشاحنته) ستنتهي خلال "نافذة سماح" مرتبطة بنوع الرحلة:
+          <b>3 أيام</b> للرحلات الداخلية و<b>3 أشهر</b> للرحلات الخارجية (عابرة للحدود، حيث زمن التحضير أطول).
+          أما <span class="badge b-red">action_required</span> و<span class="badge b-red">pending_review</span> فتُستبعد دائمًا دون استثناء.
+        </li>
+        <li><b>لا التزامات مالية معلّقة:</b> لا يوجد طلب سحب رصيد (Payout Request) في حالة تحجب قبول عمل جديد.</li>
+        <li><b>اكتمال الوثائق الشخصية:</b> رخصة القيادة، جواز السفر، والإقامة — يجب أن تكون كلها موجودة <u>وسارية الصلاحية</u> (الغياب يُعامل معاملة الانتهاء تمامًا). للرحلات الخارجية تحديدًا: يجب أن يتبقى على صلاحية الإقامة 3 أشهر على الأقل (قاعدة السفر عبر الحدود).</li>
+        <li><b>تغطية خط السير جغرافيًا:</b> يجب أن يكون السائق قد اختار في ملفه كلا الدولتين المطلوبتين (الانطلاق <u>و</u>الوصول) ضمن وجهاته — وليس الوجهة فقط.</li>
+        <li><b>ملاءمة الشاحنة المرتبطة:</b> شاحنة السائق (علاقة 1↔1) يجب أن تكون فعّالة، بمستندات سارية (تأمين، رخصة، فحص فني)، من النوع المطلوب تحديدًا، مبرّدة إذا احتاجت الشحنة تبريدًا، وبسعة حمولة كافية لوزن الشحنة.</li>
+      </ul>
+      <div class="note">هذه نفس القواعد بالضبط تُعاد التحقق منها مرة ثانية لحظة ضغط السائق "قبول" (<span class="code-inline">accept()</span>) — دفاع مزدوج (Defense in Depth) يمنع أي التفاف حول شاشة "العروض المتاحة" المفلترة مسبقًا.</div>
+    </div>
+
+    <div class="card">
+      <h3>الخطوة 2 — الترتيب المرجّح <span class="code-inline">score()</span></h3>
+      <p>لكل سائق اجتاز الخطوة 1، تُحسب درجة مركّبة بين 0 و1 من 5 عوامل، بأوزان قابلة للتعديل من لوحة تحكم الأدمن (Platform Settings):</p>
+      <table class="weights">
+        <tr><th>العامل</th><th class="pct">الوزن الافتراضي</th><th>طريقة الحساب</th></tr>
+        <tr><td>القرب الجغرافي (Proximity)</td><td class="pct">30%</td><td>مسافة Haversine بين آخر موقع معروف للسائق ونقطة الانطلاق؛ 0 كلم = 1.0، و200 كلم فأكثر = 0.0 (تناقص خطي بينهما). القيمة الافتراضية 0.5 إذا كان الموقع غير متوفر — حتى لا يُستبعد سائق بسبب نقص بيانات فقط.</td></tr>
+        <tr><td>خبرة المسار/المنطقة (Route Experience)</td><td class="pct">25%</td><td>عدد الرحلات السابقة على <u>نفس الخط بالضبط</u> ÷ 5 (بحد أقصى 1.0)، مع تراجع تدريجي: خط دقيق ← منطقة الوصول فقط ← دولة الوصول ← نص الوجهة (للبيانات القديمة).</td></tr>
+        <tr><td>التقييم (Rating)</td><td class="pct">20%</td><td><span class="code-inline">rating ÷ 5</span> — تقييم مرجّح زمنيًا (Recency-weighted) يتراوح من 1 إلى 5.</td></tr>
+        <tr><td>موثوقية القبول (Acceptance Reliability)</td><td class="pct">15%</td><td>نسبة العروض المقبولة إلى العروض المستلمة تاريخيًا؛ سائق جديد بلا سجل = 1.0 (لا يُعاقَب على نقص الخبرة).</td></tr>
+        <tr><td>العدالة/آخر مطابقة (Fairness)</td><td class="pct">10%</td><td>عقوبة قصيرة المدى: <span class="code-inline">min(1, الدقائق منذ آخر مطابقة ÷ 30)</span> — تمنع نفس السائق من احتكار كل العروض المتتالية خلال فترة قصيرة، وتوزّع الفرص بعدالة أكبر بين الأسطول.</td></tr>
+      </table>
+      <pre>Score = 0.30×Proximity + 0.25×RouteExperience + 0.20×Rating + 0.15×Acceptance + 0.10×Fairness</pre>
+    </div>
+
+    <div class="card">
+      <h3>آلية الإرسال على دفعات (Batching) والتصعيد</h3>
+      <ul class="steps">
+        <li>عند تسعير العرض، يُرتَّب كل السائقين المؤهلين تنازليًا حسب الدرجة، وتُرسَل إشعارات فورية (Push Notification) لأعلى <b>5</b> سائقين فقط (قابل للتعديل).</li>
+        <li>لكل جولة مهلة زمنية افتراضية <b>5 دقائق</b> (قابلة للتعديل) — يديرها أمر مجدوَل <span class="code-inline">ProcessExpiredMatches</span> يعمل تلقائيًا في الخلفية.</li>
+        <li>إن لم يقبل أحد خلال المهلة، تُغلَق الجولة بنتيجة "لا قبول" وتبدأ جولة جديدة تستثني من سبق إشعارهم، وترسل لأفضل 5 سائقين <u>جدد</u> متبقين.</li>
+        <li>إذا استُنفد كل السائقين المؤهلين دون قبول، تنتقل الشحنة لحالة <span class="badge b-red">escalated</span> ليتدخّل Super Admin يدويًا (تعيين مباشر لسائق معروف).</li>
+        <li>كل رفض صريح (Decline) أو انتهاء مهلة يُسجَّل بدقة في جدول استجابات منفصل — بيانات مفيدة مستقبلًا لتحسين الخوارزمية بالتعلم من سلوك القبول الفعلي.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 4: FLUTTER ============ -->
+  <section id="s4">
+    <div class="sec-head">
+      <div class="sec-num">4</div>
+      <div>
+        <h2>أهم مفاهيم Flutter المطبقة</h2>
+        <div class="sub">app/lib — قسم التطبيق المحمول</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>1. بنية واجهة واحدة متعددة الأدوار (Role-Based Single App)</h3>
+      <p>
+        بدل بناء 3 تطبيقات منفصلة، التطبيق واحد يتكيّف بالكامل حسب دور المستخدم (<span class="code-inline">driver</span> / <span class="code-inline">company</span> / <span class="code-inline">admin</span> أو <span class="code-inline">sub_admin</span>)
+        القادم من الخادم بعد تسجيل الدخول. الودجة المركزية <span class="code-inline">HomeScreen</span> تقرأ <span class="code-inline">widget.user.role</span> وتبني:
+      </p>
+      <ul>
+        <li>قائمة صفحات مختلفة كليًا لكل دور (Dashboard/Offers/Wallet/Profile للسائق، مقابل Drivers/Companies/Shipments/Offers/Reports للأدمن).</li>
+        <li>شريط تنقّل سفلي (Bottom Navigation) بتصميم مختلف لكل دور، مع <span class="code-inline">IndexedStack</span> للحفاظ على حالة كل تبويب دون إعادة بنائه عند التنقل بينها.</li>
+        <li>للأدمن تحديدًا: قائمة جانبية (Drawer) تُظهر فقط العناصر التي يملك المستخدم صلاحية الوصول لها (<span class="code-inline">permissions</span> القادمة من الخادم) — Sub-Admin بصلاحية "finance" فقط لا يرى مثلًا خيارات إدارة السائقين.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>2. إدارة الحالة: StatefulWidget + setState (بدون مكتبات خارجية)</h3>
+      <p>
+        لم تُستخدم مكتبات إدارة حالة خارجية (لا Provider ولا Riverpod ولا Bloc ولا GetX) — الحالة تُدار بالكامل عبر <span class="code-inline">StatefulWidget</span> الأساسي في Flutter و<span class="code-inline">setState()</span>،
+        مع استثناء واحد مدروس: <span class="code-inline">ValueNotifier</span> لحالات مشتركة بين ودجات لا تربطها علاقة أب-ابن مباشرة (مثل عداد الإشعارات غير المقروءة <span class="code-inline">NotificationBadge</span>، وحالة "رحلة نشطة" في <span class="code-inline">DriverLocationReporter.hasActiveTrip</span>).
+      </p>
+      <div class="tip">💡 نقطة يمكن الدفاع عنها أمام اللجنة: الاستغناء عن مكتبة إدارة حالة كان قرارًا هندسيًا واعيًا مناسبًا لحجم المشروع، وليس نقصًا في المعرفة — <span class="code-inline">ValueNotifier</span> استُخدم بالضبط في الحالات التي تحتاج مشاركة حالة عابرة للشاشات.</div>
+    </div>
+
+    <div class="card">
+      <h3>3. الربط مع REST API وإدارة الجلسة</h3>
+      <ul>
+        <li>طبقة خدمات منفصلة تمامًا عن واجهة العرض (23 ملف ضمن <span class="code-inline">lib/API/</span>) — كل خدمة (<span class="code-inline">ShipmentService</span>, <span class="code-inline">DriverService</span>...) مسؤولة عن نداءات HTTP الخاصة بمجالها فقط عبر حزمة <span class="code-inline">http</span>.</li>
+        <li>المصادقة عبر <b>Bearer Token</b> (Laravel Sanctum) يُخزَّن محليًا في <span class="code-inline">SharedPreferences</span> بعد تسجيل الدخول، ويُرفَق تلقائيًا مع كل طلب لاحق.</li>
+        <li><b>تسجيل دخول تلقائي ذكي (Auto-Login):</b> عند فتح التطبيق، تتحقق <span class="code-inline">SplashPage</span> من صلاحية الجلسة عبر نداء فعلي لـ <span class="code-inline">/me/profile</span> — وتُفرّق بدقة بين حالتين: رفض صريح من الخادم (401 → الجلسة فعلًا منتهية → عودة لتسجيل الدخول) وخطأ اتصال عابر (انقطاع إنترنت/تعطل مؤقت للخادم → تبقى الجلسة محفوظة ويُعرض زر "إعادة المحاولة" فقط).</li>
+        <li>نماذج بيانات مطابقة تمامًا لبنية استجابة الخادم عبر مصانع <span class="code-inline">fromJson()</span>/<span class="code-inline">fromMap()</span> في مجلد <span class="code-inline">models/</span>.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>4. تتبع الموقع الجغرافي الحي في الخلفية (Background Location)</h3>
+      <p>
+        من أكثر أجزاء التطبيق تعقيدًا تقنيًا: <span class="code-inline">DriverLocationReporter</span> يُفعَّل الاشتراك بموقع GPS فقط عندما يكون للسائق رحلة نشطة فعلًا (حالة الشحنة 1/2/5)، عبر فحص دوري كل 45 ثانية.
+      </p>
+      <ul>
+        <li>يعمل حتى مع إغلاق الشاشة أو تصغير التطبيق، باستخدام <span class="code-inline">Geolocator.getPositionStream()</span> مع إعدادات خاصة لكل نظام: خدمة أمامية (Foreground Service) وإشعار دائم على أندرويد، و<span class="code-inline">allowBackgroundLocationUpdates</span> على iOS.</li>
+        <li>مرتبط مباشرة بقاعدة عمل: زر "تسجيل الخروج" يُحجَب تمامًا طالما هناك رحلة نشطة، لضمان استمرار التتبع الحي الذي تعتمد عليه شاشة التتبع لدى الشركة والأدمن.</li>
+        <li>معالجة أخطاء الشبكة بأسلوب "تفاؤلي" مقصود: فشل إرسال موقع واحد لا يُوقف الخدمة، بل يُعاد المحاولة تلقائيًا في الدورة التالية، والخادم يحتفظ بآخر موقع معروف حتى ينجح تحديث جديد.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>5. الإشعارات الفورية (Firebase Cloud Messaging)</h3>
+      <ul>
+        <li>تسجيل تلقائي لرمز الجهاز (FCM Token) بعد تسجيل الدخول عبر <span class="code-inline">PushNotificationSetup</span>، مع تحديثه تلقائيًا عند تغيّره (<span class="code-inline">onTokenRefresh</span>).</li>
+        <li>معالج خلفية (<span class="code-inline">firebaseMessagingBackgroundHandler</span>) يعمل في Isolate منفصل تمامًا عن التطبيق الرئيسي — كما يتطلبه Flutter لأي معالجة أثناء إغلاق التطبيق.</li>
+        <li>إشعار داخل التطبيق (In-app Banner) عبر <span class="code-inline">SnackBar</span> عند وصول رسالة والتطبيق مفتوح، بالإضافة لتحديث فوري لعداد الإشعارات غير المقروءة الظاهر في كل الشاشات.</li>
+      </ul>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>6. الخرائط التفاعلية</h3>
+        <p>عبر <span class="code-inline">flutter_map</span> + <span class="code-inline">latlong2</span> (بديل مفتوح المصدر عن Google Maps، دون الحاجة لمفتاح API مدفوع) لعرض نقطة الانطلاق والوصول وموقع السائق الحي على خريطة تتبع الشحنة.</p>
+      </div>
+      <div class="card">
+        <h3>7. رفع الملفات والمستندات</h3>
+        <p><span class="code-inline">image_picker</span> لالتقاط صور إثبات التسليم مباشرة من الكاميرا، و<span class="code-inline">file_picker</span> لرفع المستندات الرسمية (رخصة، جواز، تأمين)، عبر <span class="code-inline">http.MultipartRequest</span>.</p>
+      </div>
+      <div class="card">
+        <h3>8. عرض الملفات الخاصة بأمان</h3>
+        <p>مستندات السائقين/الشركات الحساسة تُعرض عبر <span class="code-inline">Image.network(url, headers: {'Authorization': 'Bearer $token'})</span> — لا تُفتح كرابط عام مباشر، بل تتطلب مصادقة حتى على مستوى عرض الصورة نفسها.</p>
+      </div>
+      <div class="card">
+        <h3>9. نظام تصميم موحّد (Design System)</h3>
+        <p><span class="code-inline">FmsTheme</span> يوفّر ثيم Material موحّد (ألوان Navy + Gold، أشكال الأزرار، الحقول، الشريط العلوي) تلتزم به كل الشاشات الـ90 بدل تكرار التنسيق يدويًا في كل شاشة.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 5: Q&A ============ -->
+  <section id="s5">
+    <div class="sec-head">
+      <div class="sec-num">5</div>
+      <div>
+        <h2>الأسئلة المتوقعة من لجنة المناقشة</h2>
+        <div class="sub">مرتّبة حسب المحور — مع إجابات مقترحة مختصرة</div>
+      </div>
+    </div>
+
+    <h3 style="color:var(--navy2);">أ) أسئلة عامة عن فكرة المشروع</h3>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>لماذا اخترتم فكرة نظام إدارة شحن تحديدًا؟ وما الذي يميزه عن الحلول الجاهزة؟</div>
+      <div class="a">ركّزوا على: (1) الأتمتة الكاملة لعمليتي التسعير والمطابقة بدل الاعتماد على تدخل بشري في كل طلب، (2) نظام مالي مدقّق بالكامل (Ledger + حجز ائتماني + رقابة مزدوجة على التعديلات اليدوية)، (3) دعم صريح للشحن الداخلي والعابر للحدود بقواعد امتثال مختلفة لكل نوع.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>ما هي أهم التحديات التقنية التي واجهتموها؟</div>
+      <div class="a">
+        أمثلة جاهزة يمكن الاستشهاد بها بثقة:
+        <ul>
+          <li>منع تسابق العمليات المالية المتزامنة (Race Conditions) عند إنشاء عروض متعددة لنفس الشركة أو تأكيد تسليم شحنتين في نفس اللحظة — حُلّت بقفل صفوف قاعدة البيانات (<span class="code-inline">lockForUpdate()</span>) ضمن معاملات (Transactions).</li>
+          <li>تصميم خوارزمية مطابقة تفصل تمامًا بين الأهلية الصارمة والترتيب المرجّح، لضمان ألا يتفوق سائق غير مؤهل أمنيًا على سائق مؤهل بسبب تقييم مرتفع فقط.</li>
+          <li>الحفاظ على تتبع GPS حي في الخلفية على أنظمة موبايل تحد بشدة من عمل التطبيقات في الخلفية (Android/iOS).</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="color:var(--navy2);margin-top:30px;">ب) أسئلة حول خوارزمية التسعير</h3>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>ماذا يحدث إذا لم تتوفر بيانات تاريخية كافية لخط معيّن (منطقة جديدة تمامًا)؟</div>
+      <div class="a">ينزل النظام تلقائيًا لمستوى الدولة (Fallback على مستوى Country بدل Zone)، وإذا لم يوجد شيء إطلاقًا يتحول الطلب لحالة "تسعير يدوي" ويُخطَر مسؤول CRM فورًا — لا يبقى الطلب معلّقًا بلا حل أبدًا.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>هل يمكن للشركة أو السائق التلاعب بالسعر المُرسَل من التطبيق؟</div>
+      <div class="a">لا — التطبيق يُرسل فقط "السعر الذي اختارته الشركة" كنقطة بداية استرشادية، لكن الخادم يعيد حساب <span class="code-inline">price_to_driver</span> ونسبة الهامش من جديد بالكامل من طرفه، ولا يثق أبدًا بأي رقم محسوب في التطبيق نفسه — هذا مبدأ أمني أساسي (Never Trust the Client).</div>
+    </div>
+
+    <h3 style="color:var(--navy2);margin-top:30px;">ج) أسئلة حول خوارزمية المطابقة</h3>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>لماذا فصلتم الأهلية عن الترتيب في خطوتين منفصلتين بدل خوارزمية واحدة موحدة؟</div>
+      <div class="a">لأن مزج الاثنين يخلق خطرًا حقيقيًا: سائق بتقييم ممتاز لكن مستند إقامته منتهي الصلاحية يجب أن يُستبعد كليًا، لا أن "تُخفَّض درجته" فقط ويبقى مرشحًا محتملًا. الأمان والامتثال قرارات ثنائية (Pass/Fail)، بينما الترتيب تفضيلي — خلطهما يُضعف الرقابة على القواعد الحرجة.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>كيف تضمنون عدالة توزيع العروض بين السائقين ولا يستأثر بها سائق واحد دائمًا؟</div>
+      <div class="a">عامل "العدالة" (Fairness، وزنه 10%) يُطبّق عقوبة مؤقتة على أي سائق طُوبِق مؤخرًا (خلال آخر 30 دقيقة تقريبًا)، فتنخفض أولويته النسبية لصالح سائقين لم يُطابَقوا حديثًا، دون استبعاده كليًا.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>ماذا يحدث إن لم يقبل أي سائق العرض نهائيًا؟</div>
+      <div class="a">بعد استنفاد كل السائقين المؤهلين عبر دفعات متتالية (كل دفعة 5 سائقين، مهلة 5 دقائق لكل دفعة)، تنتقل الشحنة لحالة "مصعَّدة" (Escalated) ليتدخل Super Admin ويُسنِد السائق يدويًا بنفسه.</div>
+    </div>
+
+    <h3 style="color:var(--navy2);margin-top:30px;">د) أسئلة تخص تطبيق Flutter (قسمكم تحديدًا)</h3>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>لماذا لم تستخدموا مكتبة إدارة حالة مثل Provider أو Bloc؟</div>
+      <div class="a">حجم التطبيق ونمط تدفق البيانات (كل شاشة تقريبًا تجلب بياناتها الخاصة عبر نداء API عند الفتح) لم يستدعِ تعقيد إدارة حالة مركزية. اعتُمد <span class="code-inline">setState</span> ضمن كل شاشة، مع <span class="code-inline">ValueNotifier</span> فقط للحالات القليلة المشتركة فعليًا بين شاشات (كعداد الإشعارات وحالة الرحلة النشطة). قرار مدروس حسب حجم المشروع، وقابل للترقية مستقبلًا لو كبر التطبيق.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>كيف يتعامل التطبيق مع انقطاع الإنترنت أو بطء الخادم؟</div>
+      <div class="a">في كل شاشة رئيسية معالجة أخطاء صريحة (try/catch حول كل نداء API) مع رسالة واضحة للمستخدم بدل تعطّل الشاشة. الحالة الأهم: عند بدء التطبيق، يُفرَّق بدقة بين "الخادم رفض الجلسة فعليًا" (تسجيل خروج حقيقي) و"تعذّر الوصول للخادم مؤقتًا" (لا تُمسح بيانات الجلسة، ويُعرض فقط زر إعادة محاولة) — نقطة صُممت خصيصًا لحل مشكلة كان يُبلّغ عنها المستخدمون سابقًا.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>كيف يعمل تتبع موقع السائق حتى عندما يكون التطبيق مغلقًا في الخلفية؟</div>
+      <div class="a">عبر خدمة أمامية دائمة (Foreground Service) على أندرويد مصحوبة بإشعار ثابت يبقي نظام التشغيل من إيقاف العملية، ووضع "تحديثات الموقع في الخلفية" (Background Location Updates) المصرَّح به صراحة من نظام iOS. هذا التتبع لا يعمل إطلاقًا إلا أثناء وجود رحلة نشطة فعليًا — توفيرًا للبطارية واحترامًا لخصوصية السائق خارج أوقات العمل.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>كيف تضمنون أمان عرض مستندات السائقين والشركات الحساسة داخل التطبيق؟</div>
+      <div class="a">لم تعد المستندات (رخص، جوازات، إثباتات) تُخزَّن على قرص عام قابل للوصول برابط مباشر؛ نُقلت لتخزين خاص على الخادم، ولا تُعرض في التطبيق إلا عبر طلب مصادَق (Bearer Token) لكل صورة على حدة، مع تحقق من الخادم أن طالب الملف هو صاحبه فعليًا أو أدمن مخوّل.</div>
+    </div>
+
+    <h3 style="color:var(--navy2);margin-top:30px;">هـ) أسئلة تحدّي محتملة (يجب توقعها)</h3>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>ما هي أكبر نقطة ضعف أو قصور في النظام حاليًا برأيكم؟</div>
+      <div class="a">إجابة صادقة ومحترفة أفضل من الإنكار — أمثلة معقولة يمكن ذكرها: (1) عامل القرب الجغرافي يعتمد على مسافة خط مستقيم (Haversine) وليس زمن الطريق الفعلي عبر خدمة توجيه حقيقية، وهذا تحسين مستقبلي واضح؛ (2) الفرع اليدوي لرفع مستندات PDF داخل التطبيق محدود لأسباب بيئة التطوير، ويحتاج مكتبة عرض PDF مخصصة لاحقًا.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>لو أردتم توسيع النظام مستقبلًا (مدن/دول جديدة، عدد مستخدمين أكبر)، ما الذي سيحتاج تعديلًا؟</div>
+      <div class="a">إضافة مناطق (Zones) جديدة لا تحتاج تعديل كود إطلاقًا — فقط بيانات جديدة في الجداول (Zone, PriceListEntry). الخوارزميتان مصممتان لتكونا مُعامَلة بالكامل (Parameterized) عبر Platform Settings، ما يجعل التوسع الجغرافي أو تعديل الأوزان عملية تهيئة (Configuration) لا عملية برمجة (Re-coding).</div>
+    </div>
+
+    <div class="qa">
+      <div class="q"><span class="qmark">؟</span>ما الفرق بين مسؤولية كل واحد منكما في المشروع؟</div>
+      <div class="a">حدّدوا بوضوح ودون تداخل: محمد نورالدين الحموي — [يُستكمل حسب التقسيم الفعلي، الجزء الخادم/الباك اند]، محمد مصطفى الزعبي — تطبيق الموبايل بالكامل (Flutter): الشاشات، الاتصال بالـ API، الإشعارات، تتبع الموقع، والخرائط.</div>
+    </div>
+  </section>
+
+  <footer>
+    نظام إدارة الشحن الذكي (FMS) — جامعة دمشق، كلية الهندسة المعلوماتية، قسم هندسة البرمجيات ونظم المعلومات — آب 2026
+  </footer>
+</div>
+</body>
+</html>
