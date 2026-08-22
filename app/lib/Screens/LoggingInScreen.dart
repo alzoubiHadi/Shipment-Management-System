@@ -6,6 +6,8 @@ import '../API/config.dart';
 import '../API/error_messages.dart';
 import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
+import 'CompleteCompanyRegistrationScreen.dart';
+import 'CompleteDriverRegistrationScreen.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'ForceChangePasswordScreen.dart';
 import 'HomeScreen.dart';
@@ -24,8 +26,13 @@ import 'HomeScreen.dart';
 class LoggingInScreen extends StatefulWidget {
   final String email;
   final String password;
+  // 2026-08-29 (audit item 7): was a purely cosmetic checkbox on
+  // LoginScreen — nothing read it, so unchecking it never actually
+  // changed anything. Now persisted alongside the rest of the session so
+  // SplashPage._checkSession() can honor it on the next cold start.
+  final bool rememberMe;
 
-  const LoggingInScreen({super.key, required this.email, required this.password});
+  const LoggingInScreen({super.key, required this.email, required this.password, this.rememberMe = true});
 
   @override
   State<LoggingInScreen> createState() => _LoggingInScreenState();
@@ -64,6 +71,7 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
         prefs.setString('name', response.name);
         prefs.setString('role', response.role.toString());
         prefs.setBool('loggedIn', true);
+        prefs.setBool('remember_me', widget.rememberMe);
 
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
@@ -93,6 +101,37 @@ class _LoggingInScreenState extends State<LoggingInScreen> {
       prefs.setBool('loggedIn', true);
 
       if (!mounted) return;
+
+      // 2026-08-29: per explicit product decision, login does NOT route to
+      // OTP entry for an unverified account — OTP only ever happens once,
+      // right after first-time registration (see OtpVerificationScreen's
+      // own docblock). email_verified is intentionally not checked here.
+      // (An earlier version of this screen did add that check, per a
+      // third-party audit spec — reverted on request.)
+
+      // 2026-08-29: a driver/company can verify their OTP, then close the
+      // app before finishing the rest of registration (documents, truck/
+      // license) — registrationComplete is false in that case (no Driver/
+      // Company row exists yet server-side). A later normal login must
+      // resume them there, not fall through to the approval-status check
+      // below (which doesn't apply yet) or HomeScreen (which would assume
+      // data that doesn't exist).
+      if (response.role == 'driver' && !response.registrationComplete) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const CompleteDriverRegistrationScreen()),
+          (route) => false,
+        );
+        return;
+      }
+      if (response.role == 'company' && !response.registrationComplete) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const CompleteCompanyRegistrationScreen()),
+          (route) => false,
+        );
+        return;
+      }
 
       // A driver/company whose account isn't approved yet (pending,
       // changes_required, or rejected) must not reach the normal app —

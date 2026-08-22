@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../API/config.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/locale_controller.dart';
+import '../widgets/LanguageSwitcherSheet.dart';
 import 'LoggingInScreen.dart';
 import 'RegisterScreen.dart';
 import 'register_shared.dart';
@@ -57,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final error = await Navigator.push<String?>(
       context,
-      MaterialPageRoute(builder: (_) => LoggingInScreen(email: email, password: password)),
+      MaterialPageRoute(builder: (_) => LoggingInScreen(email: email, password: password, rememberMe: _rememberMe)),
     );
 
     // If LoggingInScreen succeeded it already replaced the whole nav stack,
@@ -255,6 +257,15 @@ class _LoginScreenState extends State<LoginScreen> {
 /// Top banner: bundled world-map/road/truck image with the FMS logo
 /// overlaid, fading into the plain page background at the bottom edge so
 /// there's no hard seam before the "Welcome to FMS" heading.
+///
+/// 2026-08-28: added a language-switcher pill in the top-right corner —
+/// previously the only way to change language was inside a signed-in
+/// account's Settings/Profile tile (showLanguagePicker, shared with
+/// AdminSettingsPage/Profile.dart/CompanyProfileScreen.dart), so anyone not
+/// yet logged in — including a first-time Arabic-speaking user staring at
+/// an English login form — had no way to switch before signing in. Kept in
+/// a fixed screen corner (not RTL-mirrored) since flipping the very control
+/// that changes text direction would be disorienting.
 class _HeroHeader extends StatelessWidget {
   const _HeroHeader();
 
@@ -291,6 +302,32 @@ class _HeroHeader extends StatelessWidget {
             right: 0,
             child: Center(
               child: Image.asset('assets/images/fms_logo.png', height: 148, fit: BoxFit.contain),
+            ),
+          ),
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Material(
+              color: Colors.black.withOpacity(0.35),
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => showLanguagePicker(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.language_rounded, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        LocaleController.isArabic ? 'العربية' : 'English',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],

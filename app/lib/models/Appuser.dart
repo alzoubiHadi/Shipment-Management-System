@@ -43,8 +43,21 @@ class AppUser {
   }
 
   bool hasPermission(String key) {
+    return isSuperAdmin || permissions.contains(key);
+  }
+
+  // 2026-08-29: centralizes what the backend's User::isSuperAdmin() already
+  // does — both 'super_admin' and the legacy 'admin' role are treated as
+  // Super Admin there. Individual screens used to each hand-roll their own
+  // `role == 'super_admin'` check (AdminDrawer.dart, AdminSettingsPage.dart),
+  // which silently excluded the legacy 'admin' account from Super-Admin-only
+  // UI (Activity Log, Platform Settings, Admin Accounts, recycle bins, ...)
+  // even though the backend would happily authorize it for those same
+  // actions. Every Super-Admin-only UI check should go through this getter
+  // instead of comparing `role` directly.
+  bool get isSuperAdmin {
     final r = role.toLowerCase();
-    return r == 'super_admin' || r == 'admin' || permissions.contains(key);
+    return r == 'super_admin' || r == 'admin';
   }
 
   Map<String, dynamic> toMap() {

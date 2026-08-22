@@ -43,7 +43,12 @@ class AdminDrawer extends StatelessWidget {
     this.pendingRegistrations = 0,
   });
 
-  bool get _isSuperAdmin => user.role.toLowerCase() == 'super_admin';
+  // 2026-08-29: was `user.role.toLowerCase() == 'super_admin'` only — the
+  // backend's User::isSuperAdmin() also treats the legacy 'admin' role as
+  // Super Admin, so that account was silently missing Activity Log and
+  // every other tile gated on this getter. Routed through the centralized
+  // AppUser.isSuperAdmin getter instead of a local, drifted-from-backend copy.
+  bool get _isSuperAdmin => user.isSuperAdmin;
 
   // Reports scope tightened 2026-08-27: finance and crm only (finance
   // owns reports/financial oversight for companies and drivers; crm was

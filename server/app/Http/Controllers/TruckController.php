@@ -89,6 +89,18 @@ class TruckController extends Controller
             ], 422);
         }
 
+        // 2026-08-29 (audit item 5): one driver has exactly one truck —
+        // addMyTruck() below already refuses a second truck for the same
+        // driver; this admin/generic endpoint had no equivalent guard, so
+        // if it's ever wired up to a UI it could silently create a second
+        // truck for a driver by passing their default_driver_id. Same
+        // check, same error, for both entry points.
+        if (! empty($validated['default_driver_id']) && Truck::where('default_driver_id', $validated['default_driver_id'])->exists()) {
+            return response()->json([
+                'message' => 'This driver already has a registered truck.',
+            ], 422);
+        }
+
         if ($request->hasFile('license_file')) {
             $validated['license_file_path'] = $request->file('license_file')->store('truck_licenses', 'local');
         }

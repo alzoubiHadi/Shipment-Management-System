@@ -52,6 +52,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/change-password', [UserController::class, 'changePassword']);
 
+    // 2026-08-29 (audit item 9): logout used to be client-only — Flutter
+    // cleared local SharedPreferences and nothing else, so the Sanctum
+    // token stayed valid server-side indefinitely. This revokes the exact
+    // token that was used to make this request.
+    Route::post('/logout', [UserController::class, 'logout']);
+
+    // 2026-08-29: second half of self-registration, called right after OTP
+    // verification succeeds (so a token already exists) — see UserController
+    // ::register()'s docblock. Each is guarded server-side to only accept
+    // the matching account type and to refuse a second submission.
+    Route::post('/driver/complete-registration', [DriverController::class, 'completeRegistration']);
+    Route::post('/company/complete-registration', [CompanyController::class, 'completeRegistration']);
+
     // In-app notification center + FCM device-token registration
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);

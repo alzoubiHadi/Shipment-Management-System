@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../API/AuthResponse.dart';
 import '../API/DriverLocationReporter.dart';
+import '../API/DriverService.dart';
 import '../API/config.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart';
@@ -27,6 +29,28 @@ import '../main.dart';
 /// false — for company/admin, no role parameter needed here.
 Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async {
   final t = AppLocalizations.of(context)!;
+  final prefs = await SharedPreferences.getInstance();
+
+  // 2026-08-29 (audit item 10): DriverLocationReporter.hasActiveTrip is
+  // only updated by a 45s background poll, so right after a fresh app
+  // launch — before the first poll tick lands — it's still sitting at its
+  // default `false` even if the driver genuinely has an active trip
+  // server-side. Do one fresh check against the same lightweight
+  // current-trip endpoint the poller itself uses (never the full shipment
+  // list) at the exact moment of logout, instead of trusting a snapshot
+  // that could be stale or not-yet-populated. Only meaningful for
+  // drivers — the reporter/poller never runs for company/admin.
+  if (prefs.getString('role') == 'driver') {
+    try {
+      final result = await DriverService.fetchCurrentTrip();
+      DriverLocationReporter.hasActiveTrip.value = result['has_active_trip'] == true;
+    } catch (_) {
+      // Couldn't reach the server — fall back to whatever the poller last
+      // knew, same fail-safe reasoning DriverLocationReporter itself uses
+      // (never silently unblock logout just because a check failed).
+    }
+  }
+
   if (DriverLocationReporter.hasActiveTrip.value) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -60,7 +84,14 @@ Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async 
 
   if (confirmed != true) return;
 
-  final prefs = await SharedPreferences.getInstance();
+  // 2026-08-29 (audit item 9): revoke the token server-side before wiping
+  // it locally. ApiService.logout() is deliberately silent on failure —
+  // the local session is cleared either way right below, so a network
+  // hiccup here never traps the user; it just means server-side
+  // revocation may not have completed (the token still expires on its
+  // own naturally).
+  await ApiService.logout();
+
   await prefs.clear();
 
   if (context.mounted) {

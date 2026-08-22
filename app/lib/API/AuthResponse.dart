@@ -55,6 +55,14 @@ class AuthResponse {
   final String companyApprovalStatus;
   final String? companyRejectionReason;
 
+  // 2026-08-29: only meaningful when role is 'driver'/'company'. False right
+  // after OTP verification means the account exists but the driver/company
+  // profile (documents, truck/license, etc.) hasn't been submitted yet — the
+  // app must route to the profile-completion flow instead of the approval-
+  // status or home screens. Defaults to true so admin/sub_admin (and any
+  // older/unexpected response shape) never gets routed away incorrectly.
+  final bool registrationComplete;
+
   // Only meaningful when role is one of the admin types — see AppUser's
   // matching field for how this gets used (AdminDrawer filtering,
   // UserProfilePage badges).
@@ -73,6 +81,7 @@ class AuthResponse {
     this.driverDocumentIssues = const [],
     this.companyApprovalStatus = 'approved',
     this.companyRejectionReason,
+    this.registrationComplete = true,
     this.permissions = const [],
   });
 
@@ -110,6 +119,10 @@ class AuthResponse {
           ? 'approved'
           : (company['approval_status']?.toString() ?? 'approved'),
       companyRejectionReason: company?['rejection_reason']?.toString(),
+      // Sent by login() and verifyOtp() under data.registration_complete —
+      // only actually false for a driver/company mid-flow (see backend);
+      // any other/older shape defaults to true, same reasoning as emailVerified.
+      registrationComplete: data['registration_complete'] != false,
       permissions: rawPermissions is List
           ? List<String>.from(rawPermissions.map((e) => e.toString()))
           : const [],
@@ -136,38 +149,15 @@ class ApiService {
     'Accept': 'application/json',
   };
 
-  /// Laravel validation failures come back as {message: "Validation failed",
-  /// errors: {field: ["reason", ...]}}. Showing just `message` hides the
-  /// actually useful part — this pulls every per-field reason out so the
-  /// screen can show e.g. "The password must contain at least one symbol."
-  /// instead of a dead-end "Validation failed."
-  ///
-  /// [statusCode]/[context] route 401s through the shared session/login
-  /// wording in error_messages.dart instead of the backend's raw text
-  /// (e.g. "Unauthenticated." or "The provided credentials are incorrect."),
-  /// and are ignored for every other status code.
-  static String _errorMessage(
-    Map<String, dynamic> json,
-    String fallback, {
-    int? statusCode,
-    String context = 'default',
-  }) {
-    if (statusCode == 401) {
-      return context == 'login'
-          ? 'Incorrect email or password. Please try again.'
-          : 'Your session has expired. Please log in again.';
-    }
-    final errors = json['errors'];
-    if (errors is Map) {
-      final details = errors.values
-          .expand((v) => v is List ? v : [v])
-          .map((e) => e.toString())
-          .where((s) => s.isNotEmpty)
-          .join('\n');
-      if (details.isNotEmpty) return details;
-    }
-    return (json['message'] ?? json['error'] ?? fallback).toString();
-  }
+  // 2026-08-28 fix: this file used to have its own local _errorMessage()
+  // helper — a duplicate, English-only implementation that predates (and
+  // was missed by) the centralized error-handling pass in error_messages.
+  // dart. Its 401 branch unconditionally showed "Your session has expired"
+  // for every non-login call, including register()/verifyOtp()/
+  // resendOtp() — endpoints that run before any session/token exists —
+  // which is exactly the false "Session expired" report during sign-up.
+  // Every call site below now goes through the shared, bilingual
+  // apiErrorMessage() instead (see its 'register'/'otp' context handling).
 
   static Future<Map<String, String>> _authHeaders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -203,7 +193,7 @@ class ApiService {
 
       // Server returned an error message
       throw ApiException(
-        _errorMessage(json, 'Login failed', statusCode: response.statusCode, context: 'login'),
+        apiErrorMessage(json, response.statusCode, context: 'login', fallback: 'Login failed'),
         statusCode: response.statusCode,
         requiresOtpVerification: json['requires_otp_verification'] == true,
       );
@@ -214,45 +204,37 @@ class ApiService {
     }
   }
 
-  // ── Register (company) ───────────────────────────────────────────────────
+  // ── Register: account only (2026-08-29) ─────────────────────────────────
 
-  /// Company self-registration (UC-2). Driver registration uses the
-  /// dedicated registerDriver() below, since it now collects a lot more
-  /// (documents, destinations, truck) that doesn't belong on this signature.
-  /// Does NOT log the user in — see verifyOtp().
-  static Future<RegisterResult> register({
+  /// UC-2/UC-3, step 0 only: creates just the User row and sends the OTP —
+  /// see UserController::register()'s docblock for why this no longer also
+  /// creates the Driver/Company profile. Shared by both driver and company
+  /// sign-up; the rest of each role's info is submitted separately, AFTER
+  /// OTP success, via completeDriverRegistration() / completeCompanyRegistration()
+  /// below. Does NOT log the user in — see verifyOtp().
+  static Future<RegisterResult> registerAccount({
     required String name,
     required String email,
     required String password,
     required String passwordConfirmation,
-    String type = 'company',
-    String? phone,
-    String? address,
-    Uint8List? licenseFileBytes,
-    String? licenseFileName,
+    required String type, // 'driver' | 'company'
   }) async {
     final uri = Uri.parse('$baseUrl/register');
 
     try {
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Accept'] = 'application/json';
-      request.fields['name'] = name.trim();
-      request.fields['email'] = email.trim();
-      request.fields['password'] = password;
-      request.fields['password_confirmation'] = passwordConfirmation;
-      request.fields['type'] = type;
-      if (phone != null) request.fields['phone'] = phone;
-      if (address != null) request.fields['address'] = address;
-      if (licenseFileBytes != null && licenseFileName != null) {
-        request.files.add(http.MultipartFile.fromBytes(
-          'license_file',
-          licenseFileBytes,
-          filename: licenseFileName,
-        ));
-      }
-
-      final streamed = await request.send().timeout(const Duration(seconds: 90));
-      final response = await http.Response.fromStream(streamed);
+      final response = await http
+          .post(
+            uri,
+            headers: _headers,
+            body: jsonEncode({
+              'name': name.trim(),
+              'email': email.trim(),
+              'password': password,
+              'password_confirmation': passwordConfirmation,
+              'type': type,
+            }),
+          )
+          .timeout(const Duration(seconds: 60));
 
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
@@ -265,7 +247,10 @@ class ApiService {
         );
       }
 
-      throw ApiException(_errorMessage(json, 'Registration failed', statusCode: response.statusCode), statusCode: response.statusCode);
+      throw ApiException(
+        apiErrorMessage(json, response.statusCode, context: 'register', fallback: 'Registration failed'),
+        statusCode: response.statusCode,
+      );
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -273,19 +258,58 @@ class ApiService {
     }
   }
 
-  // ── Register (driver) ────────────────────────────────────────────────────
+  // ── Complete registration (company) ──────────────────────────────────────
 
-  /// UC-3, revised: one submission covers both the driver's own info
-  /// (documents, health, destinations) AND their truck — see
-  /// UserController::register()'s driver branch on the backend, which
-  /// creates the User+Driver+DriverDocument(x3)+DriverDestination(x N)+Truck
-  /// rows all in one DB transaction. Does NOT log the user in — see
-  /// verifyOtp().
-  static Future<RegisterResult> registerDriver({
-    required String name,
-    required String email,
-    required String password,
-    required String passwordConfirmation,
+  /// UC-2, step 2: called right after verifyOtp() succeeds (a token already
+  /// exists at that point). Creates the Company row itself — mirrors what
+  /// register() used to do for a company, minus name/email/password (already
+  /// on the User row).
+  static Future<void> completeCompanyRegistration({
+    required String phone,
+    String? address,
+    required Uint8List licenseFileBytes,
+    required String licenseFileName,
+  }) async {
+    final uri = Uri.parse('$baseUrl/company/complete-registration');
+
+    try {
+      final request = http.MultipartRequest('POST', uri);
+      request.headers.addAll(await _authHeaders());
+      request.fields['phone'] = phone;
+      if (address != null) request.fields['address'] = address;
+      request.files.add(http.MultipartFile.fromBytes('license_file', licenseFileBytes, filename: licenseFileName));
+
+      final streamed = await request.send().timeout(const Duration(seconds: 90));
+      final response = await http.Response.fromStream(streamed);
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return;
+      }
+
+      // Deliberately NOT context: 'register' here — unlike register()/
+      // verifyOtp(), these two calls ARE authenticated (a token already
+      // exists by this point), so a 401 here genuinely does mean the
+      // session/token is no longer valid and should show the real
+      // session-expired message rather than the no-session-yet wording.
+      throw ApiException(
+        apiErrorMessage(json, response.statusCode, fallback: 'Registration failed'),
+        statusCode: response.statusCode,
+      );
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(networkErrorMessage(e));
+    }
+  }
+
+  // ── Complete registration (driver) ───────────────────────────────────────
+
+  /// UC-3, step 2: called right after verifyOtp() succeeds. Creates the
+  /// Driver+DriverDocument(x N)+DriverDestination(x N)+Truck rows — mirrors
+  /// what register() used to do for a driver, minus name/email/password
+  /// (already on the User row).
+  static Future<void> completeDriverRegistration({
     required String phone,
     required String driverLicense,
     required String age,
@@ -308,8 +332,6 @@ class ApiService {
     required String truckLicenseFileName,
     String? truckLicenseExpiry,
     String? permitType,
-    // New-registration-design batch (2026-08-19) — all optional so this
-    // still works if a caller doesn't collect them.
     Uint8List? licenseBackFileBytes,
     String? licenseBackFileName,
     Uint8List? driverPhotoFileBytes,
@@ -321,16 +343,11 @@ class ApiService {
     String? truckInspectionFileName,
     String? truckInspectionExpiry,
   }) async {
-    final uri = Uri.parse('$baseUrl/register');
+    final uri = Uri.parse('$baseUrl/driver/complete-registration');
 
     try {
       final request = http.MultipartRequest('POST', uri);
-      request.headers['Accept'] = 'application/json';
-      request.fields['type'] = 'driver';
-      request.fields['name'] = name.trim();
-      request.fields['email'] = email.trim();
-      request.fields['password'] = password;
-      request.fields['password_confirmation'] = passwordConfirmation;
+      request.headers.addAll(await _authHeaders());
       request.fields['phone'] = phone;
       request.fields['driver_license'] = driverLicense;
       request.fields['age'] = age;
@@ -377,19 +394,21 @@ class ApiService {
       // slow connection with a "stuck" submit button and no visible error.
       final streamed = await request.send().timeout(const Duration(seconds: 180));
       final response = await http.Response.fromStream(streamed);
-
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json['data'] ?? {};
-        final user = data['user'] ?? {};
-        return RegisterResult(
-          email: user['email'] ?? email.trim(),
-          type: user['type'] ?? 'driver',
-        );
+        return;
       }
 
-      throw ApiException(_errorMessage(json, 'Registration failed', statusCode: response.statusCode), statusCode: response.statusCode);
+      // Deliberately NOT context: 'register' here — unlike register()/
+      // verifyOtp(), these two calls ARE authenticated (a token already
+      // exists by this point), so a 401 here genuinely does mean the
+      // session/token is no longer valid and should show the real
+      // session-expired message rather than the no-session-yet wording.
+      throw ApiException(
+        apiErrorMessage(json, response.statusCode, fallback: 'Registration failed'),
+        statusCode: response.statusCode,
+      );
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -418,7 +437,10 @@ class ApiService {
         return AuthResponse.fromJson(json);
       }
 
-      throw ApiException(_errorMessage(json, 'Verification failed', statusCode: response.statusCode), statusCode: response.statusCode);
+      throw ApiException(
+        apiErrorMessage(json, response.statusCode, context: 'otp', fallback: 'Verification failed'),
+        statusCode: response.statusCode,
+      );
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -437,12 +459,31 @@ class ApiService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200) {
-        throw ApiException(_errorMessage(json, 'Could not resend code', statusCode: response.statusCode), statusCode: response.statusCode);
+        throw ApiException(
+          apiErrorMessage(json, response.statusCode, context: 'otp', fallback: 'Could not resend code'),
+          statusCode: response.statusCode,
+        );
       }
     } on ApiException {
       rethrow;
     } catch (e) {
       throw ApiException(networkErrorMessage(e));
+    }
+  }
+
+  // ── Logout (audit item 9) ────────────────────────────────────────────────
+
+  /// Revokes the current Sanctum token server-side. Deliberately silent on
+  /// failure — the caller (logout_helper.dart's confirmAndLogout) clears
+  /// the local session regardless so the user is never trapped by a
+  /// network hiccup; server-side revocation just may not have completed in
+  /// that case (the token naturally still expires on its own).
+  static Future<void> logout() async {
+    final uri = Uri.parse('$baseUrl/logout');
+    try {
+      await http.post(uri, headers: await _authHeaders()).timeout(const Duration(seconds: 15));
+    } catch (_) {
+      // See docblock above — not surfaced to the caller on purpose.
     }
   }
 
@@ -471,7 +512,10 @@ class ApiService {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200) {
-        throw ApiException(_errorMessage(json, 'Could not change password', statusCode: response.statusCode), statusCode: response.statusCode);
+        throw ApiException(
+          apiErrorMessage(json, response.statusCode, fallback: 'Could not change password'),
+          statusCode: response.statusCode,
+        );
       }
     } on ApiException {
       rethrow;

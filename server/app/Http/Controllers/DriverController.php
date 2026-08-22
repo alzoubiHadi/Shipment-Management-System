@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\DriverDestination;
 use App\Models\DriverDocument;
 use App\Models\ProfileEditRequest;
+use App\Models\Truck;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
 use Illuminate\Http\Request;
@@ -32,6 +33,175 @@ class DriverController extends Controller
         if ((string) $requester->id !== (string) $driver_user_id && ! $requester->hasPermission('crm')) {
             abort(403, 'You are not authorized to access this driver\'s data.');
         }
+    }
+
+    /**
+     * 2026-08-29: second half of driver self-registration — UserController::
+     * register() now creates ONLY the User row + sends OTP; once that OTP is
+     * verified (so the caller has a real Sanctum token), the app calls this
+     * to submit everything that used to be collected in the same form:
+     * driver info, documents, destinations, and the truck. Moved here
+     * (rather than added back into register()) so OTP can happen right
+     * after account creation instead of at the very end of a long wizard —
+     * see UserController::register()'s docblock for the full rationale.
+     *
+     * Validation rules and creation logic below are otherwise unchanged
+     * from what register()'s driver branch used to do; only name/email/
+     * password (now already on $user) were dropped from the rule set.
+     */
+    public function completeRegistration(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'driver') {
+            return response()->json(['success' => false, 'message' => 'This account is not a driver account.'], 403);
+        }
+
+        // Idempotency guard: a driver can only complete this step once. A
+        // second submission (double-tap, retried request after a dropped
+        // response, etc.) must not create a duplicate Driver/Truck row.
+        if (Driver::where('user_id', $user->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Registration already completed.'], 409);
+        }
+
+        $rules = [
+            'phone' => ['required', 'string', 'max:20'],
+            'driver_license' => ['required', 'string', 'unique:drivers,driver_license'],
+            'age' => ['required', 'integer', 'min:18', 'max:65'],
+            'nationality' => ['required', 'string', 'max:100'],
+
+            'license_file' => ['required', 'file', 'max:10240'],
+            'license_expiry' => ['required', 'date'],
+            'passport_file' => ['required', 'file', 'max:10240'],
+            'passport_expiry' => ['required', 'date'],
+            'residency_file' => ['required', 'file', 'max:10240'],
+            'residency_expiry' => ['required', 'date'],
+            'license_back_file' => ['nullable', 'file', 'max:10240'],
+            'driver_photo_file' => ['nullable', 'file', 'max:10240'],
+
+            'blood_type' => ['required', 'string', 'in:A+,A-,B+,B-,O+,O-,AB+,AB-'],
+            'health_conditions' => ['nullable', 'string', 'max:1000'],
+
+            'destinations' => ['required', 'array', 'min:1'],
+            'destinations.*' => ['string', 'in:' . implode(',', array_keys(DriverDestination::DESTINATIONS))],
+
+            'truck_number' => ['required', 'string', 'unique:trucks,truck_number'],
+            'truck_type' => ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)],
+            'truck_license_file' => ['required', 'file', 'max:10240'],
+            'truck_license_expiry' => ['nullable', 'date'],
+            'permit_type' => ['nullable', 'string', 'max:255'],
+            'truck_insurance_file' => ['nullable', 'file', 'max:10240'],
+            'truck_insurance_expiry' => ['nullable', 'date'],
+            'truck_inspection_file' => ['nullable', 'file', 'max:10240'],
+            'truck_inspection_expiry' => ['nullable', 'date'],
+        ];
+
+        try {
+            $validated = $request->validate($rules);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        $driverLicenseFilePath = $request->file('license_file')->store('driver_documents', 'local');
+        $passportFilePath = $request->file('passport_file')->store('driver_documents', 'local');
+        $residencyFilePath = $request->file('residency_file')->store('driver_documents', 'local');
+        $truckLicenseFilePath = $request->file('truck_license_file')->store('truck_licenses', 'local');
+        $licenseBackFilePath = $request->hasFile('license_back_file')
+            ? $request->file('license_back_file')->store('driver_documents', 'local')
+            : null;
+        $driverPhotoFilePath = $request->hasFile('driver_photo_file')
+            ? $request->file('driver_photo_file')->store('driver_documents', 'local')
+            : null;
+        $truckInsuranceFilePath = $request->hasFile('truck_insurance_file')
+            ? $request->file('truck_insurance_file')->store('truck_insurance', 'local')
+            : null;
+        $truckInspectionFilePath = $request->hasFile('truck_inspection_file')
+            ? $request->file('truck_inspection_file')->store('truck_inspections', 'local')
+            : null;
+
+        $driver = DB::transaction(function () use (
+            $user, $validated,
+            $driverLicenseFilePath, $passportFilePath, $residencyFilePath, $truckLicenseFilePath,
+            $licenseBackFilePath, $driverPhotoFilePath, $truckInsuranceFilePath, $truckInspectionFilePath
+        ) {
+            $driver = Driver::create([
+                'name' => $user->name,
+                'phone' => $validated['phone'],
+                'driver_license' => $validated['driver_license'],
+                'age' => $validated['age'],
+                'nationality' => $validated['nationality'],
+                'status' => 'unavailable',
+                // Self-registered drivers always start out pending — an
+                // admin must review their documents and approve them before
+                // they can be matched with any shipment.
+                'approval_status' => 'pending',
+                'license_expiry' => $validated['license_expiry'],
+                'passport_expiry' => $validated['passport_expiry'],
+                'residency_expiry' => $validated['residency_expiry'],
+                'blood_type' => $validated['blood_type'],
+                'health_conditions' => $validated['health_conditions'] ?? null,
+                'user_id' => $user->id,
+            ]);
+
+            $documents = [
+                ['type' => 'license', 'path' => $driverLicenseFilePath, 'expiry' => $validated['license_expiry']],
+                ['type' => 'passport', 'path' => $passportFilePath, 'expiry' => $validated['passport_expiry']],
+                ['type' => 'residency', 'path' => $residencyFilePath, 'expiry' => $validated['residency_expiry']],
+                ['type' => 'license_back', 'path' => $licenseBackFilePath, 'expiry' => $validated['license_expiry']],
+                ['type' => 'driver_photo', 'path' => $driverPhotoFilePath, 'expiry' => null],
+            ];
+            foreach ($documents as $doc) {
+                if (! $doc['path']) {
+                    continue;
+                }
+                DriverDocument::create([
+                    'driver_id' => $driver->id,
+                    'type' => $doc['type'],
+                    'file_path' => $doc['path'],
+                    'expiry_date' => $doc['expiry'],
+                    'is_current' => true,
+                    'uploaded_by_user_id' => $user->id,
+                ]);
+            }
+
+            foreach (array_unique($validated['destinations']) as $destination) {
+                DriverDestination::create([
+                    'driver_id' => $driver->id,
+                    'destination' => $destination,
+                ]);
+            }
+
+            Truck::create([
+                'truck_number' => $validated['truck_number'],
+                'truck_type' => $validated['truck_type'],
+                'license_file_path' => $truckLicenseFilePath,
+                'license_expiry' => $validated['truck_license_expiry'] ?? null,
+                'permit_type' => $validated['permit_type'] ?? null,
+                'insurance_file_path' => $truckInsuranceFilePath,
+                'insurance_expiry' => $validated['truck_insurance_expiry'] ?? null,
+                'technical_inspection_file_path' => $truckInspectionFilePath,
+                'technical_inspection_expiry' => $validated['truck_inspection_expiry'] ?? null,
+                'default_driver_id' => $driver->id,
+            ]);
+
+            return $driver;
+        });
+
+        // Now — not at verifyOtp() — because this is the first point a real
+        // Driver row (and documents) actually exists for an admin to review.
+        UserController::notifyAdminsOfNewRegistration($user);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registration submitted. An admin will review your application shortly.',
+            'data' => [
+                'driver' => $driver,
+            ],
+        ], 201);
     }
 
     public function index()

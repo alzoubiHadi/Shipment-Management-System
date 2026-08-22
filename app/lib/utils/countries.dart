@@ -192,3 +192,48 @@ bool isValidLocalPhoneNumber(String value) {
   final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
   return digitsOnly.length >= 6 && digitsOnly.length <= 12 && digitsOnly == value.trim();
 }
+
+/// The country the country-code picker defaults to whenever there's no
+/// better signal (a fresh registration form, or an existing phone number
+/// that doesn't parse) — UAE, since that's this platform's home market.
+CountryInfo get defaultPhoneCountry => kCountries.firstWhere((c) => c.iso2 == 'AE');
+
+/// 2026-08-28 (registration/phone-edit consistency fix): every screen that
+/// collects a phone number now splits it into a country-code picker + a
+/// plain national-number field instead of one free-text box, so the value
+/// actually sent to the backend is always a clean, unambiguous
+/// "+<dialCode><digits>" string — this is what combines those two parts at
+/// submit time. Strips anything that isn't a digit out of the typed
+/// national number first (spaces, dashes, a stray leading 0, etc. are all
+/// dropped) so two people typing the same number differently still store
+/// identically.
+String combinePhoneNumber(CountryInfo country, String nationalNumber) {
+  final digits = nationalNumber.replaceAll(RegExp(r'[^0-9]'), '');
+  return '+${country.dialCode}$digits';
+}
+
+/// The reverse of [combinePhoneNumber] — splits an already-stored full
+/// phone string (e.g. "+971501234567", however it happened to get saved
+/// under an older, single-field version of a form) back into a country +
+/// national-number pair so an edit screen can pre-fill both parts of the
+/// split field correctly. Matches the LONGEST known dial code first
+/// (essential: '1' would otherwise wrongly match before '971' does, since
+/// "971..." also starts with digit sequences that happen to overlap
+/// shorter codes). Falls back to [defaultPhoneCountry] with every digit of
+/// the stored value treated as the national number when nothing matches
+/// (e.g. a legacy value saved before any country-code concept existed, or
+/// one missing its leading '+') — never throws, never returns something
+/// that can't be re-combined.
+(CountryInfo, String) splitPhoneNumber(String? stored) {
+  final raw = (stored ?? '').trim();
+  if (raw.startsWith('+')) {
+    final digits = raw.substring(1);
+    final byLongestCode = [...kCountries]..sort((a, b) => b.dialCode.length.compareTo(a.dialCode.length));
+    for (final c in byLongestCode) {
+      if (digits.startsWith(c.dialCode)) {
+        return (c, digits.substring(c.dialCode.length));
+      }
+    }
+  }
+  return (defaultPhoneCountry, raw.replaceAll(RegExp(r'[^0-9]'), ''));
+}

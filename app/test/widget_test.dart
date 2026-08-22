@@ -1,30 +1,30 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// 2026-08-29: this used to be the untouched `flutter create` counter-app
+// template test — it asserted a "0"/"1" counter and a '+' FAB that this app
+// never had (MyApp has always been the real FMS app, never the demo
+// counter), so it failed unconditionally and told nobody anything useful.
+// Replaced with a minimal real smoke test: the app must at least build and
+// render its MaterialApp without throwing. Deliberately a single pump()
+// rather than pumpAndSettle() — SplashPage kicks off a real network call
+// (session check) in initState(), and pumpAndSettle() would sit there
+// waiting for that timer/timeout to resolve, making the test slow or flaky
+// with no network available in CI.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:app/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('App builds and renders without throwing', (WidgetTester tester) async {
+    // SplashPage reads SharedPreferences on initState() — without this,
+    // the plugin has no mock platform channel registered in a pure widget
+    // test and would throw before the widget tree even settles.
+    SharedPreferences.setMockInitialValues({});
+
     await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byType(MaterialApp), findsOneWidget);
   });
 }

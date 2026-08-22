@@ -14,6 +14,66 @@ use Illuminate\Validation\ValidationException;
 class CompanyController extends Controller
 {
     /**
+     * 2026-08-29: second half of company self-registration — UserController
+     * ::register() now creates ONLY the User row + sends OTP; once that OTP
+     * is verified (so the caller has a real Sanctum token), the app calls
+     * this to submit the rest: phone, address, and the trade license file.
+     * Moved here (rather than kept in register()) so OTP can happen right
+     * after account creation instead of at the end of the form — see
+     * UserController::register()'s docblock for the full rationale.
+     */
+    public function completeRegistration(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->type !== 'company') {
+            return response()->json(['success' => false, 'message' => 'This account is not a company account.'], 403);
+        }
+
+        if (Company::where('user_id', $user->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Registration already completed.'], 409);
+        }
+
+        try {
+            $validated = $request->validate([
+                'phone' => ['required', 'string', 'max:20'],
+                'address' => ['nullable', 'string', 'max:255'],
+                'license_file' => ['required', 'file', 'max:10240'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        $licenseFilePath = $request->file('license_file')->store('company_licenses', 'local');
+
+        $company = Company::create([
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $validated['phone'],
+            'address' => $validated['address'] ?? null,
+            'approval_status' => 'pending',
+            'license_file_path' => $licenseFilePath,
+            'user_id' => $user->id,
+        ]);
+
+        // Now — not at verifyOtp() — because this is the first point a real
+        // Company row actually exists for an admin to review.
+        UserController::notifyAdminsOfNewRegistration($user);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registration submitted. An admin will review your application shortly.',
+            'data' => [
+                'company' => $company,
+            ],
+        ], 201);
+    }
+
+    /**
      * Company app: its own record, including balance/credit_limit — used
      * by the Flutter balance page. No separate "my company" data existed
      * anywhere else (the company's own token never exposes company.id

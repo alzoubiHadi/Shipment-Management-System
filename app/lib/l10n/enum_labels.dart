@@ -8,12 +8,12 @@ import 'locale_controller.dart';
 /// ('internal_uae', ...) to an English label and sends the key.
 ///
 /// These maps only ever affect what's *shown* in the picker sheets and the
-/// selected-value display; DriverRegisterScreen.dart still stores and
-/// submits the original English constant from
+/// selected-value display; CompleteDriverRegistrationScreen.dart still
+/// stores and submits the original English constant from
 /// kDriverTruckTypes/kHealthConditionOptions to
-/// ApiService.registerDriver() untouched — translating what gets sent
-/// would be a schema/business-logic change, out of scope here (see the
-/// task's "do not change" list).
+/// ApiService.completeDriverRegistration() untouched — translating what
+/// gets sent would be a schema/business-logic change, out of scope here
+/// (see the task's "do not change" list).
 const Map<String, String> kTruckTypeLabelsAr = {
   '3 Ton pick up': 'بيك أب 3 طن',
   '7 Ton pick up': 'بيك أب 7 طن',

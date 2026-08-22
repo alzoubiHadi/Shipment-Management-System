@@ -249,7 +249,12 @@ class _ApprovalsPageState extends State<ApprovalsPage> {
                       builder: (context, snap) {
                         final count = (snap.data ?? const []).where((r) => r.status == 'pending').length;
                         return _SectionTabButton(
-                          label: 'New\nRegistrations',
+                          // 2026-08-28: shortened from "New\nRegistrations"
+                          // per user request — kept the trailing newline
+                          // (renders as a blank second line) so this chip
+                          // stays the same height as its two-line neighbors
+                          // ("Document\nRenewals" etc.) in the row.
+                          label: 'New\n',
                           count: count,
                           active: _section == ApprovalSection.registrations,
                           onTap: () => setState(() => _section = ApprovalSection.registrations),

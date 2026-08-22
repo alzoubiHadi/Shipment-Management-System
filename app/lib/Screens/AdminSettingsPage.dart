@@ -45,7 +45,11 @@ class AdminSettingsPage extends StatelessWidget {
   final AppUser user;
   const AdminSettingsPage({super.key, required this.user});
 
-  bool get _isSuperAdmin => user.role.toLowerCase() == 'super_admin';
+  // 2026-08-29: see AdminDrawer's matching fix — routed through the
+  // centralized AppUser.isSuperAdmin getter so the legacy 'admin' account
+  // (which the backend already treats as Super Admin) isn't silently
+  // missing Admin Accounts / Platform Settings / the recycle bins.
+  bool get _isSuperAdmin => user.isSuperAdmin;
   bool get _canFinance => user.hasPermission('finance');
 
   @override

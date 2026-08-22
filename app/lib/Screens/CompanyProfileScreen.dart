@@ -5,6 +5,7 @@ import '../API/ProfileService.dart';
 import '../API/config.dart';
 import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
+import '../utils/countries.dart';
 import '../utils/logout_helper.dart';
 import '../widgets/LanguageSwitcherSheet.dart';
 import 'CompanyBalancePage.dart';
@@ -49,30 +50,44 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   Future<void> _editProfile(Map<String, dynamic> current) async {
     final t = AppLocalizations.of(context)!;
     final nameCtrl = TextEditingController(text: current['name']?.toString() ?? '');
-    final phoneCtrl = TextEditingController(text: current['phone']?.toString() ?? '');
+    // 2026-08-28: phone field split into country-code picker + national
+    // number, same as registration — splitPhoneNumber() parses whatever's
+    // already stored (e.g. "+971501234567") back into that pair so the
+    // dialog pre-fills correctly. Needs a StatefulBuilder since the country
+    // picker's selection lives inside a one-shot showDialog builder, which
+    // isn't itself a State that can setState().
+    final (initialCountry, initialNational) = splitPhoneNumber(current['phone']?.toString());
+    final phoneCtrl = TextEditingController(text: initialNational);
+    var phoneCountry = initialCountry;
 
     final save = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: LightColors.surface,
-        title: Text(t.editCompanyInfoTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            buildLightTextField(controller: nameCtrl, label: t.companyNameLabel),
-            const SizedBox(height: 12),
-            buildLightTextField(controller: phoneCtrl, label: t.phoneLabel, keyboardType: TextInputType.phone),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: LightColors.surface,
+          title: Text(t.editCompanyInfoTitle, style: const TextStyle(color: LightColors.textPrimary, fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              buildLightTextField(controller: nameCtrl, label: t.companyNameLabel),
+              const SizedBox(height: 12),
+              PhoneNumberField(
+                country: phoneCountry,
+                onCountryChanged: (c) => setDialogState(() => phoneCountry = c),
+                numberController: phoneCtrl,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel, style: const TextStyle(color: LightColors.textSecondary))),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.commonSave, style: const TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel, style: const TextStyle(color: LightColors.textSecondary))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.commonSave, style: const TextStyle(color: LightColors.goldMuted, fontWeight: FontWeight.w700))),
-        ],
       ),
     );
     if (save != true) return;
 
-    final result = await _service.updateBasic(name: nameCtrl.text.trim(), phone: phoneCtrl.text.trim());
+    final result = await _service.updateBasic(name: nameCtrl.text.trim(), phone: combinePhoneNumber(phoneCountry, phoneCtrl.text.trim()));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(result['message']?.toString() ?? ''), backgroundColor: result['success'] == true ? LightColors.success : LightColors.error),

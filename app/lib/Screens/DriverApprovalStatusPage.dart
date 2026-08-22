@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../API/AuthResponse.dart';
 import '../API/config.dart';
 import '../main.dart';
 import 'ChangesRequiredEditScreen.dart';
@@ -48,6 +49,10 @@ class _DriverApprovalStatusPageState extends State<DriverApprovalStatusPage> {
   bool get _isChangesRequired => widget.approvalStatus == 'changes_required';
 
   Future<void> _logout() async {
+    // 2026-08-29 (audit item 9): revoke the token server-side too, not just
+    // locally — silent on failure by design, see ApiService.logout().
+    await ApiService.logout();
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 

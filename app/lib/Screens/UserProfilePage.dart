@@ -39,7 +39,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   bool get _isDriver => widget.user.role.toLowerCase() == 'driver';
   bool get _isCompany => widget.user.role.toLowerCase() == 'company';
-  bool get _isSuperAdmin => widget.user.role.toLowerCase() == 'super_admin' || widget.user.role.toLowerCase() == 'admin';
+  // 2026-08-29: routed through the centralized AppUser.isSuperAdmin getter
+  // (was already correctly checking both roles here, just duplicated
+  // locally — see AdminDrawer/AdminSettingsPage for the two places that
+  // weren't).
+  bool get _isSuperAdmin => widget.user.isSuperAdmin;
   bool get _isSubAdmin => widget.user.role.toLowerCase() == 'sub_admin';
   bool get _isAdmin => _isSuperAdmin || _isSubAdmin;
 

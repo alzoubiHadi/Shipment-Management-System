@@ -71,6 +71,10 @@ class _ChangesRequiredEditScreenState extends State<ChangesRequiredEditScreen> {
   // Company fields
   final _companyNameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  // 2026-08-28: split into country-code + national number, same as
+  // registration/every other phone-edit screen — see splitPhoneNumber()
+  // in _load() and combinePhoneNumber() in _saveCompanyInfo().
+  CountryInfo _phoneCountry = defaultPhoneCountry;
   final _addressCtrl = TextEditingController();
   PlatformFile? _companyLicenseFile;
   DateTime? _companyLicenseExpiry;
@@ -118,7 +122,9 @@ class _ChangesRequiredEditScreenState extends State<ChangesRequiredEditScreen> {
 
       if (_isCompany) {
         _companyNameCtrl.text = (profile['name'] ?? '').toString();
-        _phoneCtrl.text = (profile['phone'] ?? '').toString();
+        final (phoneCountry, phoneNational) = splitPhoneNumber(profile['phone']?.toString());
+        _phoneCountry = phoneCountry;
+        _phoneCtrl.text = phoneNational;
         _addressCtrl.text = (profile['address'] ?? '').toString();
       } else {
         final nationalityName = profile['nationality']?.toString();
@@ -327,7 +333,7 @@ class _ChangesRequiredEditScreenState extends State<ChangesRequiredEditScreen> {
     setState(() => _savingCompanyInfo = true);
     final fields = <String, dynamic>{
       if (_companyNameCtrl.text.trim().isNotEmpty) 'name': _companyNameCtrl.text.trim(),
-      'phone': _phoneCtrl.text.trim(),
+      'phone': combinePhoneNumber(_phoneCountry, _phoneCtrl.text.trim()),
       'address': _addressCtrl.text.trim(),
     };
     final result = await _service.updateCompanyInfo(fields);
@@ -630,7 +636,11 @@ class _ChangesRequiredEditScreenState extends State<ChangesRequiredEditScreen> {
       const SizedBox(height: 12),
       buildLightTextField(controller: _companyNameCtrl, label: 'Company Name'),
       const SizedBox(height: 14),
-      buildLightTextField(controller: _phoneCtrl, label: 'Phone Number', keyboardType: TextInputType.phone),
+      PhoneNumberField(
+        country: _phoneCountry,
+        onCountryChanged: (c) => setState(() => _phoneCountry = c),
+        numberController: _phoneCtrl,
+      ),
       const SizedBox(height: 14),
       buildLightTextField(controller: _addressCtrl, label: 'Company Address', maxLines: 3),
       const SizedBox(height: 14),

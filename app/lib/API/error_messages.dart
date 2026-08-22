@@ -89,11 +89,23 @@ String apiErrorMessage(
   // Session/token problems are handled the same way almost everywhere:
   // the backend's own text here is either a framework default
   // ("Unauthenticated.") or not something a user should have to parse.
-  // Login is the one exception — there, 401 means "wrong email/password",
-  // not "your session expired".
+  // A few contexts get their own wording instead of the generic "session
+  // expired" sentence, because that sentence is nonsensical for them —
+  // there is no session yet to have expired:
+  //  - login: 401 there means "wrong email/password".
+  //  - register/otp (2026-08-28 fix): register(), verifyOtp(), resendOtp()
+  //    all run before any token exists, so a stray 401 from one of them
+  //    (rate limiting edge case, a proxy/gateway auth layer, etc.) used to
+  //    incorrectly tell a brand-new signup "your session has expired",
+  //    which confused users who had never had a session in the first
+  //    place. Every other (authenticated) context keeps the real
+  //    session-expired wording, which is correct there.
   if (statusCode == 401) {
     if (context == 'login') {
       return ar ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.' : 'Incorrect email or password. Please try again.';
+    }
+    if (context == 'register' || context == 'otp') {
+      return ar ? 'تعذر إتمام طلبك. يرجى المحاولة مرة أخرى.' : 'We could not complete your request. Please try again.';
     }
     return ar ? 'انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.' : 'Your session has expired. Please log in again.';
   }

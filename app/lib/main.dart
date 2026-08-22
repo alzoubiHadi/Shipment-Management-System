@@ -131,6 +131,21 @@ class _SplashPageState extends State<SplashPage> {
       return;
     }
 
+    // 2026-08-29 (audit item 7): Remember Me used to be a checkbox nobody
+    // read — session persistence was unconditional regardless of it. This
+    // is the other half of honoring it: if the user explicitly unchecked
+    // it at login, the session must not survive an actual app close +
+    // reopen (this method only runs on a fresh process start, i.e. a real
+    // close, not just backgrounding — the isolate stays alive for that).
+    // Defaults to true so every non-login flow (registration/OTP, which
+    // never sets this key at all) keeps today's always-persisted behavior.
+    final rememberMe = prefs.getBool('remember_me') ?? true;
+    if (!rememberMe) {
+      await prefs.clear();
+      _showWelcomeUi();
+      return;
+    }
+
     if (mounted) setState(() => _sessionCheckFailed = false);
 
     try {

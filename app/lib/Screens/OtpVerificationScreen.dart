@@ -8,6 +8,8 @@ import '../API/AuthResponse.dart';
 import '../API/config.dart';
 import '../l10n/app_localizations.dart';
 import '../models/Appuser.dart';
+import 'CompleteCompanyRegistrationScreen.dart';
+import 'CompleteDriverRegistrationScreen.dart';
 import 'DriverApprovalStatusPage.dart';
 import 'HomeScreen.dart';
 
@@ -80,6 +82,29 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       prefs.setBool('loggedIn', true);
 
       if (!mounted) return;
+
+      // 2026-08-29: right after OTP, a driver/company might not have
+      // submitted their profile yet at all — registrationComplete is false
+      // in that case (no Driver/Company row exists server-side yet), and
+      // this must route into that screen BEFORE the approval-status check
+      // below, since approval_status doesn't even apply until that row
+      // exists.
+      if (response.role == 'driver' && !response.registrationComplete) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const CompleteDriverRegistrationScreen()),
+          (route) => false,
+        );
+        return;
+      }
+      if (response.role == 'company' && !response.registrationComplete) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const CompleteCompanyRegistrationScreen()),
+          (route) => false,
+        );
+        return;
+      }
 
       final isUnapprovedDriver =
           response.role == 'driver' && response.driverApprovalStatus != 'approved';

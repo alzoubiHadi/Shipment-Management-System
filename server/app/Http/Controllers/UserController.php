@@ -4,15 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Driver;
-use App\Models\DriverDestination;
-use App\Models\DriverDocument;
-use App\Models\Truck;
 use App\Models\User;
 use App\Notifications\AppPushNotification;
 use App\Notifications\OtpCodeNotification;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -32,15 +28,22 @@ class UserController extends Controller
      * operator who owns their own truck(s); there is no platform-owning
      * company, so no "internal fleet" distinction exists.
      *
-     * This does NOT log the user in yet: the account is created with
-     * email_verified_at = null and a fresh OTP is sent (UC-4). The account
-     * only becomes usable after verifyOtp() succeeds, and even then it
-     * still needs Super Admin final approval (approval_status stays
-     * 'pending' — see DriverController/CompanyController::approve()).
+     * 2026-08-29 (real backend split, not a Flutter-only workaround): this
+     * now creates ONLY the User row and sends the OTP. It used to also
+     * create Driver/Company + documents + Truck in the same transaction,
+     * which meant OTP verification could only happen at the very end of a
+     * long multi-step form. The driver/company profile (documents, truck,
+     * license, etc.) is now submitted separately, AFTER OTP success, via
+     * DriverController::completeRegistration() / CompanyController::
+     * completeRegistration() — both authenticated endpoints, since by then
+     * the user already has a token. See those two methods for the rest of
+     * what register() used to do.
      *
-     * For drivers, the truck is collected in the same form: one submission,
-     * two sections — driver info then truck info. TruckController::addMyTruck
-     * remains available for adding further or replacement trucks later.
+     * This does NOT log the user in: the account is created with
+     * email_verified_at = null and a fresh OTP is sent (UC-4). The account
+     * only becomes usable after verifyOtp() succeeds, and even then a
+     * driver/company still needs to complete their profile (see above) and
+     * then get Super Admin final approval.
      */
     public function register(Request $request)
     {
@@ -64,62 +67,17 @@ class UserController extends Controller
             $request->merge(['email' => User::normalizeEmail($request->input('email'))]);
         }
 
+        // 2026-08-29 (audit item 2): email uniqueness is deliberately NOT a
+        // validate() rule anymore — it's checked manually right below, so an
+        // abandoned unverified signup (registered, OTP sent, app closed
+        // before entering it) can be resumed instead of permanently
+        // blocking that email address with an unconditional "already
+        // taken" error and no way forward.
         $rules = [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:255'],
             'password' => ['required', 'confirmed', PasswordPolicy::rules()],
-            'phone' => ['nullable', 'string', 'max:20'],
         ];
-
-        if ($type === 'driver') {
-            $rules['phone'] = ['required', 'string', 'max:20'];
-            $rules['driver_license'] = ['required', 'string', 'unique:drivers,driver_license'];
-            $rules['age'] = ['required', 'integer', 'min:18', 'max:65'];
-            $rules['nationality'] = ['required', 'string', 'max:100'];
-
-            // Driver documents — all three collected up front at sign-up,
-            // rather than deferred to UC-8.
-            $rules['license_file'] = ['required', 'file', 'max:10240'];
-            $rules['license_expiry'] = ['required', 'date'];
-            $rules['passport_file'] = ['required', 'file', 'max:10240'];
-            $rules['passport_expiry'] = ['required', 'date'];
-            $rules['residency_file'] = ['required', 'file', 'max:10240'];
-            $rules['residency_expiry'] = ['required', 'date'];
-            // License back side and a driver photo, both optional so older
-            // app builds that don't send them still work.
-            $rules['license_back_file'] = ['nullable', 'file', 'max:10240'];
-            $rules['driver_photo_file'] = ['nullable', 'file', 'max:10240'];
-
-            $rules['blood_type'] = ['required', 'string', 'in:A+,A-,B+,B-,O+,O-,AB+,AB-'];
-            $rules['health_conditions'] = ['nullable', 'string', 'max:1000'];
-
-            $rules['destinations'] = ['required', 'array', 'min:1'];
-            $rules['destinations.*'] = ['string', 'in:' . implode(',', array_keys(DriverDestination::DESTINATIONS))];
-
-            // Truck (section 2 of the sign-up form).
-            $rules['truck_number'] = ['required', 'string', 'unique:trucks,truck_number'];
-            $rules['truck_type'] = ['required', 'string', 'in:' . implode(',', Truck::TRUCK_TYPES)];
-            $rules['truck_license_file'] = ['required', 'file', 'max:10240'];
-            $rules['truck_license_expiry'] = ['nullable', 'date'];
-            $rules['permit_type'] = ['nullable', 'string', 'max:255'];
-            // Insurance + technical inspection, both optional at
-            // registration (can still be added later via the driver's own
-            // truck-edit path).
-            $rules['truck_insurance_file'] = ['nullable', 'file', 'max:10240'];
-            $rules['truck_insurance_expiry'] = ['nullable', 'date'];
-            $rules['truck_inspection_file'] = ['nullable', 'file', 'max:10240'];
-            $rules['truck_inspection_expiry'] = ['nullable', 'date'];
-        }
-
-        if ($type === 'company') {
-            $rules['address'] = ['nullable', 'string', 'max:255'];
-            // Trade/commercial license file, required at self-registration
-            // time — mirrors the truck license upload pattern (single file,
-            // stored directly on the record) rather than the versioned
-            // driver_documents table, since a company only ever has one
-            // current license on file.
-            $rules['license_file'] = ['required', 'file', 'max:10240'];
-        }
 
         try {
             $validated = $request->validate($rules);
@@ -128,57 +86,42 @@ class UserController extends Controller
                 'success' => false,
                 'message' => 'Validation failed.',
                 'errors' => $e->errors(),
-            ], 401);
+            ], 422);
         }
 
-        $licenseFilePath = null;
-        $driverLicenseFilePath = null;
-        $passportFilePath = null;
-        $residencyFilePath = null;
-        $truckLicenseFilePath = null;
-        $licenseBackFilePath = null;
-        $driverPhotoFilePath = null;
-        $truckInsuranceFilePath = null;
-        $truckInspectionFilePath = null;
+        $existing = User::where('email', $validated['email'])->first();
 
-        if ($type === 'company' && $request->hasFile('license_file')) {
-            $licenseFilePath = $request->file('license_file')->store('company_licenses', 'local');
-        }
-
-        if ($type === 'driver') {
-            if ($request->hasFile('license_file')) {
-                $driverLicenseFilePath = $request->file('license_file')->store('driver_documents', 'local');
-            }
-            if ($request->hasFile('passport_file')) {
-                $passportFilePath = $request->file('passport_file')->store('driver_documents', 'local');
-            }
-            if ($request->hasFile('residency_file')) {
-                $residencyFilePath = $request->file('residency_file')->store('driver_documents', 'local');
-            }
-            if ($request->hasFile('license_back_file')) {
-                $licenseBackFilePath = $request->file('license_back_file')->store('driver_documents', 'local');
-            }
-            if ($request->hasFile('driver_photo_file')) {
-                $driverPhotoFilePath = $request->file('driver_photo_file')->store('driver_documents', 'local');
-            }
-            if ($request->hasFile('truck_license_file')) {
-                $truckLicenseFilePath = $request->file('truck_license_file')->store('truck_licenses', 'local');
-            }
-            if ($request->hasFile('truck_insurance_file')) {
-                $truckInsuranceFilePath = $request->file('truck_insurance_file')->store('truck_insurance', 'local');
-            }
-            if ($request->hasFile('truck_inspection_file')) {
-                $truckInspectionFilePath = $request->file('truck_inspection_file')->store('truck_inspections', 'local');
-            }
+        if ($existing && $existing->email_verified_at) {
+            // A real, already-verified account owns this email — this is a
+            // genuine duplicate, same wording 'unique:users,email' used to
+            // produce, kept as a validation-shaped error so the Flutter
+            // side's existing per-field error rendering still applies.
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => ['email' => ['The email has already been taken.']],
+            ], 422);
         }
 
         $otp = $this->generateOtp();
 
-        [$user, $driver, $company] = DB::transaction(function () use (
-            $validated, $type, $otp, $licenseFilePath,
-            $driverLicenseFilePath, $passportFilePath, $residencyFilePath, $truckLicenseFilePath,
-            $licenseBackFilePath, $driverPhotoFilePath, $truckInsuranceFilePath, $truckInspectionFilePath
-        ) {
+        if ($existing) {
+            // Unverified leftover from an abandoned signup — reuse the row
+            // instead of failing uniqueness: update it to the freshly
+            // submitted name/type/password and send a new OTP. Anything
+            // that depended on the OLD name/password (nothing does yet,
+            // since no Driver/Company row exists until completeRegistration)
+            // is safely overwritten.
+            $existing->update([
+                'name' => $validated['name'],
+                'type' => $type,
+                'password' => Hash::make($validated['password']),
+                'otp_code' => $otp,
+                'otp_expires_at' => now()->addMinutes(10),
+                'otp_attempts' => 0,
+            ]);
+            $user = $existing;
+        } else {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
@@ -188,95 +131,7 @@ class UserController extends Controller
                 'otp_expires_at' => now()->addMinutes(10),
                 'otp_attempts' => 0,
             ]);
-
-            $driver = null;
-            $company = null;
-
-            if ($type === 'driver') {
-                $driver = Driver::create([
-                    'name' => $validated['name'],
-                    'phone' => $validated['phone'],
-                    'driver_license' => $validated['driver_license'],
-                    'age' => $validated['age'],
-                    'nationality' => $validated['nationality'],
-                    'status' => 'unavailable',
-                    // Self-registered drivers always start out pending — an
-                    // admin must review their documents and approve them
-                    // before they can be matched with any shipment. Drivers
-                    // created directly by an admin (DriverController::create)
-                    // default to 'approved' instead, since the admin is
-                    // already vouching for them at creation time.
-                    'approval_status' => 'pending',
-                    'license_expiry' => $validated['license_expiry'],
-                    'passport_expiry' => $validated['passport_expiry'],
-                    'residency_expiry' => $validated['residency_expiry'],
-                    'blood_type' => $validated['blood_type'],
-                    'health_conditions' => $validated['health_conditions'] ?? null,
-                    'user_id' => $user->id,
-                ]);
-
-                // Append-only document history (UC-8) — seeded from the
-                // three files uploaded at sign-up itself, so the driver's
-                // "My Documents" screen already shows them as on file, and
-                // the admin's document-issue check has something to review.
-                $documents = [
-                    ['type' => 'license', 'path' => $driverLicenseFilePath, 'expiry' => $validated['license_expiry']],
-                    ['type' => 'passport', 'path' => $passportFilePath, 'expiry' => $validated['passport_expiry']],
-                    ['type' => 'residency', 'path' => $residencyFilePath, 'expiry' => $validated['residency_expiry']],
-                    // Optional — new-registration-design batch. No separate
-                    // expiry field: the back side shares the front's expiry.
-                    ['type' => 'license_back', 'path' => $licenseBackFilePath, 'expiry' => $validated['license_expiry']],
-                    ['type' => 'driver_photo', 'path' => $driverPhotoFilePath, 'expiry' => null],
-                ];
-                foreach ($documents as $doc) {
-                    if (! $doc['path']) {
-                        continue;
-                    }
-                    DriverDocument::create([
-                        'driver_id' => $driver->id,
-                        'type' => $doc['type'],
-                        'file_path' => $doc['path'],
-                        'expiry_date' => $doc['expiry'],
-                        'is_current' => true,
-                        'uploaded_by_user_id' => $user->id,
-                    ]);
-                }
-
-                foreach (array_unique($validated['destinations']) as $destination) {
-                    DriverDestination::create([
-                        'driver_id' => $driver->id,
-                        'destination' => $destination,
-                    ]);
-                }
-
-                Truck::create([
-                    'truck_number' => $validated['truck_number'],
-                    'truck_type' => $validated['truck_type'],
-                    'license_file_path' => $truckLicenseFilePath,
-                    'license_expiry' => $validated['truck_license_expiry'] ?? null,
-                    'permit_type' => $validated['permit_type'] ?? null,
-                    'insurance_file_path' => $truckInsuranceFilePath,
-                    'insurance_expiry' => $validated['truck_insurance_expiry'] ?? null,
-                    'technical_inspection_file_path' => $truckInspectionFilePath,
-                    'technical_inspection_expiry' => $validated['truck_inspection_expiry'] ?? null,
-                    'default_driver_id' => $driver->id,
-                ]);
-            }
-
-            if ($type === 'company') {
-                $company = Company::create([
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                    'phone' => $validated['phone'] ?? null,
-                    'address' => $validated['address'] ?? null,
-                    'approval_status' => 'pending',
-                    'license_file_path' => $licenseFilePath,
-                    'user_id' => $user->id,
-                ]);
-            }
-
-            return [$user, $driver, $company];
-        });
+        }
 
         $user->notify(new OtpCodeNotification($otp));
 
@@ -351,16 +206,28 @@ class UserController extends Controller
             'otp_attempts' => 0,
         ]);
 
-        // Only now — not at register() — because the account row already
-        // existed as 'pending' before email verification, but notifying
-        // admins about it then would mean alerting them about signups that
-        // might never even finish this step. A verified email means a real
-        // person is actually waiting on a decision.
-        if (in_array($user->type, ['driver', 'company'], true)) {
-            $this->notifyAdminsOfNewRegistration($user);
-        }
+        // 2026-08-29: the "notify admins" moment moved to DriverController::
+        // completeRegistration() / CompanyController::completeRegistration()
+        // — at THIS point (right after email verification) a driver/company
+        // no longer has a Driver/Company row at all yet (register() only
+        // creates the User row now), so there's nothing yet for an admin to
+        // review. Notifying here would be alerting them about an empty
+        // shell that might never even finish the profile step.
 
         $token = $user->createToken('api-token')->plainTextToken;
+
+        // The app needs to know, right after OTP success, whether a
+        // driver/company still has to fill in their profile (documents,
+        // truck/license, etc.) before it's safe to show them the normal
+        // approval-status/home screens — see DriverController::
+        // completeRegistration() / CompanyController::completeRegistration().
+        // Always true for non driver/company roles (admin/sub_admin), which
+        // never have a separate profile step.
+        $registrationComplete = match ($user->type) {
+            'driver' => Driver::where('user_id', $user->id)->exists(),
+            'company' => Company::where('user_id', $user->id)->exists(),
+            default => true,
+        };
 
         return response()->json([
             'success' => true,
@@ -374,6 +241,7 @@ class UserController extends Controller
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer',
+                'registration_complete' => $registrationComplete,
             ],
         ], 200);
     }
@@ -457,6 +325,16 @@ class UserController extends Controller
             ? Company::where('user_id', $user->id)->first()
             : null;
 
+        // Same signal as verifyOtp() — a driver/company can close the app
+        // between OTP success and finishing their profile, then come back
+        // later via a normal login; this is what routes them back into the
+        // profile-completion screen instead of a broken/empty home screen.
+        $registrationComplete = match ($user->type) {
+            'driver' => $driver !== null,
+            'company' => $company !== null,
+            default => true,
+        };
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful.',
@@ -478,10 +356,27 @@ class UserController extends Controller
                 ],
                 'access_token' => $token,
                 'token_type' => 'Bearer',
+                'registration_complete' => $registrationComplete,
             ],
             'driver' => $driver,
             'company' => $company,
         ], 200);
+    }
+
+    /**
+     * 2026-08-29 (audit item 9): revokes the Sanctum token this request was
+     * authenticated with, so it can no longer be used after this call —
+     * previously there was no server-side logout at all; Flutter only
+     * cleared its own local SharedPreferences, leaving the token live
+     * indefinitely. Only deletes THIS token (not every token the account
+     * has), so logging out on one device doesn't affect a session on
+     * another.
+     */
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['success' => true, 'message' => 'Logged out.'], 200);
     }
 
     /**
@@ -531,7 +426,14 @@ class UserController extends Controller
      * account, and every sub-admin regardless of which permission groups
      * they hold.
      */
-    private function notifyAdminsOfNewRegistration(User $user): void
+    /**
+     * 2026-08-29: made public+static (was private instance) so
+     * DriverController::completeRegistration() and CompanyController::
+     * completeRegistration() can call it directly — the "new registration
+     * pending" moment moved from verifyOtp() to those two methods now that
+     * the Driver/Company row itself isn't created until after OTP.
+     */
+    public static function notifyAdminsOfNewRegistration(User $user): void
     {
         $admins = User::whereIn('type', ['super_admin', 'admin', 'sub_admin'])->get();
 

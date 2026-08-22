@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../API/config.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/countries.dart';
 
 // ─── Password Strength (shared by CompanyRegisterScreen & DriverRegisterScreen) ──
 
@@ -367,6 +368,149 @@ class LightErrorBanner extends StatelessWidget {
           Expanded(child: Text(message, style: const TextStyle(fontSize: 13, color: LightColors.error))),
         ],
       ),
+    );
+  }
+}
+
+// ─── Country / phone picking (2026-08-28) ──────────────────────────────────
+// Hoisted out of DriverRegisterScreen's private _pickCountry() so it's a
+// single shared implementation — was duplicated logic risk the moment
+// CompanyRegisterScreen and every phone-edit screen also needed a country
+// picker (nationality AND phone country code both use this same sheet).
+
+/// Searchable country-picker bottom sheet. Used both standalone (e.g. a
+/// nationality field) and internally by [PhoneNumberField]'s country-code
+/// selector below.
+Future<CountryInfo?> pickCountrySheet(BuildContext context, String title) {
+  String query = '';
+  return showModalBottomSheet<CountryInfo>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: LightColors.surface,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (ctx) {
+      return StatefulBuilder(builder: (ctx, setSheetState) {
+        final filtered = kCountries.where((c) => c.name.toLowerCase().contains(query.toLowerCase())).toList();
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom),
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.7,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: const TextStyle(color: LightColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      TextField(
+                        autofocus: true,
+                        style: const TextStyle(color: LightColors.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: AppLocalizations.of(context)!.searchCountryHint,
+                          hintStyle: const TextStyle(color: LightColors.textSecondary),
+                          prefixIcon: const Icon(Icons.search, color: LightColors.textSecondary),
+                          filled: true,
+                          fillColor: LightColors.bg,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                        onChanged: (v) => setSheetState(() => query = v),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, i) {
+                      final c = filtered[i];
+                      return ListTile(
+                        title: Text(c.name, style: const TextStyle(color: LightColors.textPrimary, fontSize: 14)),
+                        trailing: Text('+${c.dialCode}', style: const TextStyle(color: LightColors.textSecondary)),
+                        onTap: () => Navigator.pop(ctx, c),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      });
+    },
+  );
+}
+
+/// Country-code picker + plain national-number field, combined into a full
+/// international "+<dialCode><digits>" string via [combinePhoneNumber] at
+/// submit time (see utils/countries.dart). Every screen that collects or
+/// edits a phone number (both registration wizards, and every post-
+/// registration phone-edit screen) now uses this same widget so the stored
+/// format never differs between "sign up" and "edit my phone" — the
+/// original ask behind this widget's introduction.
+class PhoneNumberField extends StatelessWidget {
+  final CountryInfo country;
+  final ValueChanged<CountryInfo> onCountryChanged;
+  final TextEditingController numberController;
+  final bool hasError;
+
+  const PhoneNumberField({
+    super.key,
+    required this.country,
+    required this.onCountryChanged,
+    required this.numberController,
+    this.hasError = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 108,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.codeLabel, style: const TextStyle(color: LightColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: () async {
+                  final picked = await pickCountrySheet(context, t.phoneCountryTitle);
+                  if (picked != null) onCountryChanged(picked);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                  decoration: BoxDecoration(
+                    color: LightColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: hasError ? LightColors.error : LightColors.border),
+                  ),
+                  child: Text(
+                    '+${country.dialCode} ${country.iso2}',
+                    style: const TextStyle(color: LightColors.textPrimary, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: buildLightTextField(
+            controller: numberController,
+            label: t.phoneNumberLabel,
+            hint: t.phoneNumberHint,
+            keyboardType: TextInputType.phone,
+            hasError: hasError,
+          ),
+        ),
+      ],
     );
   }
 }

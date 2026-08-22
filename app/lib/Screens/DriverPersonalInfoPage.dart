@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../API/ProfileService.dart';
 import '../API/config.dart';
 import '../models/Appuser.dart';
+import '../utils/countries.dart';
+import 'register_shared.dart';
 
 /// Driver Phase 5 (2026-08-20): "Personal Information" — edits the same
 /// name/phone/email fields ProfileService.updateBasic() already applies
@@ -20,6 +22,13 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _emailCtrl;
+  // 2026-08-28: phone editing now uses the same country-code-picker +
+  // national-number split as registration (PhoneNumberField) — was a
+  // single free-text field, which meant a phone saved through this screen
+  // could end up in a different shape than one saved at sign-up.
+  // splitPhoneNumber() below parses whatever's already stored back into
+  // this pair so the field pre-fills correctly either way.
+  CountryInfo _phoneCountry = defaultPhoneCountry;
   bool _saving = false;
   String? _error;
 
@@ -35,7 +44,13 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
   Future<void> _loadPhone() async {
     try {
       final profile = await _service.fetchMyProfile();
-      if (mounted) setState(() => _phoneCtrl.text = profile['phone']?.toString() ?? '');
+      final (country, national) = splitPhoneNumber(profile['phone']?.toString());
+      if (mounted) {
+        setState(() {
+          _phoneCountry = country;
+          _phoneCtrl.text = national;
+        });
+      }
     } catch (_) {
       // Non-fatal — form still works, phone just starts blank.
     }
@@ -61,7 +76,7 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
 
     final result = await _service.updateBasic(
       name: _nameCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim(),
+      phone: combinePhoneNumber(_phoneCountry, _phoneCtrl.text.trim()),
       email: _emailCtrl.text.trim(),
     );
 
@@ -119,11 +134,10 @@ class _DriverPersonalInfoPageState extends State<DriverPersonalInfoPage> {
             ],
             TextFormField(controller: _nameCtrl, style: const TextStyle(color: LightColors.cream), decoration: _decoration('Full name')),
             const SizedBox(height: 14),
-            TextFormField(
-              controller: _phoneCtrl,
-              keyboardType: TextInputType.phone,
-              style: const TextStyle(color: LightColors.cream),
-              decoration: _decoration('Phone'),
+            PhoneNumberField(
+              country: _phoneCountry,
+              onCountryChanged: (c) => setState(() => _phoneCountry = c),
+              numberController: _phoneCtrl,
             ),
             const SizedBox(height: 14),
             TextFormField(
