@@ -1552,7 +1552,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get availabilityBusy => 'مشغول';
 
   @override
-  String get availabilityBusyHint => 'لديك رحلة نشطة حاليًا — ستعود الحالة تلقائيًا بعد انتهائها';
+  String get availabilityBusyHint =>
+      'لديك رحلة نشطة حاليًا — ستعود الحالة تلقائيًا بعد انتهائها';
 
   @override
   String get searchByLocationLoadType => 'ابحث بالموقع أو نوع الحمولة...';
