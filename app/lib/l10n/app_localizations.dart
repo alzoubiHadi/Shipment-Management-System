@@ -2954,6 +2954,36 @@ abstract class AppLocalizations {
   /// **'Could not update status'**
   String get couldNotUpdateStatus;
 
+  /// No description provided for @availabilityCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Work Status'**
+  String get availabilityCardTitle;
+
+  /// No description provided for @availabilityAvailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Available to receive new shipment offers'**
+  String get availabilityAvailableHint;
+
+  /// No description provided for @availabilityUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Not receiving new shipment offers'**
+  String get availabilityUnavailableHint;
+
+  /// No description provided for @availabilityBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Busy'**
+  String get availabilityBusy;
+
+  /// No description provided for @availabilityBusyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You have an active trip — status will return automatically once it ends'**
+  String get availabilityBusyHint;
+
   /// No description provided for @searchByLocationLoadType.
   ///
   /// In en, this message translates to:

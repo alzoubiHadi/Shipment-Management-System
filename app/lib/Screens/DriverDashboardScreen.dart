@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../API/DriverLocationReporter.dart';
+import '../API/DriverService.dart';
 import '../API/NotificationBadge.dart';
 import '../API/NotificationService.dart';
 import '../API/ReportService.dart';
@@ -62,10 +63,20 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   late Future<Map<String, dynamic>> _reportFuture;
   late Future<({List<AppNotification> notifications, int unreadCount})> _notificationsFuture;
 
+  // Availability control, restored to Home per product decision
+  // (2026-08-23): this used to only live as a small AppBar toggle on the
+  // "Available Shipments" page, easy to miss and disconnected from the
+  // rest of the driver's daily status view. Same backend field/endpoint as
+  // that toggle (drivers.status via DriverService.updateMyStatus()) — no
+  // new business logic, just a more visible control for the existing one.
+  String? _availabilityStatus; // null while loading/unknown
+  bool _isUpdatingAvailability = false;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadAvailability();
   }
 
   void _load() {
@@ -78,9 +89,43 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     _notificationsFuture.then((result) => NotificationBadge.set(result.unreadCount)).catchError((_) {});
   }
 
+  Future<void> _loadAvailability() async {
+    try {
+      final status = await DriverService().fetchMyAvailabilityStatus();
+      if (mounted) setState(() => _availabilityStatus = status);
+    } catch (_) {
+      // Non-fatal — the rest of the dashboard still renders; the card
+      // simply stays in its loading state until the next refresh.
+    }
+  }
+
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_shipmentsFuture, _reportFuture, _notificationsFuture]);
+    await Future.wait([_shipmentsFuture, _reportFuture, _notificationsFuture, _loadAvailability()]);
+  }
+
+  /// [makeAvailable] — true switches the driver to 'available' (eligible
+  /// for new matching), false to 'unavailable'. Never called while busy —
+  /// the card hides the switch entirely in that state (see _AvailabilityCard).
+  Future<void> _toggleAvailability(bool makeAvailable) async {
+    final t = AppLocalizations.of(context)!;
+    final previous = _availabilityStatus;
+    setState(() {
+      _isUpdatingAvailability = true;
+      _availabilityStatus = makeAvailable ? 'available' : 'unavailable';
+    });
+
+    final result = await DriverService.updateMyStatus(makeAvailable ? 'available' : 'unavailable');
+
+    if (!mounted) return;
+    setState(() => _isUpdatingAvailability = false);
+
+    if (result['success'] != true) {
+      setState(() => _availabilityStatus = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']?.toString() ?? t.couldNotUpdateStatus), backgroundColor: LightColors.error),
+      );
+    }
   }
 
   String _greeting(AppLocalizations t) {
@@ -138,6 +183,16 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                       ),
                       FmsNotificationBell(iconColor: LightColors.cream, onTap: _openNotifications),
                     ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  child: _AvailabilityCard(
+                    status: _availabilityStatus,
+                    updating: _isUpdatingAvailability,
+                    onChanged: _toggleAvailability,
                   ),
                 ),
               ),
@@ -323,6 +378,92 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Driver-facing control for `drivers.status` ('available' | 'busy' |
+/// 'unavailable') — the operational flag `MatchingService::
+/// eligibleDriversQuery()` actually filters on. Deliberately separate from
+/// `approval_status` (admin workflow) and `compliance_status` (documents/
+/// safety) — this widget only ever touches operational availability.
+///
+/// 'busy' is never offered as something the driver can switch TO or AWAY
+/// FROM here — it's set automatically by the backend when an offer is
+/// accepted (ShipmentOfferController) and cleared back to 'available' when
+/// the trip completes/is cancelled (ShipmentController). While busy, the
+/// switch is replaced with a plain locked indicator so the driver can't
+/// manually declare themselves available mid-trip.
+class _AvailabilityCard extends StatelessWidget {
+  final String? status; // null while loading/unknown
+  final bool updating;
+  final ValueChanged<bool> onChanged;
+
+  const _AvailabilityCard({required this.status, required this.updating, required this.onChanged});
+
+  bool get _isBusy => status == 'busy';
+  bool get _isAvailable => status == 'available';
+
+  Color get _dotColor {
+    if (_isBusy) return LightColors.info;
+    if (_isAvailable) return LightColors.success;
+    return LightColors.muted;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final label = _isBusy ? t.availabilityBusy : (_isAvailable ? t.availabilityAvailable : t.availabilityUnavailable);
+    final hint = _isBusy
+        ? t.availabilityBusyHint
+        : (_isAvailable ? t.availabilityAvailableHint : t.availabilityUnavailableHint);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: LightColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: LightColors.border, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: _dotColor),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(t.availabilityCardTitle, style: const TextStyle(color: LightColors.cream, fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Text(label, style: TextStyle(color: _dotColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(hint, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: LightColors.muted, fontSize: 11)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (_isBusy)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: LightColors.info.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.lock_clock_rounded, color: LightColors.info, size: 18),
+            )
+          else
+            Switch(
+              value: _isAvailable,
+              activeColor: LightColors.gold,
+              onChanged: (status == null || updating) ? null : onChanged,
+            ),
+        ],
       ),
     );
   }

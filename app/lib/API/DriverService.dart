@@ -40,6 +40,23 @@ class DriverService {
       );
     }
   }
+
+  /// Driver Home availability control (2026-08-23): the authoritative
+  /// operational status ('available' | 'busy' | 'unavailable') for the
+  /// CURRENTLY LOGGED-IN driver, so screens that just need "my own status"
+  /// don't have to duplicate DriverOffersPage's fetchDriver()+own-id-filter
+  /// logic. Same underlying /get/drivers call and filter, just factored out
+  /// for reuse. Returns null if the driver record can't be resolved (e.g.
+  /// transient network error) — callers should treat that as "unknown",
+  /// not as any particular status.
+  Future<String?> fetchMyAvailabilityStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('id');
+    final drivers = await fetchDriver();
+    final mine = drivers.where((d) => d.user_id == userId).toList();
+    return mine.isEmpty ? null : mine.first.status;
+  }
+
   Future<List<Driver>> fetchDeletedDriver() async {
     final prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');

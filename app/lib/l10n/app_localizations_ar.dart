@@ -1540,6 +1540,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String get couldNotUpdateStatus => 'تعذّر تحديث الحالة';
 
   @override
+  String get availabilityCardTitle => 'حالة العمل';
+
+  @override
+  String get availabilityAvailableHint => 'متاح لاستقبال شحنات جديدة';
+
+  @override
+  String get availabilityUnavailableHint => 'غير متاح لاستقبال شحنات جديدة';
+
+  @override
+  String get availabilityBusy => 'مشغول';
+
+  @override
+  String get availabilityBusyHint => 'لديك رحلة نشطة حاليًا — ستعود الحالة تلقائيًا بعد انتهائها';
+
+  @override
   String get searchByLocationLoadType => 'ابحث بالموقع أو نوع الحمولة...';
 
   @override

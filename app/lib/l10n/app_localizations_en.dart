@@ -1549,6 +1549,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get couldNotUpdateStatus => 'Could not update status';
 
   @override
+  String get availabilityCardTitle => 'Work Status';
+
+  @override
+  String get availabilityAvailableHint => 'Available to receive new shipment offers';
+
+  @override
+  String get availabilityUnavailableHint => 'Not receiving new shipment offers';
+
+  @override
+  String get availabilityBusy => 'Busy';
+
+  @override
+  String get availabilityBusyHint => 'You have an active trip — status will return automatically once it ends';
+
+  @override
   String get searchByLocationLoadType => 'Search by location, load type...';
 
   @override
