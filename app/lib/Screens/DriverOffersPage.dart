@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/DriverService.dart';
 import '../API/ShipmentOfferService.dart';
@@ -100,12 +99,17 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
 
   Future<void> _loadMyStatus() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('id');
-      final drivers = await _driverService.fetchDriver();
-      final me = drivers.where((d) => d.user_id == userId).toList();
-      if (!mounted || me.isEmpty) return;
-      setState(() => _isAvailable = me.first.status == 'available');
+      // Bug fix (2026-08-23 follow-up): this used to call
+      // _driverService.fetchDriver() -> GET /get/drivers, which is
+      // `permission:crm`-gated (admin/CRM staff only) and 403s for a real
+      // driver account — silently, since the catch below swallowed it —
+      // so _isAvailable stayed null and this Switch never even rendered
+      // for an actual driver. fetchMyAvailabilityStatus() now reads the
+      // same field off GET /me/profile instead, which every driver role
+      // can call for their own record. See DriverService.dart.
+      final status = await _driverService.fetchMyAvailabilityStatus();
+      if (!mounted || status == null) return;
+      setState(() => _isAvailable = status == 'available');
     } catch (_) {}
   }
 

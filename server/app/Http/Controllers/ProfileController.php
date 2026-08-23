@@ -47,6 +47,17 @@ class ProfileController extends Controller
             $extra = [
                 'phone' => $driver->phone,
                 'approval_status' => $driver->approval_status,
+                // Driver Home availability control (2026-08-23 follow-up
+                // fix): the operational status MatchingService::
+                // eligibleDriversQuery() actually filters on
+                // ('available'|'busy'|'unavailable'). Exposed here — an
+                // authenticated, ownership-scoped endpoint every driver can
+                // already call — instead of the driver app hitting
+                // GET /get/drivers, which is `permission:crm`-gated and
+                // 403s for a plain driver account. Changing it still goes
+                // through the existing PUT /driver/{id}/status endpoint;
+                // this is read-only exposure, not a new write path.
+                'status' => $driver->status,
                 // Needed so a resumed session (app cold-start with a saved
                 // token — see SplashPage's session check) can route an
                 // unapproved driver to DriverApprovalStatusPage with the

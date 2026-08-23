@@ -9,6 +9,7 @@ import '../models/Driver.dart';
 import '../models/DriverDocument.dart';
 import '../models/DriverRating.dart';
 import '../models/Truck.dart';
+import 'ProfileService.dart';
 import 'config.dart';
 import 'error_messages.dart';
 
@@ -41,20 +42,24 @@ class DriverService {
     }
   }
 
-  /// Driver Home availability control (2026-08-23): the authoritative
-  /// operational status ('available' | 'busy' | 'unavailable') for the
-  /// CURRENTLY LOGGED-IN driver, so screens that just need "my own status"
-  /// don't have to duplicate DriverOffersPage's fetchDriver()+own-id-filter
-  /// logic. Same underlying /get/drivers call and filter, just factored out
-  /// for reuse. Returns null if the driver record can't be resolved (e.g.
-  /// transient network error) — callers should treat that as "unknown",
-  /// not as any particular status.
+  /// Driver Home availability control — bug fix (2026-08-23 follow-up):
+  /// this used to call fetchDriver() -> GET /get/drivers, which is
+  /// `permission:crm`-gated (admin/CRM staff only). A real driver account
+  /// has no such permission, so that call 403'd every time, the status
+  /// stayed null, and _AvailabilityCard permanently disabled its Switch —
+  /// the exact same silent failure DriverOffersPage's own inline copy of
+  /// this logic had (see its _loadMyStatus(), whose try/catch swallowed
+  /// the 403 without surfacing it).
+  ///
+  /// Fixed by reading `status` off GET /me/profile instead — an
+  /// authenticated, ownership-scoped endpoint every driver role can
+  /// already call (ProfileController::show() now includes the driver's
+  /// own `status` in its response). Returns null if the profile can't be
+  /// resolved (e.g. transient network error) — callers should treat that
+  /// as "unknown", not as any particular status.
   Future<String?> fetchMyAvailabilityStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('id');
-    final drivers = await fetchDriver();
-    final mine = drivers.where((d) => d.user_id == userId).toList();
-    return mine.isEmpty ? null : mine.first.status;
+    final profile = await ProfileService().fetchMyProfile();
+    return profile['status']?.toString();
   }
 
   Future<List<Driver>> fetchDeletedDriver() async {
