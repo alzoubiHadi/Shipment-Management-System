@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../API/DriverService.dart';
+import '../API/DriverAvailabilityController.dart';
 import '../API/ShipmentOfferService.dart';
 import '../API/config.dart';
 import '../l10n/app_localizations.dart';
@@ -42,11 +42,15 @@ class DriverOffersPage extends StatefulWidget {
 
 class _DriverOffersPageState extends State<DriverOffersPage> {
   final _offerService = ShipmentOfferService();
-  final _driverService = DriverService();
   late Future<List<ShipmentOffer>> _offersFuture;
   bool _isAccepting = false;
 
-  bool? _isAvailable;
+  // Availability toggle (2026-08-23 follow-up): used to keep its own
+  // locally-fetched copy of the status, same as DriverDashboardScreen's
+  // Work Status card did independently — toggling here left Home stale
+  // until it happened to be reopened, and vice versa. Both now read/write
+  // through the single shared DriverAvailabilityController instead (see
+  // its docblock) so a change from either screen shows up in both.
   bool _isUpdatingAvailability = false;
 
   final _searchController = TextEditingController();
@@ -60,7 +64,6 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
   void initState() {
     super.initState();
     _refresh();
-    _loadMyStatus();
     _loadSaved();
     _loadMyPosition();
     _searchController.addListener(() {
@@ -97,36 +100,16 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
     }
   }
 
-  Future<void> _loadMyStatus() async {
-    try {
-      // Bug fix (2026-08-23 follow-up): this used to call
-      // _driverService.fetchDriver() -> GET /get/drivers, which is
-      // `permission:crm`-gated (admin/CRM staff only) and 403s for a real
-      // driver account — silently, since the catch below swallowed it —
-      // so _isAvailable stayed null and this Switch never even rendered
-      // for an actual driver. fetchMyAvailabilityStatus() now reads the
-      // same field off GET /me/profile instead, which every driver role
-      // can call for their own record. See DriverService.dart.
-      final status = await _driverService.fetchMyAvailabilityStatus();
-      if (!mounted || status == null) return;
-      setState(() => _isAvailable = status == 'available');
-    } catch (_) {}
-  }
-
   Future<void> _toggleAvailability(bool value) async {
     final t = AppLocalizations.of(context)!;
-    setState(() {
-      _isUpdatingAvailability = true;
-      _isAvailable = value;
-    });
+    setState(() => _isUpdatingAvailability = true);
 
-    final result = await DriverService.updateMyStatus(value ? 'available' : 'unavailable');
+    final result = await DriverAvailabilityController.setStatus(value ? 'available' : 'unavailable');
 
     if (!mounted) return;
     setState(() => _isUpdatingAvailability = false);
 
     if (result['success'] != true) {
-      setState(() => _isAvailable = !value);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']?.toString() ?? t.couldNotUpdateStatus), backgroundColor: LightColors.error),
       );
@@ -188,17 +171,40 @@ class _DriverOffersPageState extends State<DriverOffersPage> {
         title: Text(t.availableShipmentsTitle, style: const TextStyle(color: LightColors.cream)),
         iconTheme: const IconThemeData(color: LightColors.cream),
         actions: [
-          if (_isAvailable != null)
-            Padding(
-              padding: const EdgeInsetsDirectional.only(end: 4),
-              child: Row(
-                children: [
-                  Text(_isAvailable! ? t.availabilityAvailable : t.availabilityUnavailable,
-                      style: TextStyle(color: _isAvailable! ? LightColors.success : LightColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                  Switch(value: _isAvailable!, activeColor: LightColors.gold, onChanged: _isUpdatingAvailability ? null : _toggleAvailability),
-                ],
-              ),
-            ),
+          ValueListenableBuilder<String?>(
+            valueListenable: DriverAvailabilityController.status,
+            builder: (context, status, _) {
+              if (status == null) return const SizedBox.shrink();
+              final isBusy = status == 'busy';
+              final isAvailable = status == 'available';
+              return Padding(
+                padding: const EdgeInsetsDirectional.only(end: 4),
+                child: Row(
+                  children: [
+                    Text(
+                      isBusy ? t.availabilityBusy : (isAvailable ? t.availabilityAvailable : t.availabilityUnavailable),
+                      style: TextStyle(
+                        color: isBusy ? LightColors.info : (isAvailable ? LightColors.success : LightColors.muted),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (isBusy)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Icon(Icons.lock_clock_rounded, color: LightColors.info, size: 18),
+                      )
+                    else
+                      Switch(
+                        value: isAvailable,
+                        activeColor: LightColors.gold,
+                        onChanged: _isUpdatingAvailability ? null : _toggleAvailability,
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
         ],
       ),
       body: Stack(

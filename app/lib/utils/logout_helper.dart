@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../API/AuthResponse.dart';
+import '../API/DriverAvailabilityController.dart';
 import '../API/DriverLocationReporter.dart';
 import '../API/DriverService.dart';
 import '../API/config.dart';
@@ -83,6 +84,21 @@ Future<void> confirmAndLogout(BuildContext context, {bool light = false}) async 
   );
 
   if (confirmed != true) return;
+
+  // 2026-08-23 (product decision): a driver who logs out shouldn't keep
+  // showing up as 'available' for new matching while nobody's using the
+  // app. Safe to always force 'unavailable' here (never 'busy') because
+  // logout is already blocked above for as long as hasActiveTrip is true —
+  // by the time this line runs, the driver's status can only ever be
+  // 'available' or 'unavailable'. Best-effort and driver-only, same
+  // fail-silent philosophy as ApiService.logout() right below: logout must
+  // never get stuck on a network hiccup, so a failure here is simply
+  // ignored — the server-side status is left as whatever it was.
+  if (prefs.getString('role') == 'driver') {
+    try {
+      await DriverAvailabilityController.setStatus('unavailable');
+    } catch (_) {}
+  }
 
   // 2026-08-29 (audit item 9): revoke the token server-side before wiping
   // it locally. ApiService.logout() is deliberately silent on failure —

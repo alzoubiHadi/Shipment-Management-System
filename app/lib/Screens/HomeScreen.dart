@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../API/DriverAvailabilityController.dart';
 import '../API/DriverLocationReporter.dart';
 import '../API/NotificationBadge.dart';
 import '../API/PushNotificationSetup.dart';
@@ -107,6 +108,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // accounts. Stopped in dispose() below.
     if (widget.user.role == 'driver') {
       DriverLocationReporter.start();
+      // Single shared source of truth for drivers.status — see
+      // DriverAvailabilityController's docblock. Same lifecycle as the
+      // location reporter above: start here, stop in dispose().
+      DriverAvailabilityController.start();
     }
   }
 
@@ -114,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     if (widget.user.role == 'driver') {
       DriverLocationReporter.stop();
+      DriverAvailabilityController.stop();
     }
     super.dispose();
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../API/DriverAvailabilityController.dart';
 import '../API/DriverLocationReporter.dart';
-import '../API/DriverService.dart';
 import '../API/NotificationBadge.dart';
 import '../API/NotificationService.dart';
 import '../API/ReportService.dart';
@@ -66,17 +66,23 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   // Availability control, restored to Home per product decision
   // (2026-08-23): this used to only live as a small AppBar toggle on the
   // "Available Shipments" page, easy to miss and disconnected from the
-  // rest of the driver's daily status view. Same backend field/endpoint as
-  // that toggle (drivers.status via DriverService.updateMyStatus()) — no
-  // new business logic, just a more visible control for the existing one.
-  String? _availabilityStatus; // null while loading/unknown
+  // rest of the driver's daily status view.
+  //
+  // 2026-08-23 follow-up: that first version kept its own locally-fetched
+  // copy of the status, same as DriverOffersPage's pre-existing toggle did
+  // independently — toggling on one screen left the other stale until it
+  // happened to be reopened. Both now read/write through the single shared
+  // DriverAvailabilityController (started/stopped in HomeScreen alongside
+  // DriverLocationReporter, polls every 45s) instead of each keeping their
+  // own state, so a change from either place — or the backend flipping the
+  // driver to 'busy'/'available' on offer-accept/trip-completion — shows up
+  // everywhere within one poll tick.
   bool _isUpdatingAvailability = false;
 
   @override
   void initState() {
     super.initState();
     _load();
-    _loadAvailability();
   }
 
   void _load() {
@@ -89,19 +95,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     _notificationsFuture.then((result) => NotificationBadge.set(result.unreadCount)).catchError((_) {});
   }
 
-  Future<void> _loadAvailability() async {
-    try {
-      final status = await DriverService().fetchMyAvailabilityStatus();
-      if (mounted) setState(() => _availabilityStatus = status);
-    } catch (_) {
-      // Non-fatal — the rest of the dashboard still renders; the card
-      // simply stays in its loading state until the next refresh.
-    }
-  }
-
   Future<void> _refresh() async {
     setState(_load);
-    await Future.wait([_shipmentsFuture, _reportFuture, _notificationsFuture, _loadAvailability()]);
+    await Future.wait([_shipmentsFuture, _reportFuture, _notificationsFuture, DriverAvailabilityController.refresh()]);
   }
 
   /// [makeAvailable] — true switches the driver to 'available' (eligible
@@ -109,19 +105,14 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   /// the card hides the switch entirely in that state (see _AvailabilityCard).
   Future<void> _toggleAvailability(bool makeAvailable) async {
     final t = AppLocalizations.of(context)!;
-    final previous = _availabilityStatus;
-    setState(() {
-      _isUpdatingAvailability = true;
-      _availabilityStatus = makeAvailable ? 'available' : 'unavailable';
-    });
+    setState(() => _isUpdatingAvailability = true);
 
-    final result = await DriverService.updateMyStatus(makeAvailable ? 'available' : 'unavailable');
+    final result = await DriverAvailabilityController.setStatus(makeAvailable ? 'available' : 'unavailable');
 
     if (!mounted) return;
     setState(() => _isUpdatingAvailability = false);
 
     if (result['success'] != true) {
-      setState(() => _availabilityStatus = previous);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']?.toString() ?? t.couldNotUpdateStatus), backgroundColor: LightColors.error),
       );
@@ -189,10 +180,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: _AvailabilityCard(
-                    status: _availabilityStatus,
-                    updating: _isUpdatingAvailability,
-                    onChanged: _toggleAvailability,
+                  child: ValueListenableBuilder<String?>(
+                    valueListenable: DriverAvailabilityController.status,
+                    builder: (context, status, _) => _AvailabilityCard(
+                      status: status,
+                      updating: _isUpdatingAvailability,
+                      onChanged: _toggleAvailability,
+                    ),
                   ),
                 ),
               ),
